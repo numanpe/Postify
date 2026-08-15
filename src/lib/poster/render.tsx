@@ -5,7 +5,7 @@ import type { AspectRatio } from "@prisma/client";
 
 import { POSTER_DIMENSIONS } from "./dimensions";
 import { detectDirection, type TextDirection } from "./direction";
-import { getPosterFonts } from "./fonts";
+import { getBundledFonts } from "@/lib/fonts";
 import { readableTextColor } from "./contrast";
 
 export interface RenderPosterInput {
@@ -46,7 +46,7 @@ function toDataUri(buffer: Buffer, mimeType: string): string {
 export async function renderPoster(input: RenderPosterInput): Promise<RenderPosterOutput> {
   const { width, height } = POSTER_DIMENSIONS[input.aspectRatio];
   const direction = detectDirection(input.headline);
-  const fonts = await getPosterFonts();
+  const fonts = await getBundledFonts();
 
   // Sized off the SHORTER canvas dimension, not width alone — LANDSCAPE
   // is much wider than it is tall (1920x1080), so width-based sizing

@@ -12,9 +12,31 @@ export interface GenerateCaptionOutput {
   estimatedCostUsd?: number;
 }
 
+export interface GenerateScriptInput {
+  context: CompanyContext;
+  topic: string;
+}
+
+// system #4's structure: hook -> context -> value -> message -> CTA.
+export interface VideoScriptSections {
+  hook: string;
+  context: string;
+  value: string;
+  message: string;
+  cta: string;
+}
+
+export interface GenerateScriptOutput {
+  script: VideoScriptSections;
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+}
+
 export interface TextProvider {
   readonly name: string;
   generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput>;
+  generateScript(input: GenerateScriptInput): Promise<GenerateScriptOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

@@ -1,8 +1,15 @@
 import "server-only";
 
-import type { TextProvider, GenerateCaptionInput, GenerateCaptionOutput } from "./types";
+import type {
+  TextProvider,
+  GenerateCaptionInput,
+  GenerateCaptionOutput,
+  GenerateScriptInput,
+  GenerateScriptOutput,
+  VideoScriptSections,
+} from "./types";
 import { ProviderError } from "./types";
-import { buildCaptionPrompt } from "./prompt";
+import { buildCaptionPrompt, buildScriptPrompt } from "./prompt";
 import { fetchWithRetry } from "../http";
 
 const MODEL = "claude-3-5-haiku-20241022";
@@ -15,14 +22,26 @@ interface AnthropicMessagesResponse {
   usage?: { input_tokens?: number; output_tokens?: number };
 }
 
+const SCRIPT_SECTION_KEYS: (keyof VideoScriptSections)[] = ["hook", "context", "value", "message", "cta"];
+
+// Claude sometimes wraps JSON in a ```json ... ``` fence despite being
+// told not to — strip it rather than fail the whole generation on a
+// cosmetic formatting quirk.
+function stripCodeFence(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  return match ? match[1] : text;
+}
+
 export class AnthropicTextProvider implements TextProvider {
   readonly name = "Anthropic";
 
   constructor(private readonly apiKey: string) {}
 
-  async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
-    const { system, user } = buildCaptionPrompt(context, topic);
-
+  private async messagesRequest(
+    system: string,
+    user: string,
+    maxTokens = 150,
+  ): Promise<{ content: string; estimatedCostUsd?: number }> {
     let response: Response;
     try {
       response = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
@@ -36,7 +55,7 @@ export class AnthropicTextProvider implements TextProvider {
           model: MODEL,
           system,
           messages: [{ role: "user", content: user }],
-          max_tokens: 150,
+          max_tokens: maxTokens,
         }),
       });
     } catch (error) {
@@ -69,6 +88,37 @@ export class AnthropicTextProvider implements TextProvider {
         (usage.output_tokens ?? 0) * PRICE_PER_OUTPUT_TOKEN
       : undefined;
 
-    return { text, providerName: this.name, model: MODEL, estimatedCostUsd };
+    return { content: text, estimatedCostUsd };
+  }
+
+  async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
+    const { system, user } = buildCaptionPrompt(context, topic);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user);
+    return { text: content, providerName: this.name, model: MODEL, estimatedCostUsd };
+  }
+
+  async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
+    const { system, user } = buildScriptPrompt(context, topic);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 500);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed script JSON.", error);
+    }
+
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new ProviderError(this.name, "Anthropic returned an unexpected script format.");
+    }
+    const record = parsed as Record<string, unknown>;
+    for (const key of SCRIPT_SECTION_KEYS) {
+      if (typeof record[key] !== "string" || !record[key]) {
+        throw new ProviderError(this.name, `Anthropic's script response is missing "${key}".`);
+      }
+    }
+
+    const script = record as unknown as VideoScriptSections;
+    return { script, providerName: this.name, model: MODEL, estimatedCostUsd };
   }
 }

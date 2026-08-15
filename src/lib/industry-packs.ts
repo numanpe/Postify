@@ -3,17 +3,23 @@ import { INDUSTRIES } from "@/lib/industries";
 export type Industry = (typeof INDUSTRIES)[number];
 
 // Thin but genuinely differentiated per-industry content: tone plus
-// hook/value-prop/CTA templates. This is the "shared foundation" layer
-// CLAUDE.md describes — combined with a company's own profile and
-// Creative DNA at generation time, not a per-customer trained model.
-// Depth grows as later phases (poster/video pipelines) consume the same
-// packs; Phase 2 only needs enough to make text generation genuinely
+// hook/value-prop/CTA templates (captions, Phase 2) and
+// context/message templates (video scripts, Phase 4). This is the
+// "shared foundation" layer CLAUDE.md describes — combined with a
+// company's own profile and Creative DNA at generation time, not a
+// per-customer trained model. Depth grows as later phases consume the
+// same packs; each phase only adds enough to make its output genuinely
 // differ by industry, not a deep knowledge base.
 export interface IndustryPack {
   toneDefault: string;
   hooks: string[];
   valueProps: string[];
   ctas: string[];
+  // Video script sections (system #4's hook -> context -> value ->
+  // message -> CTA structure). hooks/valueProps/ctas above are reused
+  // for those three sections; these two are script-specific.
+  scriptContexts: string[]; // sets up the situation/problem before the value prop
+  scriptMessages: string[]; // ties directly to the specific topic being promoted
 }
 
 export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
@@ -34,6 +40,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Stop by {{company}} and taste the difference fresh makes.",
       "Ask us about {{topic}} on your next visit to {{company}}.",
     ],
+    scriptContexts: [
+      "Every season brings its own challenges — and its own chance to do right by the land.",
+      "Good food starts long before it reaches your table.",
+      "Farming rewards patience, and {{company}} has never taken shortcuts.",
+    ],
+    scriptMessages: [
+      "{{topic}} is grown using methods refined over years on this land, not rushed for a season.",
+      "When {{company}} puts its name on {{topic}}, that's a promise about how it was grown.",
+      "{{topic}} reflects what {{company}} has always believed: real food takes real care.",
+    ],
   },
   "Construction & Engineering": {
     toneDefault: "confident, precise, safety-and-craftsmanship focused",
@@ -51,6 +67,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Talk to {{company}} about your next project.",
       "Get a quote from {{company}} today.",
       "See how {{company}} can bring {{topic}} to life.",
+    ],
+    scriptContexts: [
+      "Every build starts with a plan — and the discipline to follow it through.",
+      "The gap between a good build and a great one is in the details most people never see.",
+      "Deadlines and standards don't have to be a trade-off.",
+    ],
+    scriptMessages: [
+      "{{topic}} was planned, engineered, and inspected the same way {{company}} handles every job — thoroughly.",
+      "From the first blueprint to the final walkthrough, {{topic}} carries {{company}}'s standard.",
+      "{{topic}} is proof that {{company}} builds the way it promises to.",
     ],
   },
   Education: {
@@ -70,6 +96,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Enroll now and see the difference at {{company}}.",
       "Talk to our team at {{company}} about {{topic}}.",
     ],
+    scriptContexts: [
+      "Every student learns differently — the right support makes all the difference.",
+      "Progress doesn't always look the way you expect it to.",
+      "Confidence is built one real win at a time.",
+    ],
+    scriptMessages: [
+      "{{topic}} at {{company}} is designed around how each student actually learns, not a one-size lesson plan.",
+      "{{company}} built {{topic}} to turn small wins into lasting confidence.",
+      "{{topic}} gives students the support to grow at their own pace, with {{company}} alongside them.",
+    ],
   },
   "Real Estate": {
     toneDefault: "polished, aspirational, trustworthy",
@@ -87,6 +123,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Schedule a viewing with {{company}} today.",
       "Contact {{company}} to start your search.",
       "Ask {{company}} about {{topic}} — we're here to help.",
+    ],
+    scriptContexts: [
+      "Finding the right place is about more than square footage.",
+      "The market moves fast — having someone who knows it well matters.",
+      "A home should fit the life you're actually living.",
+    ],
+    scriptMessages: [
+      "{{topic}} is where {{company}}'s local knowledge turns a search into a decision you feel good about.",
+      "With {{topic}}, {{company}} handles the details so you can focus on what matters.",
+      "{{topic}} reflects what {{company}} does best: matching people with the right place, honestly.",
     ],
   },
   Healthcare: {
@@ -106,6 +152,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Reach out to {{company}} to learn more about {{topic}}.",
       "Your wellbeing matters — talk to {{company}} today.",
     ],
+    scriptContexts: [
+      "Good care starts with being heard, not rushed.",
+      "Health decisions feel different when you trust who's guiding them.",
+      "Prevention and attention go further than most people expect.",
+    ],
+    scriptMessages: [
+      "{{topic}} at {{company}} means real time and real attention, not a rushed appointment.",
+      "{{company}} approaches {{topic}} the way every patient deserves: carefully, and without guesswork.",
+      "{{topic}} is part of how {{company}} earns your trust, one visit at a time.",
+    ],
   },
   "Retail & E-commerce": {
     toneDefault: "energetic, direct, deal-forward",
@@ -123,6 +179,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Shop {{topic}} at {{company}} now.",
       "Don't miss it — check out {{company}} today.",
       "Head to {{company}} before it's gone.",
+    ],
+    scriptContexts: [
+      "You know the feeling when you find exactly what you were looking for.",
+      "Good picks don't stick around long.",
+      "Shopping should feel easy, not like a chore.",
+    ],
+    scriptMessages: [
+      "{{topic}} just landed at {{company}}, and it's exactly the kind of pick our customers ask for.",
+      "{{company}} chose {{topic}} because it's the real deal, not just another item on a shelf.",
+      "{{topic}} is what happens when {{company}} actually listens to what you want.",
     ],
   },
   "Hospitality & Food": {
@@ -142,6 +208,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Come taste {{topic}} at {{company}} this week.",
       "Order from {{company}} and taste the difference.",
     ],
+    scriptContexts: [
+      "The best meals are the ones that feel like they were made just for you.",
+      "Good food is worth doing properly, from the first ingredient to the last plate.",
+      "Some places just feel like they were made for gathering.",
+    ],
+    scriptMessages: [
+      "{{topic}} at {{company}} is made the way it should be — fresh, unhurried, and worth the seat.",
+      "{{company}} built {{topic}} around real ingredients, not shortcuts.",
+      "{{topic}} is {{company}}'s way of making an ordinary meal feel like an occasion.",
+    ],
   },
   "Professional Services": {
     toneDefault: "clear, competent, no-nonsense",
@@ -160,6 +236,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Get in touch with {{company}} about {{topic}}.",
       "Let {{company}} take {{topic}} off your plate.",
     ],
+    scriptContexts: [
+      "The right advice at the right time changes everything.",
+      "Most problems get simpler once someone who knows the field looks at them.",
+      "You shouldn't need a translator for your own decisions.",
+    ],
+    scriptMessages: [
+      "{{topic}} is where {{company}} turns a complicated problem into a clear next step.",
+      "{{company}} approaches {{topic}} the same way with every client: straight answers, real expertise.",
+      "{{topic}} exists because {{company}} believes good advice shouldn't be complicated.",
+    ],
   },
   Other: {
     toneDefault: "clear, genuine, professional",
@@ -177,6 +263,16 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Learn more at {{company}} today.",
       "Get in touch with {{company}} to find out more.",
       "Check out {{company}} for more on {{topic}}.",
+    ],
+    scriptContexts: [
+      "Every business has a story behind what it makes.",
+      "The details are usually where the real effort shows.",
+      "Good work deserves a proper introduction.",
+    ],
+    scriptMessages: [
+      "{{topic}} is the kind of thing {{company}} puts real thought into.",
+      "{{company}} built {{topic}} to actually be useful, not just new.",
+      "{{topic}} says a lot about how {{company}} does things.",
     ],
   },
 };

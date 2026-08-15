@@ -24,6 +24,9 @@ export default async function AppLayout({
           <Link href="/poster" className="font-medium text-neutral-700 hover:text-neutral-900">
             Poster Studio
           </Link>
+          <Link href="/video" className="font-medium text-neutral-700 hover:text-neutral-900">
+            Video Studio
+          </Link>
           <Link href="/media" className="font-medium text-neutral-700 hover:text-neutral-900">
             Media Library
           </Link>

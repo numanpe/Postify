@@ -9,17 +9,19 @@ export default async function PosterPage() {
   const { company } = await requireCompany();
 
   const [photoAssets, posters] = await Promise.all([
-    // Excludes posterOutput assets — a generated poster is itself a
-    // MediaAsset, but offering it back as a "photo" background would
-    // let a poster get composited into another poster (confusing, and
-    // exactly the kind of synthetic-on-synthetic output CLAUDE.md's
-    // authenticity rule is against). Only genuinely uploaded photos
-    // belong here.
+    // Excludes posterOutput and brandKitLogo assets — a generated
+    // poster or the brand logo are both real MediaAssets, but offering
+    // either back as a "photo" background would let a poster get
+    // composited into another poster, or the logo used as a background
+    // photo (confusing, and exactly the kind of synthetic-on-synthetic
+    // output CLAUDE.md's authenticity rule is against). Only genuinely
+    // uploaded photos belong here.
     db.mediaAsset.findMany({
       where: {
         companyId: company.id,
         mimeType: { startsWith: "image/" },
         posterOutput: null,
+        brandKitLogo: null,
       },
       orderBy: { createdAt: "desc" },
       select: { id: true, fileName: true },

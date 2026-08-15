@@ -3,7 +3,8 @@
 // schema (structure only — the confidence-score learning logic itself is
 // Phase 7), Media Library. Phase 2 (AI Content Director) adds
 // ProviderCredential for BYOK generation. Phase 3 (Poster Engine) adds
-// Poster. See CLAUDE.md for the full phase plan.
+// Poster. Phase 4 (Video Engine) adds Video/VideoScene. See CLAUDE.md
+// for the full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -59,6 +60,7 @@ model Company {
   mediaAssets         MediaAsset[]
   providerCredentials ProviderCredential[]
   posters             Poster[]
+  videos              Video[]
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -133,9 +135,11 @@ model MediaAsset {
 
   createdAt DateTime @default(now())
 
-  brandKitLogo BrandKit?  @relation("BrandKitLogo")
-  posterOutput Poster?    @relation("PosterOutput")
-  posterInputs Poster[]   @relation("PosterBackgroundSource")
+  brandKitLogo BrandKit?    @relation("BrandKitLogo")
+  posterOutput Poster?      @relation("PosterOutput")
+  posterInputs Poster[]     @relation("PosterBackgroundSource")
+  videoOutput  Video?       @relation("VideoOutput")
+  videoScenes  VideoScene[]
 
   @@index([companyId])
 }
@@ -179,6 +183,59 @@ model Poster {
   createdAt DateTime @default(now())
 
   @@index([companyId])
+}
+
+enum SceneKind {
+  REAL_PHOTO
+  REAL_VIDEO
+  AI_STILL // Phase 3's ImageProvider, used as supplementary B-roll among
+  // real media — never the sole technique. True AI-generated *moving*
+  // clips (Runway/Luma-style) are an explicitly deferred enhancement,
+  // not built here.
+}
+
+// A rendered video. Like Poster, the actual output (`asset`) is a real
+// MP4 produced by src/lib/video/ — no placeholder is ever saved here.
+// `script` is the structured hook/context/value/message/CTA sections
+// used to generate narration and captions, kept for reference/editing,
+// not just thrown away after render.
+model Video {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  assetId String     @unique
+  asset   MediaAsset @relation("VideoOutput", fields: [assetId], references: [id], onDelete: Cascade)
+
+  topic        String
+  script       Json
+  aspectRatio  AspectRatio
+  // BYOK only (OpenAI TTS + Whisper word timestamps) — the free tier
+  // ships without spoken narration. See README.md for why.
+  hasNarration Boolean
+
+  scenes VideoScene[]
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// Provenance of which source media went into a rendered video, in
+// order. mediaAsset is nullable + SetNull (not Cascade) because the
+// final MP4 already has the footage baked in — losing a source photo's
+// DB row shouldn't break a finished video, only its edit history.
+model VideoScene {
+  id      String @id @default(cuid())
+  videoId String
+  video   Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  order        Int
+  kind         SceneKind
+  mediaAssetId String?
+  mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
+
+  @@index([videoId])
 }
 
 enum AiProviderKind {

@@ -1,6 +1,12 @@
 import "server-only";
 
-import type { TextProvider, GenerateCaptionInput, GenerateCaptionOutput } from "./types";
+import type {
+  TextProvider,
+  GenerateCaptionInput,
+  GenerateCaptionOutput,
+  GenerateScriptInput,
+  GenerateScriptOutput,
+} from "./types";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -16,14 +22,19 @@ function capitalizeSentences(text: string): string {
 }
 
 // Deterministic, not random: same company + topic always produces the
-// same caption. That's a feature (consistent brand voice) and it keeps
-// this honestly "rule-based" rather than faking AI-style variation.
+// same caption/script. That's a feature (consistent brand voice) and
+// it keeps this honestly "rule-based" rather than faking AI-style
+// variation.
 function pickIndex(seed: string, length: number): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
     hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   }
   return hash % length;
+}
+
+function pick(seed: string, tag: string, options: string[], vars: Record<string, string>): string {
+  return capitalizeSentences(fillTemplate(options[pickIndex(`${seed}:${tag}`, options.length)], vars));
 }
 
 // The zero-key free path: industry pack + company context filled into
@@ -36,18 +47,32 @@ export class TemplateTextProvider implements TextProvider {
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
     const seed = `${companyId}:${topic}`;
 
-    const hook = fillTemplate(pack.hooks[pickIndex(`${seed}:h`, pack.hooks.length)], vars);
-    const valueProp = fillTemplate(
-      pack.valueProps[pickIndex(`${seed}:v`, pack.valueProps.length)],
-      vars,
-    );
-    const cta = fillTemplate(pack.ctas[pickIndex(`${seed}:c`, pack.ctas.length)], vars);
+    const hook = pick(seed, "h", pack.hooks, vars);
+    const valueProp = pick(seed, "v", pack.valueProps, vars);
+    const cta = pick(seed, "c", pack.ctas, vars);
     const nicheLine = secondaryNiches.length
       ? ` Specializing in ${secondaryNiches.join(", ")}.`
       : "";
 
-    const text = capitalizeSentences(`${hook} ${valueProp}${nicheLine} ${cta}`.replace(/\s+/g, " ").trim());
+    const text = `${hook} ${valueProp}${nicheLine} ${cta}`.replace(/\s+/g, " ").trim();
 
     return { text, providerName: this.name };
+  }
+
+  async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
+    const { pack, name, secondaryNiches, companyId } = context;
+    const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
+    const seed = `${companyId}:${topic}:script`;
+
+    return {
+      script: {
+        hook: pick(seed, "h", pack.hooks, vars),
+        context: pick(seed, "sc", pack.scriptContexts, vars),
+        value: pick(seed, "v", pack.valueProps, vars),
+        message: pick(seed, "sm", pack.scriptMessages, vars),
+        cta: pick(seed, "c", pack.ctas, vars),
+      },
+      providerName: this.name,
+    };
   }
 }

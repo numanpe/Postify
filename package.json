@@ -14,16 +14,19 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@prisma/client": "^6.2.1",
+    "@resvg/resvg-js": "^2.6.2",
     "bcryptjs": "^2.4.3",
     "next": "^16.3.1",
     "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "satori": "^0.29.0",
+    "server-only": "^0.0.1",
     "sharp": "^0.35.3",
-    "zod": "^3.24.1",
-    "@resvg/resvg-js": "^2.6.2"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
