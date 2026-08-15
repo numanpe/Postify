@@ -1,6 +1,7 @@
 import "server-only";
 
 import { processCampaignItems } from "./process-campaign-items";
+import { processPublishJobs } from "./process-publish-jobs";
 
 // Best-effort: kicks off processing without the caller waiting for it.
 // In a long-running Node process (local dev, a persistent host) this
@@ -13,5 +14,14 @@ import { processCampaignItems } from "./process-campaign-items";
 export function triggerCampaignProcessing(): void {
   void processCampaignItems().catch((error: unknown) => {
     console.error("Background campaign processing failed:", error);
+  });
+}
+
+// Same reasoning as triggerCampaignProcessing — see
+// src/app/api/jobs/process-publish-jobs/route.ts for the real
+// reliability mechanism.
+export function triggerPublishProcessing(): void {
+  void processPublishJobs().catch((error: unknown) => {
+    console.error("Background publish processing failed:", error);
   });
 }

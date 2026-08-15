@@ -3,6 +3,10 @@
     {
       "path": "/api/jobs/process-campaign-items",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/jobs/process-publish-jobs",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

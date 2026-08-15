@@ -4,8 +4,9 @@
 // Phase 7), Media Library. Phase 2 (AI Content Director) adds
 // ProviderCredential for BYOK generation. Phase 3 (Poster Engine) adds
 // Poster. Phase 4 (Video Engine) adds Video/VideoScene. Phase 5
-// (Campaigns & Calendar) adds Campaign/CampaignItem. See CLAUDE.md for
-// the full phase plan.
+// (Campaigns & Calendar) adds Campaign/CampaignItem. Phase 6 (Publishing)
+// adds SocialAccount/PublishJob/PublicAssetLink. See CLAUDE.md for the
+// full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -43,17 +44,17 @@ enum Locale {
 }
 
 model Company {
-  id  String @id @default(cuid())
+  id              String   @id @default(cuid())
   // Onboarding is intentionally light in Phase 1: a company just picks a
   // primary industry + free-text secondary niches. Phase 2's industry
   // packs (src/lib/industry-packs.ts) key off primaryIndustry to make
   // these values actually shape generated content.
-  name              String
-  primaryIndustry   String
-  secondaryNiches   String[] @default([])
-  locale            Locale   @default(EN)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  name            String
+  primaryIndustry String
+  secondaryNiches String[] @default([])
+  locale          Locale   @default(EN)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   members             CompanyMember[]
   brandKit            BrandKit?
@@ -63,6 +64,8 @@ model Company {
   posters             Poster[]
   videos              Video[]
   campaigns           Campaign[]
+  socialAccounts      SocialAccount[]
+  publishJobs         PublishJob[]
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -121,11 +124,11 @@ model CreativeDna {
 // only — see ProviderCredential/TextProvider). Do not fake those fields
 // here until that provider exists.
 model MediaAsset {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   uploadedById String?
-  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   storageKey  String  @unique
   fileName    String
@@ -137,11 +140,12 @@ model MediaAsset {
 
   createdAt DateTime @default(now())
 
-  brandKitLogo BrandKit?    @relation("BrandKitLogo")
-  posterOutput Poster?      @relation("PosterOutput")
-  posterInputs Poster[]     @relation("PosterBackgroundSource")
-  videoOutput  Video?       @relation("VideoOutput")
+  brandKitLogo BrandKit?         @relation("BrandKitLogo")
+  posterOutput Poster?           @relation("PosterOutput")
+  posterInputs Poster[]          @relation("PosterBackgroundSource")
+  videoOutput  Video?            @relation("VideoOutput")
   videoScenes  VideoScene[]
+  publicLinks  PublicAssetLink[]
 
   @@index([companyId])
 }
@@ -174,17 +178,18 @@ model Poster {
   subhead  String?
   cta      String?
 
-  aspectRatio      AspectRatio
-  backgroundSource BackgroundSource
+  aspectRatio       AspectRatio
+  backgroundSource  BackgroundSource
   // Only set when backgroundSource is PHOTO or AI-with-a-reference —
   // SetNull rather than Cascade because deleting the source photo
   // shouldn't delete a poster that already baked it into a final PNG.
   backgroundAssetId String?
-  backgroundAsset   MediaAsset? @relation("PosterBackgroundSource", fields: [backgroundAssetId], references: [id], onDelete: SetNull)
+  backgroundAsset   MediaAsset?      @relation("PosterBackgroundSource", fields: [backgroundAssetId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   campaignItem CampaignItem?
+  publishJobs  PublishJob[]
 
   @@index([companyId])
 }
@@ -326,4 +331,99 @@ model ProviderCredential {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, provider])
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+}
+
+// A connected Facebook Page or Instagram Business account. externalAccountId
+// is the Page ID (FACEBOOK) or IG Business Account ID (INSTAGRAM) — never a
+// personal profile, per Meta's Page/Business-only publishing model.
+// accessToken is the long-lived (60-day) Page access token, AES-256-GCM
+// encrypted exactly like ProviderCredential.encryptedKey — never stored or
+// logged in plaintext, never sent to the client after connect. Only ever
+// touch this table through src/lib/actions/social-accounts.ts.
+model SocialAccount {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  platform          SocialPlatform
+  externalAccountId String
+  displayName       String
+  encryptedToken    String
+  tokenExpiresAt    DateTime
+
+  connectedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  publishJobs PublishJob[]
+
+  @@unique([companyId, platform, externalAccountId])
+  @@index([companyId])
+}
+
+enum PublishStatus {
+  DRAFT // created, not yet queued
+  SCHEDULED // queued for a future scheduledFor time
+  PUBLISHING // a job is actively attempting the publish call
+  PUBLISHED // confirmed live — externalPostId/externalPostUrl are set
+  FAILED // exhausted retries — needs a manual retry after the underlying issue is fixed
+}
+
+// One attempt to publish an existing Poster to a connected SocialAccount.
+// Retry/backoff bookkeeping mirrors CampaignItem (Phase 5) — same reasoning:
+// one job type, so a dedicated queue table would be premature. posterId is
+// SetNull (not Cascade) because losing the source poster shouldn't erase a
+// job's publish history/errorMessage.
+model PublishJob {
+  id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  posterId        String?
+  poster          Poster?       @relation(fields: [posterId], references: [id], onDelete: SetNull)
+
+  caption      String
+  status       PublishStatus @default(DRAFT)
+  scheduledFor DateTime?
+
+  externalPostId  String?
+  externalPostUrl String?
+
+  errorMessage  String?
+  retryCount    Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status, nextAttemptAt])
+}
+
+// A short-lived, unguessable, UNAUTHENTICATED public URL for exactly one
+// MediaAsset — created only immediately before a publish attempt and
+// deleted/expired right after. This exists solely because Instagram's
+// Graph API media-container endpoint (POST /{ig-id}/media) requires a
+// publicly-fetchable image_url and cannot accept a direct binary upload,
+// unlike every other route in this app (which all require a session — see
+// src/app/api/storage/[...key]/route.ts). Never widen this token's
+// lifetime or scope "for convenience" — it is a deliberate, narrow
+// exception to CLAUDE.md's data-isolation rule, not a general-purpose
+// public file host.
+model PublicAssetLink {
+  id           String     @id @default(cuid())
+  mediaAssetId String
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
 }

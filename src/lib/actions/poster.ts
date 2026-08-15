@@ -36,9 +36,13 @@ const PosterSchema = z.object({
     .transform((value) => value || undefined),
   aspectRatio: z.enum(["SQUARE", "STORY", "LANDSCAPE"]),
   backgroundSource: z.enum(["BRAND", "PHOTO", "AI"]),
+  // .nullish() (not .optional()) — formData.get() returns null, not
+  // undefined, for a field that's absent from the form entirely (the
+  // <select> here is conditionally rendered only when the company has
+  // uploaded photos), and .optional() alone rejects null.
   backgroundAssetId: z
     .string()
-    .optional()
+    .nullish()
     .transform((value) => value || undefined),
 });
 

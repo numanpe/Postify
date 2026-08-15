@@ -30,6 +30,9 @@ export default async function AppLayout({
           <Link href="/campaigns" className="font-medium text-neutral-700 hover:text-neutral-900">
             Campaigns
           </Link>
+          <Link href="/publish" className="font-medium text-neutral-700 hover:text-neutral-900">
+            Publish
+          </Link>
           <Link href="/media" className="font-medium text-neutral-700 hover:text-neutral-900">
             Media Library
           </Link>
