@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postify
+      POSTGRES_PASSWORD: postify
+      POSTGRES_DB: postify
+    ports:
+      - "5432:5432"
+    volumes:
+      - postify_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postify_postgres_data:

@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# env
+.env
+.env.local
+.env.*.local
+
+# prisma
+/prisma/generated
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+next-env.d.ts
+*.tsbuildinfo
+
+# local uploads (dev media storage before real object storage is wired up)
+/storage/local

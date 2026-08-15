@@ -1,0 +1,12 @@
+// Postify — data model
+// Phase 1 adds the first real models (User, Company, Media). Intentionally
+// empty of models until then — see CLAUDE.md Phase 1 acceptance criteria.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
