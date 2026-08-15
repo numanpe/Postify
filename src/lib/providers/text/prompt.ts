@@ -54,3 +54,33 @@ export function buildScriptPrompt(
 
   return { system, user };
 }
+
+// A coherent multi-day plan, not itemCount unrelated topics — asks
+// explicitly for a marketing arc (announce/build interest/prove value/
+// create urgency/etc.) across the requested number of days.
+export function buildCampaignPlanPrompt(
+  context: CompanyContext,
+  objective: string,
+  itemCount: number,
+): { system: string; user: string } {
+  const { name, industry, tone, secondaryNiches } = context;
+
+  const nicheLine = secondaryNiches.length
+    ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
+    : "";
+
+  const system = [
+    `You are a marketing campaign strategist for a company in the ${industry} industry.`,
+    `Brand tone: ${tone}.`,
+    `Plan exactly ${itemCount} distinct daily post angles for one campaign with a single objective.`,
+    "The angles must form a coherent arc across the days (e.g. announce, build interest, highlight a benefit,",
+    "social proof, create urgency, recap) — not the same idea repeated, and not unrelated topics.",
+    "Each angle is a short phrase (under 12 words) describing that day's specific focus, not full ad copy.",
+    "Never invent specific facts (prices, dates, promises) that weren't given to you.",
+    `Respond with ONLY a JSON object: {"angles": ["...", ...]} with exactly ${itemCount} strings in order.`,
+  ].join(" ");
+
+  const user = `Company: ${name}.${nicheLine}\n\nCampaign objective: ${objective}`;
+
+  return { system, user };
+}

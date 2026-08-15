@@ -3,8 +3,9 @@
 // schema (structure only — the confidence-score learning logic itself is
 // Phase 7), Media Library. Phase 2 (AI Content Director) adds
 // ProviderCredential for BYOK generation. Phase 3 (Poster Engine) adds
-// Poster. Phase 4 (Video Engine) adds Video/VideoScene. See CLAUDE.md
-// for the full phase plan.
+// Poster. Phase 4 (Video Engine) adds Video/VideoScene. Phase 5
+// (Campaigns & Calendar) adds Campaign/CampaignItem. See CLAUDE.md for
+// the full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -61,6 +62,7 @@ model Company {
   providerCredentials ProviderCredential[]
   posters             Poster[]
   videos              Video[]
+  campaigns           Campaign[]
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -182,7 +184,65 @@ model Poster {
 
   createdAt DateTime @default(now())
 
+  campaignItem CampaignItem?
+
   @@index([companyId])
+}
+
+enum CampaignItemStatus {
+  PENDING // queued, not yet attempted
+  GENERATING // a job is actively working on it
+  READY // generated successfully, awaiting review
+  FAILED // exhausted retries — needs a manual retry after the underlying issue is fixed
+  APPROVED // reviewed and approved by the user
+}
+
+// A campaign is a coherent multi-day content plan, not N independent
+// generations: generateCampaignPlan produces one set of distinct daily
+// angles up front, and each CampaignItem reuses the *existing* poster
+// pipeline with its own angle as the topic. Video items are deferred —
+// posters only for Phase 5, to prove the job/retry/calendar machinery
+// without also carrying video's much longer per-item render time.
+model Campaign {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name      String
+  objective String
+
+  createdAt DateTime @default(now())
+
+  items CampaignItem[]
+
+  @@index([companyId])
+}
+
+// Background-job bookkeeping lives directly on the row (retryCount,
+// nextAttemptAt) rather than a separate generic job-queue table — one
+// job type (generate this item's poster), so a dedicated queue
+// abstraction would be premature. See src/lib/jobs/ for the processor.
+model CampaignItem {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  scheduledDate DateTime
+  angle         String // this day's specific sub-topic, from the campaign plan
+  status        CampaignItemStatus @default(PENDING)
+
+  posterId String? @unique
+  poster   Poster? @relation(fields: [posterId], references: [id], onDelete: SetNull)
+
+  errorMessage  String?
+  retryCount    Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([status, nextAttemptAt])
 }
 
 enum SceneKind {

@@ -4,9 +4,10 @@ AI marketing/content platform. Built per the phased spec in `CLAUDE.md`.
 
 ## Status
 
-**Phases 1–4 (Foundation, AI Content Director text, Poster Engine, Video
-Engine) implemented and verified end-to-end against a real Postgres.**
-See `CLAUDE.md` for the full spec, phase table, and working rules.
+**Phases 1–5 (Foundation, AI Content Director text, Poster Engine, Video
+Engine, Campaigns & Calendar) implemented and verified end-to-end
+against a real Postgres.** See `CLAUDE.md` for the full spec, phase
+table, and working rules.
 
 - Phase 0 (Audit) — done. Repo was empty at audit time; no legacy code to
   classify Keep/Refactor/Delete.
@@ -97,6 +98,48 @@ See `CLAUDE.md` for the full spec, phase table, and working rules.
   scrubbing in the player works less smoothly than a CDN-backed video
   host would — acceptable for the short (15-30s) clips this produces,
   flagged rather than silently accepted as ideal.
+- Phase 5 (Campaigns & Calendar) — done. Orchestration on top of the
+  existing pipelines rather than a new generation engine: an objective
+  + date range produces one `generateCampaignPlan` call (extends Phase
+  2's `TextProvider` again) up front — a coherent announce -> feature ->
+  social-proof -> urgency -> recap arc, not N unrelated topics — then
+  each day reuses the *existing* poster pipeline with its own angle as
+  the topic. Campaign items are posters only for v1 (SQUARE, free brand
+  gradient); video items and background-source variety are deferred, to
+  keep the new job/retry machinery this phase adds provably correct
+  rather than also re-testing variety Phase 3/4 already covers.
+  Background jobs are a plain Postgres-backed table (retryCount/
+  nextAttemptAt directly on `CampaignItem`, no Redis/queue service —
+  matches CLAUDE.md's simple-stack preference and there's exactly one
+  job type so a generic queue abstraction would be premature), with
+  three trigger paths: fire-and-forget right after campaign creation
+  (a head start, not a delivery guarantee on serverless — see
+  `src/lib/jobs/trigger.ts`), a `CRON_SECRET`-gated
+  `/api/jobs/process-campaign-items` route for a real external
+  scheduler in production (`vercel.json` wires this to Vercel Cron;
+  any other host needs its own scheduler hitting the same URL with the
+  bearer token), and a manual "Process now" button — which was also
+  this session's actual verification path, since there's no way to
+  trigger a real external cron without deploying. Approval workflow
+  (PENDING -> READY -> APPROVED, or FAILED) and per-item edit
+  (change the angle text, regenerate) / remove are real status
+  transitions, not fake UI state.
+  Verified against live Neon: created a real 5-day campaign and
+  confirmed the generated angles were genuinely distinct (not the same
+  idea repeated) and followed the intended arc; processed the queue to
+  completion and **visually inspected two of the rendered posters** to
+  confirm they're real, correctly-branded output, not placeholders;
+  exercised approve, edit+regenerate (confirmed the regenerated poster
+  is genuinely different, not the same image reused), and remove
+  end-to-end. The retry/backoff logic specifically was tested by
+  directly seeding `CampaignItem` rows in two states — one eligible for
+  retry (`retryCount` below the cap) and one at the max-retry cutoff —
+  then confirming the processor picked up and successfully retried the
+  first while correctly leaving the second alone (still `FAILED`,
+  unresolved without a manual retry) rather than looping on it forever.
+  The `CRON_SECRET` auth gate on the scheduler route was verified
+  directly (no token -> 401, wrong token -> 401, correct token -> 200
+  with a real result). Test data deleted after.
 - Auto-tagging in the Media Library is still structural only (mime
   type, dimensions, orientation) — semantic tags need a vision
   provider, not added yet.
@@ -160,11 +203,11 @@ about separate per-voice-model licensing.
   library (`assets/music/`, CC-BY, mood-mapped by industry) with real
   ffmpeg `sidechaincompress` auto-ducking, and a quality gate built on
   ffmpeg's own `blackdetect`/`volumedetect` analysis filters.
+- **Background jobs** (`src/lib/jobs/`) — a plain Postgres-backed queue
+  (retry bookkeeping directly on `CampaignItem`), not Redis/BullMQ or a
+  hosted queue service. Poster/video generation outside of campaigns
+  still run inline in the request (fast enough not to need queuing).
 - **Tailwind CSS** — mobile-first styling.
-- Background worker is intentionally not built yet — poster/video
-  generation both run inline in the request (video renders in under a
-  minute for a short clip; this will need to move to a background job
-  before Phase 5's batch campaign generation).
 
 ## Local setup
 
@@ -188,6 +231,13 @@ pooler (e.g. Neon's default pooled endpoint) — migrations need the
 unpooled connection. For the Docker Postgres above, both variables can
 point at the same URL.
 
+Campaign background jobs work locally without any extra setup — every
+campaign creation and edit/retry action kicks off a best-effort
+processing pass immediately, and the "Process now" button on a
+campaign page always works. `CRON_SECRET` only matters for wiring a
+real external scheduler in production (see `vercel.json` for the
+Vercel Cron example); leave it unset in local dev.
+
 ## Structure
 
 ```
@@ -196,21 +246,26 @@ src/app/                     Next.js App Router routes
   (onboarding)/create-company             first company setup
   (app)/media, (app)/brand-kit            company-scoped, behind proxy.ts
   (app)/studio, (app)/settings, (app)/poster, (app)/video   generation, BYOK keys
+  (app)/campaigns, (app)/campaigns/[id]   campaign list + calendar grid
   api/auth/[...nextauth]                  Auth.js route handler
   api/storage/[...key]                    serves uploaded media (membership-checked)
+  api/jobs/process-campaign-items         CRON_SECRET-gated batch job processor
 src/lib/
   providers/text/, providers/image/, providers/voice/   provider abstractions + adapters
-  poster/                     Satori+resvg render pipeline, quality gate
+  poster/                     Satori+resvg render pipeline, quality gate, reusable generate.ts core
   video/                      ffmpeg pipeline: scenes, captions, music, quality gate
+  jobs/                       background job processor, retry/backoff, triggers
   fonts.ts                    bundled fonts, shared by posters and video captions
-  industry-packs.ts           per-industry tone/hook/value-prop/CTA/script content
+  industry-packs.ts           per-industry tone/hook/value-prop/CTA/script/campaign-arc content
   company-context.ts          assembles Company + Creative DNA for generation
+  campaign-calendar.ts        UTC-safe week-grid date math for the calendar view
   crypto.ts                   AES-256-GCM for BYOK key storage
   db client, session/company helpers, storage abstraction, server actions
 src/components/               form components per feature
 assets/fonts/                 bundled OFL fonts (Lato, Tajawal)
 assets/music/                 bundled CC-BY royalty-free tracks
 proxy.ts                      route protection (Next 16's middleware.ts)
+vercel.json                   Vercel Cron example for the job processor
 prisma/                       database schema
 docker-compose.yml            local Postgres for dev
 ```

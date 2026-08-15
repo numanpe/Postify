@@ -7,9 +7,11 @@ import type {
   GenerateScriptInput,
   GenerateScriptOutput,
   VideoScriptSections,
+  GenerateCampaignPlanInput,
+  GenerateCampaignPlanOutput,
 } from "./types";
 import { ProviderError } from "./types";
-import { buildCaptionPrompt, buildScriptPrompt } from "./prompt";
+import { buildCaptionPrompt, buildScriptPrompt, buildCampaignPlanPrompt } from "./prompt";
 import { fetchWithRetry } from "../http";
 
 const MODEL = "claude-3-5-haiku-20241022";
@@ -120,5 +122,31 @@ export class AnthropicTextProvider implements TextProvider {
 
     const script = record as unknown as VideoScriptSections;
     return { script, providerName: this.name, model: MODEL, estimatedCostUsd };
+  }
+
+  async generateCampaignPlan({
+    context,
+    objective,
+    itemCount,
+  }: GenerateCampaignPlanInput): Promise<GenerateCampaignPlanOutput> {
+    const { system, user } = buildCampaignPlanPrompt(context, objective, itemCount);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 600);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed campaign plan JSON.", error);
+    }
+
+    const angles = (parsed as { angles?: unknown }).angles;
+    if (!Array.isArray(angles) || angles.length !== itemCount || !angles.every((a) => typeof a === "string" && a)) {
+      throw new ProviderError(
+        this.name,
+        `Anthropic didn't return exactly ${itemCount} campaign angles.`,
+      );
+    }
+
+    return { angles: angles as string[], providerName: this.name, model: MODEL, estimatedCostUsd };
   }
 }

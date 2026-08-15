@@ -6,6 +6,8 @@ import type {
   GenerateCaptionOutput,
   GenerateScriptInput,
   GenerateScriptOutput,
+  GenerateCampaignPlanInput,
+  GenerateCampaignPlanOutput,
 } from "./types";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -36,6 +38,18 @@ function pickIndex(seed: string, length: number): number {
 function pick(seed: string, tag: string, options: string[], vars: Record<string, string>): string {
   return capitalizeSentences(fillTemplate(options[pickIndex(`${seed}:${tag}`, options.length)], vars));
 }
+
+// A fixed marketing arc, not itemCount unrelated topics — this is what
+// makes the free tier's plan "coherent" per CLAUDE.md's acceptance
+// line. Two variants per stage so a typical week (5-7 items) doesn't
+// repeat an exact angle; longer campaigns cycle back through the arc.
+const CAMPAIGN_ARC: string[][] = [
+  ["Introducing {{objective}}.", "Here's what's new: {{objective}}."],
+  ["What makes {{objective}} worth it.", "A closer look at {{objective}}."],
+  ["Why people are talking about {{objective}}.", "See what others are saying about {{objective}}."],
+  ["Don't miss out on {{objective}}.", "Time's running out for {{objective}}."],
+  ["One last look at {{objective}}.", "Before it's gone: {{objective}}."],
+];
 
 // The zero-key free path: industry pack + company context filled into
 // templates, no LLM call, works everywhere, never fails or rate-limits.
@@ -74,5 +88,22 @@ export class TemplateTextProvider implements TextProvider {
       },
       providerName: this.name,
     };
+  }
+
+  async generateCampaignPlan({
+    context,
+    objective,
+    itemCount,
+  }: GenerateCampaignPlanInput): Promise<GenerateCampaignPlanOutput> {
+    const vars = { company: context.name, objective };
+    const angles: string[] = [];
+
+    for (let i = 0; i < itemCount; i += 1) {
+      const stage = CAMPAIGN_ARC[i % CAMPAIGN_ARC.length];
+      const variant = stage[Math.floor(i / CAMPAIGN_ARC.length) % stage.length];
+      angles.push(capitalizeSentences(fillTemplate(variant, vars)));
+    }
+
+    return { angles, providerName: this.name };
   }
 }

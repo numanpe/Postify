@@ -33,10 +33,27 @@ export interface GenerateScriptOutput {
   estimatedCostUsd?: number;
 }
 
+export interface GenerateCampaignPlanInput {
+  context: CompanyContext;
+  objective: string;
+  itemCount: number;
+}
+
+export interface GenerateCampaignPlanOutput {
+  // Exactly itemCount entries, one distinct angle per scheduled day —
+  // a coherent arc (e.g. announce -> feature -> social proof -> urgency
+  // -> recap), not itemCount unrelated topics.
+  angles: string[];
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+}
+
 export interface TextProvider {
   readonly name: string;
   generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput>;
   generateScript(input: GenerateScriptInput): Promise<GenerateScriptOutput>;
+  generateCampaignPlan(input: GenerateCampaignPlanInput): Promise<GenerateCampaignPlanOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad
