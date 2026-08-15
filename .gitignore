@@ -25,3 +25,6 @@ next-env.d.ts
 
 # local uploads (dev media storage before real object storage is wired up)
 /storage/local
+
+.vercel
+.env*

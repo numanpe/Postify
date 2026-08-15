@@ -4,20 +4,23 @@ AI marketing/content platform. Built per the phased spec in `CLAUDE.md`.
 
 ## Status
 
-**Phase 1 (Foundation) implemented, not yet runtime-verified end-to-end.**
-See `CLAUDE.md` for the full spec, phase table, and working rules.
+**Phase 1 (Foundation) implemented and verified end-to-end against a real
+Postgres.** See `CLAUDE.md` for the full spec, phase table, and working
+rules.
 
 - Phase 0 (Audit) — done. Repo was empty at audit time; no legacy code to
   classify Keep/Refactor/Delete.
-- Phase 1 (Foundation) — code complete: signup/login (Auth.js, credentials),
+- Phase 1 (Foundation) — done. Signup/login (Auth.js, credentials),
   company onboarding, Brand Kit (logo + colors/fonts), Media Library
-  (upload/list/delete), mobile-first shell. Lint/typecheck/build all pass
-  and route protection (`proxy.ts`) is verified against a running dev
-  server. **Not yet verified against a live Postgres** — the environment
-  this was built in has no Docker/Postgres available. Before treating
-  Phase 1 as done, run the local setup below and walk through: sign up →
-  create a company → upload a logo → upload media → confirm it appears in
-  the library.
+  (upload/list/delete), mobile-first shell. Verified with a scripted
+  browser (Playwright) driving the real UI against a live Neon Postgres:
+  sign up → create company → upload logo → upload media → delete →
+  sign out → route protection on `/media`/`/brand-kit`/`/create-company`
+  → re-login, all passed. Multi-tenant isolation was verified
+  separately: a second company's media library came back empty, and
+  fetching the first company's storage URL directly returned 403 as a
+  member of a different company and 401 when unauthenticated. Test data
+  was deleted afterward.
 - Auto-tagging in the Media Library is structural only (mime type,
   dimensions, orientation) — no AI/semantic tags yet. That needs Phase 2's
   provider abstraction; the UI doesn't claim it has it.
@@ -45,12 +48,17 @@ See `CLAUDE.md` for the full spec, phase table, and working rules.
 ## Local setup
 
 ```bash
-cp .env.example .env        # fill in DATABASE_URL / AUTH_SECRET (npx auth secret)
+cp .env.example .env        # fill in DATABASE_URL / DIRECT_URL / AUTH_SECRET (npx auth secret)
 docker compose up -d        # starts local Postgres
 npm install
 npm run db:migrate          # applies the Phase 1 schema
 npm run dev
 ```
+
+`DIRECT_URL` only matters when `DATABASE_URL` goes through a connection
+pooler (e.g. Neon's default pooled endpoint) — migrations need the
+unpooled connection. For the Docker Postgres above, both variables can
+point at the same URL.
 
 ## Structure
 
