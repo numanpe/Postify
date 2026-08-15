@@ -1,7 +1,9 @@
 // Postify — data model
 // Phase 1 (Foundation): auth, company profile, Brand Kit, Creative DNA
 // schema (structure only — the confidence-score learning logic itself is
-// Phase 7), Media Library. See CLAUDE.md for the full phase plan.
+// Phase 7), Media Library. Phase 2 (AI Content Director) adds
+// ProviderCredential for BYOK text generation. See CLAUDE.md for the
+// full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -41,8 +43,9 @@ enum Locale {
 model Company {
   id  String @id @default(cuid())
   // Onboarding is intentionally light in Phase 1: a company just picks a
-  // primary industry + free-text secondary niches. The real industry
-  // knowledge packs that make these values meaningful are Phase 2.
+  // primary industry + free-text secondary niches. Phase 2's industry
+  // packs (src/lib/industry-packs.ts) key off primaryIndustry to make
+  // these values actually shape generated content.
   name              String
   primaryIndustry   String
   secondaryNiches   String[] @default([])
@@ -50,10 +53,11 @@ model Company {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  members     CompanyMember[]
-  brandKit    BrandKit?
-  creativeDna CreativeDna?
-  mediaAssets MediaAsset[]
+  members             CompanyMember[]
+  brandKit            BrandKit?
+  creativeDna         CreativeDna?
+  mediaAssets         MediaAsset[]
+  providerCredentials ProviderCredential[]
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -108,8 +112,9 @@ model CreativeDna {
 // Auto-tagging in Phase 1 is limited to structural metadata (mime type,
 // dimensions, orientation) captured at upload time — no AI involved.
 // Semantic tags (subject/objects/people/category) and natural-language
-// search require a vision provider, which doesn't exist until Phase 2's
-// provider abstraction. Do not fake those fields here.
+// search require a vision provider, which Phase 2 doesn't add (text
+// only — see ProviderCredential/TextProvider). Do not fake those fields
+// here until that provider exists.
 model MediaAsset {
   id           String   @id @default(cuid())
   companyId    String
@@ -130,4 +135,31 @@ model MediaAsset {
   brandKitLogo BrandKit? @relation("BrandKitLogo")
 
   @@index([companyId])
+}
+
+enum TextProviderKind {
+  OPENAI
+  ANTHROPIC
+}
+
+// BYOK storage. encryptedKey is AES-256-GCM ciphertext (see
+// src/lib/crypto.ts) — the plaintext key is never stored, logged, or
+// sent to the client after save; the UI only ever shows a masked
+// preview. Never touch this table without going through
+// src/lib/actions/provider-credentials.ts.
+model ProviderCredential {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  provider     TextProviderKind
+  encryptedKey String
+  // Last 4 characters of the real key, kept in plaintext so the UI can
+  // show "sk-...ab12" without ever decrypting the stored credential.
+  keyPreview   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, provider])
 }

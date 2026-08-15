@@ -18,11 +18,17 @@ export default async function AppLayout({
           <span className="text-sm text-neutral-500">{company.name}</span>
         </div>
         <nav className="flex items-center gap-4 text-sm">
+          <Link href="/studio" className="font-medium text-neutral-700 hover:text-neutral-900">
+            Content Studio
+          </Link>
           <Link href="/media" className="font-medium text-neutral-700 hover:text-neutral-900">
             Media Library
           </Link>
           <Link href="/brand-kit" className="font-medium text-neutral-700 hover:text-neutral-900">
             Brand Kit
+          </Link>
+          <Link href="/settings" className="font-medium text-neutral-700 hover:text-neutral-900">
+            Settings
           </Link>
           <form
             action={async () => {

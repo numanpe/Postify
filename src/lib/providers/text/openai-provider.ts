@@ -1,0 +1,73 @@
+import "server-only";
+
+import type { TextProvider, GenerateCaptionInput, GenerateCaptionOutput } from "./types";
+import { ProviderError } from "./types";
+import { buildCaptionPrompt } from "./prompt";
+import { fetchWithRetry } from "./http";
+
+const MODEL = "gpt-4o-mini";
+// USD per token, rough estimate for display only — not billing-accurate.
+const PRICE_PER_INPUT_TOKEN = 0.15 / 1_000_000;
+const PRICE_PER_OUTPUT_TOKEN = 0.6 / 1_000_000;
+
+interface OpenAIChatResponse {
+  choices?: { message?: { content?: string } }[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
+export class OpenAITextProvider implements TextProvider {
+  readonly name = "OpenAI";
+
+  constructor(private readonly apiKey: string) {}
+
+  async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
+    const { system, user } = buildCaptionPrompt(context, topic);
+
+    let response: Response;
+    try {
+      response = await fetchWithRetry("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          max_tokens: 150,
+          temperature: 0.7,
+        }),
+      });
+    } catch (error) {
+      throw new ProviderError(this.name, "Could not reach OpenAI (network error or timeout).", error);
+    }
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new ProviderError(this.name, "OpenAI rejected the API key — check it in Settings.");
+      }
+      if (response.status === 429) {
+        throw new ProviderError(this.name, "OpenAI rate-limited this request. Try again shortly.");
+      }
+      const body = await response.text().catch(() => "");
+      throw new ProviderError(this.name, `OpenAI request failed (${response.status}). ${body.slice(0, 200)}`);
+    }
+
+    const data = (await response.json()) as OpenAIChatResponse;
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      throw new ProviderError(this.name, "OpenAI returned an empty response.");
+    }
+
+    const usage = data.usage;
+    const estimatedCostUsd = usage
+      ? (usage.prompt_tokens ?? 0) * PRICE_PER_INPUT_TOKEN +
+        (usage.completion_tokens ?? 0) * PRICE_PER_OUTPUT_TOKEN
+      : undefined;
+
+    return { text, providerName: this.name, model: MODEL, estimatedCostUsd };
+  }
+}
