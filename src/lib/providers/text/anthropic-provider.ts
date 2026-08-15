@@ -3,7 +3,7 @@ import "server-only";
 import type { TextProvider, GenerateCaptionInput, GenerateCaptionOutput } from "./types";
 import { ProviderError } from "./types";
 import { buildCaptionPrompt } from "./prompt";
-import { fetchWithRetry } from "./http";
+import { fetchWithRetry } from "../http";
 
 const MODEL = "claude-3-5-haiku-20241022";
 // USD per token, rough estimate for display only — not billing-accurate.

@@ -13,6 +13,7 @@ export interface CompanyContext {
   // fall back to the industry pack's default tone.
   tone: string;
   pack: IndustryPack;
+  locale: "EN" | "AR";
 }
 
 const KNOWN_INDUSTRIES = new Set(Object.keys(INDUSTRY_PACKS));
@@ -42,5 +43,6 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
     secondaryNiches: company.secondaryNiches,
     tone,
     pack,
+    locale: company.locale,
   };
 }

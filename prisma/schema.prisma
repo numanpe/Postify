@@ -2,8 +2,8 @@
 // Phase 1 (Foundation): auth, company profile, Brand Kit, Creative DNA
 // schema (structure only — the confidence-score learning logic itself is
 // Phase 7), Media Library. Phase 2 (AI Content Director) adds
-// ProviderCredential for BYOK text generation. See CLAUDE.md for the
-// full phase plan.
+// ProviderCredential for BYOK generation. Phase 3 (Poster Engine) adds
+// Poster. See CLAUDE.md for the full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -58,6 +58,7 @@ model Company {
   creativeDna         CreativeDna?
   mediaAssets         MediaAsset[]
   providerCredentials ProviderCredential[]
+  posters             Poster[]
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -132,17 +133,63 @@ model MediaAsset {
 
   createdAt DateTime @default(now())
 
-  brandKitLogo BrandKit? @relation("BrandKitLogo")
+  brandKitLogo BrandKit?  @relation("BrandKitLogo")
+  posterOutput Poster?    @relation("PosterOutput")
+  posterInputs Poster[]   @relation("PosterBackgroundSource")
 
   @@index([companyId])
 }
 
-enum TextProviderKind {
+enum AspectRatio {
+  SQUARE // 1:1
+  STORY // 9:16
+  LANDSCAPE // 16:9
+}
+
+enum BackgroundSource {
+  BRAND // free — gradient rendered from BrandKit colors, no provider call
+  PHOTO // real — an existing MediaAsset picked from the Media Library
+  AI // BYOK — generated via ImageProvider (Phase 3's gpt-image-1 adapter)
+}
+
+// A rendered poster. The pipeline (src/lib/poster/) always produces a
+// real PNG via Satori + resvg — no placeholder/fake output is ever
+// saved here. `asset` is that PNG, stored and served through the same
+// MediaAsset/storage machinery Phase 1 built (never a separate path).
+model Poster {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  assetId String     @unique
+  asset   MediaAsset @relation("PosterOutput", fields: [assetId], references: [id], onDelete: Cascade)
+
+  headline String
+  subhead  String?
+  cta      String?
+
+  aspectRatio      AspectRatio
+  backgroundSource BackgroundSource
+  // Only set when backgroundSource is PHOTO or AI-with-a-reference —
+  // SetNull rather than Cascade because deleting the source photo
+  // shouldn't delete a poster that already baked it into a final PNG.
+  backgroundAssetId String?
+  backgroundAsset   MediaAsset? @relation("PosterBackgroundSource", fields: [backgroundAssetId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+enum AiProviderKind {
   OPENAI
   ANTHROPIC
 }
 
-// BYOK storage. encryptedKey is AES-256-GCM ciphertext (see
+// BYOK storage, one row per (company, vendor) — not per capability. A
+// company's OpenAI key covers both text (Phase 2) and image generation
+// (Phase 3's AI background provider) since it's the same vendor
+// account. encryptedKey is AES-256-GCM ciphertext (see
 // src/lib/crypto.ts) — the plaintext key is never stored, logged, or
 // sent to the client after save; the UI only ever shows a masked
 // preview. Never touch this table without going through
@@ -152,7 +199,7 @@ model ProviderCredential {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  provider     TextProviderKind
+  provider     AiProviderKind
   encryptedKey String
   // Last 4 characters of the real key, kept in plaintext so the UI can
   // show "sk-...ab12" without ever decrypting the stored credential.
