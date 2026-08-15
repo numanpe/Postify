@@ -1,6 +1,7 @@
 // Postify — data model
-// Phase 1 adds the first real models (User, Company, Media). Intentionally
-// empty of models until then — see CLAUDE.md Phase 1 acceptance criteria.
+// Phase 1 (Foundation): auth, company profile, Brand Kit, Creative DNA
+// schema (structure only — the confidence-score learning logic itself is
+// Phase 7), Media Library. See CLAUDE.md for the full phase plan.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +10,123 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships    CompanyMember[]
+  uploadedAssets MediaAsset[]
+}
+
+enum CompanyRole {
+  OWNER
+  MEMBER
+}
+
+// A company's locale drives which UI language/typography rules apply.
+// English and Arabic are both first-class per CLAUDE.md system #3 — this
+// is not "English + a translation flag."
+enum Locale {
+  EN
+  AR
+}
+
+model Company {
+  id  String @id @default(cuid())
+  // Onboarding is intentionally light in Phase 1: a company just picks a
+  // primary industry + free-text secondary niches. The real industry
+  // knowledge packs that make these values meaningful are Phase 2.
+  name              String
+  primaryIndustry   String
+  secondaryNiches   String[] @default([])
+  locale            Locale   @default(EN)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  members     CompanyMember[]
+  brandKit    BrandKit?
+  creativeDna CreativeDna?
+  mediaAssets MediaAsset[]
+}
+
+// The multi-tenant boundary: every company-scoped query must go through
+// a membership check, not a client-supplied companyId. See CLAUDE.md
+// non-negotiable #2 (data-layer isolation, not just UI-layer).
+model CompanyMember {
+  id        String      @id @default(cuid())
+  userId    String
+  companyId String
+  role      CompanyRole @default(OWNER)
+  createdAt DateTime    @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model BrandKit {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  logoAssetId String?     @unique
+  logoAsset   MediaAsset? @relation("BrandKitLogo", fields: [logoAssetId], references: [id], onDelete: SetNull)
+
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+  fontHeading    String?
+  fontBody       String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Structure only for Phase 1. confidenceScores stays an empty object
+// until Phase 7 wires up real, evidence-gated learning — CLAUDE.md is
+// explicit that preferences must not shift on single-post overfitting,
+// so no score-writing code should exist yet.
+model CreativeDna {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  toneDescriptors  String[] @default([])
+  confidenceScores Json     @default("{}")
+
+  updatedAt DateTime @updatedAt
+}
+
+// Auto-tagging in Phase 1 is limited to structural metadata (mime type,
+// dimensions, orientation) captured at upload time — no AI involved.
+// Semantic tags (subject/objects/people/category) and natural-language
+// search require a vision provider, which doesn't exist until Phase 2's
+// provider abstraction. Do not fake those fields here.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  storageKey  String  @unique
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  orientation String?
+
+  createdAt DateTime @default(now())
+
+  brandKitLogo BrandKit? @relation("BrandKitLogo")
+
+  @@index([companyId])
 }
