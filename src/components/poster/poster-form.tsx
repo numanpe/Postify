@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { generatePoster } from "@/lib/actions/poster";
+import { Button } from "@/components/ui/button";
 
 interface PhotoAsset {
   id: string;
@@ -23,32 +24,32 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
           name="headline"
           required
           maxLength={70}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="subhead" className="text-sm font-medium">
-          Subhead <span className="font-normal text-neutral-500">(optional)</span>
+          Subhead <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(optional)</span>
         </label>
         <input
           id="subhead"
           name="subhead"
           maxLength={120}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="cta" className="text-sm font-medium">
-          Call to action <span className="font-normal text-neutral-500">(optional)</span>
+          Call to action <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(optional)</span>
         </label>
         <input
           id="cta"
           name="cta"
           maxLength={30}
           placeholder="e.g. Shop now"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -60,7 +61,7 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
           id="aspectRatio"
           name="aspectRatio"
           defaultValue="SQUARE"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
           <option value="SQUARE">Square (1:1)</option>
           <option value="STORY">Story (9:16)</option>
@@ -76,7 +77,7 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
           id="backgroundSource"
           name="backgroundSource"
           defaultValue="BRAND"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
           <option value="BRAND">Brand gradient (free)</option>
           <option value="PHOTO">A photo from Media Library</option>
@@ -88,14 +89,14 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
         <div className="flex flex-col gap-1">
           <label htmlFor="backgroundAssetId" className="text-sm font-medium">
             Photo{" "}
-            <span className="font-normal text-neutral-500">
+            <span className="font-normal text-ink-soft dark:text-ink-soft-dark">
               (used only when Background is set to &quot;A photo&quot;)
             </span>
           </label>
           <select
             id="backgroundAssetId"
             name="backgroundAssetId"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           >
             {photoAssets.map((asset) => (
               <option key={asset.id} value={asset.id}>
@@ -106,25 +107,21 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
         </div>
       )}
 
-      {state?.status === "error" && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
       {state?.status === "success" && state.warnings.length > 0 && (
-        <ul className="flex flex-col gap-1 text-sm text-amber-600">
+        <ul className="flex flex-col gap-1 text-sm text-amber-600 dark:text-amber-400">
           {state.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
         </ul>
       )}
       {state?.status === "success" && (
-        <p className="text-sm text-green-700">Poster generated — see it below.</p>
+        <p className="text-sm text-green-700 dark:text-green-400">Poster generated — see it below.</p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Generating…" : "Generate poster"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Generating…">
+        Generate poster
+      </Button>
     </form>
   );
 }

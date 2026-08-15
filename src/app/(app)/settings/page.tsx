@@ -20,7 +20,7 @@ export default async function SettingsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">AI Providers</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Optional — Postify works fully without any key. Add your own OpenAI or Anthropic key for
           higher-quality generation. Your key is encrypted at rest and never shown again after
           saving.
@@ -32,7 +32,7 @@ export default async function SettingsPage() {
           {credentials.map((credential) => (
             <li
               key={credential.id}
-              className="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-md border border-paper-border dark:border-night-border px-3 py-2 text-sm"
             >
               <span>
                 {PROVIDER_LABELS[credential.provider] ?? credential.provider} — •••• {credential.keyPreview}
@@ -40,7 +40,7 @@ export default async function SettingsPage() {
               <form action={removeProviderCredential.bind(null, credential.id)}>
                 <button
                   type="submit"
-                  className="text-xs font-medium text-neutral-500 hover:text-neutral-900"
+                  className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark"
                 >
                   Remove
                 </button>

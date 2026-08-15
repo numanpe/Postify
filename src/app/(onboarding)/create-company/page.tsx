@@ -18,7 +18,7 @@ export default async function CreateCompanyPage() {
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-12">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-semibold">Set up your company</h1>
-        <p className="text-neutral-500">This takes about a minute.</p>
+        <p className="text-ink-soft dark:text-ink-soft-dark">This takes about a minute.</p>
       </div>
       <CreateCompanyForm />
     </main>

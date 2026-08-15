@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { createCompany } from "@/lib/actions/company";
 import { INDUSTRIES } from "@/lib/industries";
+import { Button } from "@/components/ui/button";
 
 export function CreateCompanyForm() {
   const [state, action, pending] = useActionState(createCompany, undefined);
@@ -18,7 +19,7 @@ export function CreateCompanyForm() {
           id="name"
           name="name"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -31,7 +32,7 @@ export function CreateCompanyForm() {
           name="primaryIndustry"
           required
           defaultValue=""
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
           <option value="" disabled>
             Select an industry
@@ -47,25 +48,21 @@ export function CreateCompanyForm() {
       <div className="flex flex-col gap-1">
         <label htmlFor="secondaryNiches" className="text-sm font-medium">
           Secondary niches{" "}
-          <span className="font-normal text-neutral-500">(optional, comma-separated)</span>
+          <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(optional, comma-separated)</span>
         </label>
         <input
           id="secondaryNiches"
           name="secondaryNiches"
           placeholder="e.g. Livestock, B2B"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Creating…" : "Create company"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Creating…">
+        Create company
+      </Button>
     </form>
   );
 }

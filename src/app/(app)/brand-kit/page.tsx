@@ -17,7 +17,7 @@ export default async function BrandKitPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Brand Kit</h1>
-        <p className="text-sm text-neutral-500">Logo, colors, and fonts for {company.name}.</p>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">Logo, colors, and fonts for {company.name}.</p>
       </div>
 
       {brandKit?.logoAsset && (
@@ -26,7 +26,7 @@ export default async function BrandKitPage() {
           alt="Current logo"
           width={brandKit.logoAsset.width ?? 96}
           height={brandKit.logoAsset.height ?? 96}
-          className="h-24 w-24 rounded-md border border-neutral-200 object-contain"
+          className="h-24 w-24 rounded-md border border-paper-border dark:border-night-border object-contain"
           unoptimized
         />
       )}

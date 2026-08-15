@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { updateBrandKit } from "@/lib/actions/brand-kit";
+import { Button } from "@/components/ui/button";
 
 type BrandKitDefaults = {
   primaryColor: string | null;
@@ -34,7 +35,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
             name="primaryColor"
             placeholder="#1A2B3C"
             defaultValue={brandKit?.primaryColor ?? ""}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -46,7 +47,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
             name="secondaryColor"
             placeholder="#1A2B3C"
             defaultValue={brandKit?.secondaryColor ?? ""}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -58,7 +59,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
             name="accentColor"
             placeholder="#1A2B3C"
             defaultValue={brandKit?.accentColor ?? ""}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-sm"
           />
         </div>
       </div>
@@ -71,7 +72,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
           id="fontHeading"
           name="fontHeading"
           defaultValue={brandKit?.fontHeading ?? ""}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -83,19 +84,15 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
           id="fontBody"
           name="fontBody"
           defaultValue={brandKit?.fontBody ?? ""}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Saving…" : "Save Brand Kit"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Saving…">
+        Save Brand Kit
+      </Button>
     </form>
   );
 }

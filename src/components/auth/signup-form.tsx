@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 
 import { signUp } from "@/lib/actions/auth";
+import { Button } from "@/components/ui/button";
 
 export function SignupForm() {
   const [state, action, pending] = useActionState(signUp, undefined);
@@ -19,7 +20,7 @@ export function SignupForm() {
           name="name"
           autoComplete="name"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -33,7 +34,7 @@ export function SignupForm() {
           type="email"
           autoComplete="email"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -48,23 +49,19 @@ export function SignupForm() {
           autoComplete="new-password"
           minLength={8}
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Creating account…" : "Create account"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Creating account…">
+        Create account
+      </Button>
 
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-neutral-900 underline">
+        <Link href="/login" className="font-medium text-ink dark:text-ink-dark underline">
           Log in
         </Link>
       </p>

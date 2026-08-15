@@ -8,7 +8,7 @@ export default async function StudioPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Content Studio</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Generate a social caption for {company.name}, tailored to your industry and brand tone.
         </p>
       </div>

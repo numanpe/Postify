@@ -6,6 +6,7 @@ import { processPublishJobsNow } from "@/lib/actions/publish";
 import { ConnectAccounts } from "@/components/publish/connect-accounts";
 import { CreatePublishJobForm } from "@/components/publish/create-publish-job-form";
 import { PublishJobList } from "@/components/publish/publish-job-list";
+import { Button } from "@/components/ui/button";
 
 export default async function PublishPage({
   searchParams,
@@ -39,18 +40,18 @@ export default async function PublishPage({
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Publish</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Post an existing poster directly to a connected Facebook Page or Instagram account.
         </p>
       </div>
 
       {meta === "connected" && (
-        <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950 px-3 py-2 text-sm text-green-800 dark:text-green-300">
           Connected successfully.
         </p>
       )}
       {meta === "error" && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-800 dark:text-red-300">
           Couldn&apos;t connect: {detail ?? "Unknown error."}
         </p>
       )}
@@ -58,7 +59,7 @@ export default async function PublishPage({
       <ConnectAccounts accounts={accounts} />
 
       {posters.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           No posters yet — generate one in the{" "}
           <Link href="/poster" className="underline">
             Poster Studio
@@ -66,7 +67,7 @@ export default async function PublishPage({
           first.
         </p>
       ) : accounts.length === 0 ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Connect a Facebook Page or Instagram account above before you can publish.
         </p>
       ) : (
@@ -75,13 +76,10 @@ export default async function PublishPage({
 
       {pendingCount > 0 && (
         <form action={processPublishJobsNow} className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
-          >
+          <Button type="submit" size="sm">
             Process now
-          </button>
-          <p className="text-sm text-neutral-500">
+          </Button>
+          <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
             {pendingCount} job{pendingCount === 1 ? "" : "s"} queued — this app doesn&apos;t have a
             real scheduler wired up in this environment, so click to process the queue yourself
             (production would run this automatically; see README).

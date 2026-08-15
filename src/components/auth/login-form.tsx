@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 
 import { login } from "@/lib/actions/auth";
+import { Button } from "@/components/ui/button";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(login, undefined);
@@ -20,7 +21,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -34,23 +35,19 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Logging in…" : "Log in"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Logging in…">
+        Log in
+      </Button>
 
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-neutral-900 underline">
+        <Link href="/signup" className="font-medium text-ink dark:text-ink-dark underline">
           Sign up
         </Link>
       </p>

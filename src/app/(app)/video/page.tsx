@@ -35,7 +35,7 @@ export default async function VideoPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Video Studio</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Generate a short video for {company.name}: script, real/AI B-roll, captions, music, and
           your branding.
         </p>
@@ -45,12 +45,12 @@ export default async function VideoPage() {
 
       {videos.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-neutral-500">Previous videos</h2>
+          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">Previous videos</h2>
           <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {videos.map((video) => (
               <li
                 key={video.id}
-                className="flex flex-col gap-1 rounded-lg border border-neutral-200 p-2"
+                className="flex flex-col gap-1 rounded-lg border border-paper-border dark:border-night-border p-2"
               >
                 <video
                   src={storage.url(video.asset.storageKey)}

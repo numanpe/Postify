@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { saveProviderCredential } from "@/lib/actions/provider-credentials";
+import { Button } from "@/components/ui/button";
 
 export function ProviderCredentialForm() {
   const [state, action, pending] = useActionState(saveProviderCredential, undefined);
@@ -18,7 +19,7 @@ export function ProviderCredentialForm() {
           name="provider"
           required
           defaultValue="OPENAI"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
           <option value="OPENAI">OpenAI</option>
           <option value="ANTHROPIC">Anthropic</option>
@@ -35,19 +36,15 @@ export function ProviderCredentialForm() {
           type="password"
           autoComplete="off"
           required
-          className="rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-sm"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Saving…" : "Save key"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Saving…">
+        Save key
+      </Button>
     </form>
   );
 }

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { uploadMedia } from "@/lib/actions/media";
+import { Button } from "@/components/ui/button";
 
 export function UploadMediaForm() {
   const [state, action, pending] = useActionState(uploadMedia, undefined);
@@ -17,14 +18,10 @@ export function UploadMediaForm() {
         accept="image/*,video/*,audio/*"
         className="text-sm"
       />
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-fit rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Uploading…" : "Upload"}
-      </button>
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      <Button type="submit" pending={pending} pendingLabel="Uploading…" size="sm" className="w-fit">
+        Upload
+      </Button>
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
     </form>
   );
 }

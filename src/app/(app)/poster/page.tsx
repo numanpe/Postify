@@ -37,19 +37,19 @@ export default async function PosterPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Poster Studio</h1>
-        <p className="text-sm text-neutral-500">Generate a publish-ready poster for {company.name}.</p>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">Generate a publish-ready poster for {company.name}.</p>
       </div>
 
       <PosterForm photoAssets={photoAssets} />
 
       {posters.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-neutral-500">Previous posters</h2>
+          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">Previous posters</h2>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {posters.map((poster) => (
               <li
                 key={poster.id}
-                className="flex flex-col gap-1 rounded-lg border border-neutral-200 p-2"
+                className="flex flex-col gap-1 rounded-lg border border-paper-border dark:border-night-border p-2"
               >
                 <Image
                   src={storage.url(poster.asset.storageKey)}

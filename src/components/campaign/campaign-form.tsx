@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { createCampaign } from "@/lib/actions/campaign";
+import { Button } from "@/components/ui/button";
 
 export function CampaignForm() {
   const [state, action, pending] = useActionState(createCampaign, undefined);
@@ -19,7 +20,7 @@ export function CampaignForm() {
           name="objective"
           required
           placeholder="e.g. our spring sale"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
@@ -34,7 +35,7 @@ export function CampaignForm() {
             type="date"
             defaultValue={today}
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           />
         </div>
         <div className="flex w-28 flex-col gap-1">
@@ -49,20 +50,16 @@ export function CampaignForm() {
             max={14}
             defaultValue={7}
             required
-            className="rounded-md border border-neutral-300 px-3 py-2 text-base"
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           />
         </div>
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-base font-medium text-white disabled:opacity-60"
-      >
-        {pending ? "Planning…" : "Create campaign"}
-      </button>
+      <Button type="submit" pending={pending} pendingLabel="Planning…">
+        Create campaign
+      </Button>
     </form>
   );
 }

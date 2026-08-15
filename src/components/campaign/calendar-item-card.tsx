@@ -5,10 +5,10 @@ import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from 
 import type { CampaignItemStatus } from "@prisma/client";
 
 const STATUS_STYLES: Record<CampaignItemStatus, string> = {
-  PENDING: "bg-neutral-200 text-neutral-600",
-  GENERATING: "bg-blue-100 text-blue-700",
-  READY: "bg-green-100 text-green-700",
-  FAILED: "bg-red-100 text-red-700",
+  PENDING: "bg-paper-card dark:bg-night-card text-ink-soft dark:text-ink-soft-dark",
+  GENERATING: "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400",
+  READY: "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400",
+  FAILED: "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400",
   APPROVED: "bg-green-600 text-white",
 };
 
@@ -32,7 +32,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
   return (
     <div
       data-campaign-item-id={item.id}
-      className="flex flex-col gap-1 rounded-md border border-neutral-200 bg-white p-1.5 text-xs"
+      className="flex flex-col gap-1 rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card p-1.5 text-xs"
     >
       <span className={`w-fit rounded px-1.5 py-0.5 font-medium ${STATUS_STYLES[item.status]}`}>
         {item.status}
@@ -49,24 +49,24 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
         />
       )}
 
-      <p className="line-clamp-2 text-neutral-600" title={item.angle}>
+      <p className="line-clamp-2 text-ink-soft dark:text-ink-soft-dark" title={item.angle}>
         {item.angle}
       </p>
 
       {item.errorMessage && (
-        <p className="text-red-600" title={item.errorMessage}>
+        <p className="text-red-600 dark:text-red-400" title={item.errorMessage}>
           {item.errorMessage.length > 40 ? `${item.errorMessage.slice(0, 40)}…` : item.errorMessage}
         </p>
       )}
 
       <details>
-        <summary className="cursor-pointer text-neutral-400">Manage</summary>
+        <summary className="cursor-pointer text-ink-soft dark:text-ink-soft-dark">Manage</summary>
         <div className="mt-1 flex flex-col gap-1">
           {item.status === "READY" && (
             <form action={approveCampaignItem.bind(null, item.id)}>
               <button
                 type="submit"
-                className="w-full rounded bg-neutral-900 px-1.5 py-0.5 text-white"
+                className="w-full rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
               >
                 Approve
               </button>
@@ -78,9 +78,9 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
               name="angle"
               defaultValue={item.angle}
               rows={2}
-              className="rounded border border-neutral-300 px-1 py-0.5"
+              className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5"
             />
-            <button type="submit" className="rounded border border-neutral-300 px-1.5 py-0.5">
+            <button type="submit" className="rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
               {item.status === "FAILED" ? "Retry" : "Regenerate"}
             </button>
           </form>
@@ -88,7 +88,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
           <form action={removeCampaignItem.bind(null, item.id)}>
             <button
               type="submit"
-              className="w-full rounded border border-neutral-300 px-1.5 py-0.5 text-red-600"
+              className="w-full rounded border border-paper-border dark:border-night-border px-1.5 py-0.5 text-red-600 dark:text-red-400"
             >
               Remove
             </button>

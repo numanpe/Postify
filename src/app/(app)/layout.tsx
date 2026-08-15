@@ -12,34 +12,34 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border dark:border-night-border px-4 py-3">
         <div className="flex items-center gap-4">
           <span className="font-semibold">Postify</span>
-          <span className="text-sm text-neutral-500">{company.name}</span>
+          <span className="text-sm text-ink-soft dark:text-ink-soft-dark">{company.name}</span>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          <Link href="/studio" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/studio" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Content Studio
           </Link>
-          <Link href="/poster" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/poster" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Poster Studio
           </Link>
-          <Link href="/video" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/video" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Video Studio
           </Link>
-          <Link href="/campaigns" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/campaigns" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Campaigns
           </Link>
-          <Link href="/publish" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/publish" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Publish
           </Link>
-          <Link href="/media" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/media" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Media Library
           </Link>
-          <Link href="/brand-kit" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/brand-kit" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Brand Kit
           </Link>
-          <Link href="/settings" className="font-medium text-neutral-700 hover:text-neutral-900">
+          <Link href="/settings" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
             Settings
           </Link>
           <form
@@ -48,7 +48,7 @@ export default async function AppLayout({
               await signOut({ redirectTo: "/login" });
             }}
           >
-            <button type="submit" className="text-neutral-500 hover:text-neutral-900">
+            <button type="submit" className="text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
               Sign out
             </button>
           </form>

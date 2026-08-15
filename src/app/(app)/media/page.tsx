@@ -19,7 +19,7 @@ export default async function MediaPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Media Library</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           Photos, video, audio, and brand assets for {company.name}. Tags shown here are
           structural only — semantic search arrives once AI tagging is built.
         </p>
@@ -28,12 +28,12 @@ export default async function MediaPage() {
       <UploadMediaForm />
 
       {assets.length === 0 ? (
-        <p className="text-sm text-neutral-500">No media uploaded yet.</p>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">No media uploaded yet.</p>
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((asset) => (
-            <li key={asset.id} className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-2">
-              <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-neutral-100">
+            <li key={asset.id} className="flex flex-col gap-2 rounded-lg border border-paper-border dark:border-night-border p-2">
+              <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-paper-card dark:bg-night-card">
                 {asset.mimeType.startsWith("image/") ? (
                   <Image
                     src={storage.url(asset.storageKey)}
@@ -44,20 +44,20 @@ export default async function MediaPage() {
                     unoptimized
                   />
                 ) : (
-                  <span className="text-xs text-neutral-500">{asset.mimeType}</span>
+                  <span className="text-xs text-ink-soft dark:text-ink-soft-dark">{asset.mimeType}</span>
                 )}
               </div>
               <p className="truncate text-xs font-medium" title={asset.fileName}>
                 {asset.fileName}
               </p>
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-ink-soft dark:text-ink-soft-dark">
                 {asset.width && asset.height ? `${asset.width}×${asset.height} · ` : ""}
                 {formatBytes(asset.sizeBytes)}
               </p>
               <form action={deleteMedia.bind(null, asset.id)}>
                 <button
                   type="submit"
-                  className="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-700"
+                  className="w-full rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card px-2 py-1 text-xs font-medium text-ink-soft dark:text-ink-soft-dark"
                 >
                   Delete
                 </button>
