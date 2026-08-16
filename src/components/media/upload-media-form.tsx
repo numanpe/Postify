@@ -21,7 +21,11 @@ export function UploadMediaForm() {
       <Button type="submit" pending={pending} pendingLabel="Uploading…" size="sm" className="w-fit">
         Upload
       </Button>
-      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.error ? (
+        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+      ) : (
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">Photos, videos, or audio — up to 25MB each.</p>
+      )}
     </form>
   );
 }

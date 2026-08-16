@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
+  // Default is 1MB, which most real photos already exceed — media
+  // uploads (src/lib/actions/media.ts) need real room. The per-file/
+  // per-request caps enforced there stay well under this ceiling; this
+  // just stops Next's own default from rejecting valid uploads first.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
+  },
   // @resvg/resvg-js ships a native binding loaded via a dynamic
   // require() that Turbopack's bundler can't statically resolve
   // ("non-ecmascript placeable asset"). @ffmpeg-installer/ffmpeg and
