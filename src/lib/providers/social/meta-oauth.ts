@@ -8,7 +8,7 @@ function getAppCredentials(): { appId: string; appSecret: string } {
   const appSecret = process.env.META_APP_SECRET;
   if (!appId || !appSecret) {
     throw new Error(
-      "META_APP_ID/META_APP_SECRET are not set. Register a Meta Developer app (Business type, Facebook Login + Pages API products) and add its credentials before connecting a Page.",
+      "META_APP_ID/META_APP_SECRET are not set. Register a Meta Developer app (the \"Authenticate and request data from users with Facebook Login\" use case) and add its credentials before connecting a Page.",
     );
   }
   return { appId, appSecret };
@@ -22,26 +22,29 @@ function getRedirectUri(): string {
   return `${appUrl.replace(/\/$/, "")}/api/social/meta/callback`;
 }
 
-// Business-type apps use "Facebook Login for Business": permissions are
-// bundled into a Login Configuration created in the app dashboard
-// (Facebook Login for Business -> Configurations), referenced here by
-// its config_id — NOT requested ad hoc via a scope param. Meta's own
-// docs are explicit that the classic scope-based dialog is discouraged
-// (and in practice unreliable/rejected) for Business apps requesting
-// Page/Instagram permissions; using it was the actual cause of a
-// confusing "domain not in app's domains" error that had nothing to do
-// with the domain. The Configuration itself is where
-// pages_show_list/pages_read_engagement/pages_manage_posts/
-// instagram_basic/instagram_content_publish are selected — not in code.
-function getLoginConfigId(): string {
-  const configId = process.env.META_LOGIN_CONFIG_ID;
-  if (!configId) {
-    throw new Error(
-      "META_LOGIN_CONFIG_ID is not set. Create a Login Configuration in the Meta app dashboard (Facebook Login for Business -> Configurations) selecting pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, and instagram_content_publish, then set its Configuration ID here.",
-    );
-  }
-  return configId;
-}
+// Reverted from a config_id-based "Facebook Login for Business" flow:
+// that requires the app to have a Configurations flow available (either
+// an explicit Business app type via the old app-creation flow, or a
+// Pages-focused "use case"), which this app doesn't have — it was
+// created via the plain "Authenticate and request data from users with
+// Facebook Login" use case, confirmed by inspecting the actual dashboard
+// (no App type field, no Configurations tab anywhere). For that use
+// case, permissions are still requested the classic way, via scope.
+//
+// Known follow-up risk, not yet hit: some permissions (pages_manage_posts,
+// instagram_content_publish in particular) are gated by Meta to apps
+// that have the right use case/product attached, regardless of flow —
+// if the authorize step now fails with "Invalid Scopes" rather than the
+// domain error, that's this gating, and the fix is adding the Pages API
+// use case in the dashboard (developers.facebook.com/documentation/
+// pages-api/create-an-app), not a code change.
+const SCOPES = [
+  "pages_show_list",
+  "pages_read_engagement",
+  "pages_manage_posts",
+  "instagram_basic",
+  "instagram_content_publish",
+].join(",");
 
 export function buildAuthorizeUrl(state: string): string {
   const { appId } = getAppCredentials();
@@ -49,7 +52,7 @@ export function buildAuthorizeUrl(state: string): string {
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("state", state);
-  url.searchParams.set("config_id", getLoginConfigId());
+  url.searchParams.set("scope", SCOPES);
   url.searchParams.set("response_type", "code");
   return url.toString();
 }
