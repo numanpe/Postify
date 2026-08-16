@@ -3,10 +3,13 @@ import Image from "next/image";
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { PosterForm } from "@/components/poster/poster-form";
 
 export default async function PosterPage() {
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
 
   const [photoAssets, posters] = await Promise.all([
     // Excludes posterOutput and brandKitLogo assets — a generated
@@ -36,15 +39,15 @@ export default async function PosterPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Poster Studio</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">Generate a publish-ready poster for {company.name}.</p>
+        <h1 className="text-xl font-semibold">{dict.poster.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.poster.subtitle(company.name)}</p>
       </div>
 
       <PosterForm photoAssets={photoAssets} />
 
       {posters.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">Previous posters</h2>
+          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.poster.previousPosters}</h2>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {posters.map((poster) => (
               <li

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { generatePoster } from "@/lib/actions/poster";
 import { Button } from "@/components/ui/button";
+import { useDict } from "@/components/i18n/locale-provider";
 
 interface PhotoAsset {
   id: string;
@@ -12,12 +13,14 @@ interface PhotoAsset {
 
 export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
   const [state, action, pending] = useActionState(generatePoster, undefined);
+  const dict = useDict().poster;
+  const common = useDict().common;
 
   return (
     <form action={action} className="flex w-full max-w-md flex-col gap-4">
       <div className="flex flex-col gap-1">
         <label htmlFor="headline" className="text-sm font-medium">
-          Headline
+          {dict.headline}
         </label>
         <input
           id="headline"
@@ -30,7 +33,7 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="subhead" className="text-sm font-medium">
-          Subhead <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(optional)</span>
+          {dict.subhead} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{common.optional}</span>
         </label>
         <input
           id="subhead"
@@ -42,20 +45,20 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="cta" className="text-sm font-medium">
-          Call to action <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(optional)</span>
+          {dict.cta} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{common.optional}</span>
         </label>
         <input
           id="cta"
           name="cta"
           maxLength={30}
-          placeholder="e.g. Shop now"
+          placeholder={dict.ctaPlaceholder}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="aspectRatio" className="text-sm font-medium">
-          Format
+          {dict.format}
         </label>
         <select
           id="aspectRatio"
@@ -63,15 +66,15 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
           defaultValue="SQUARE"
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
-          <option value="SQUARE">Square (1:1)</option>
-          <option value="STORY">Story (9:16)</option>
-          <option value="LANDSCAPE">Landscape (16:9)</option>
+          <option value="SQUARE">{dict.formatSquare}</option>
+          <option value="STORY">{dict.formatStory}</option>
+          <option value="LANDSCAPE">{dict.formatLandscape}</option>
         </select>
       </div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="backgroundSource" className="text-sm font-medium">
-          Background
+          {dict.background}
         </label>
         <select
           id="backgroundSource"
@@ -79,19 +82,16 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
           defaultValue="BRAND"
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
-          <option value="BRAND">Brand gradient (free)</option>
-          <option value="PHOTO">A photo from Media Library</option>
-          <option value="AI">AI-generated (needs an OpenAI key in Settings)</option>
+          <option value="BRAND">{dict.backgroundBrand}</option>
+          <option value="PHOTO">{dict.backgroundPhoto}</option>
+          <option value="AI">{dict.backgroundAI}</option>
         </select>
       </div>
 
       {photoAssets.length > 0 && (
         <div className="flex flex-col gap-1">
           <label htmlFor="backgroundAssetId" className="text-sm font-medium">
-            Photo{" "}
-            <span className="font-normal text-ink-soft dark:text-ink-soft-dark">
-              (used only when Background is set to &quot;A photo&quot;)
-            </span>
+            {dict.photo} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{dict.photoHint}</span>
           </label>
           <select
             id="backgroundAssetId"
@@ -116,11 +116,11 @@ export function PosterForm({ photoAssets }: { photoAssets: PhotoAsset[] }) {
         </ul>
       )}
       {state?.status === "success" && (
-        <p className="text-sm text-green-700 dark:text-green-400">Poster generated — see it below.</p>
+        <p className="text-sm text-green-700 dark:text-green-400">{dict.generatedSuccess}</p>
       )}
 
-      <Button type="submit" pending={pending} pendingLabel="Generating…">
-        Generate poster
+      <Button type="submit" pending={pending} pendingLabel={dict.generating}>
+        {dict.generate}
       </Button>
     </form>
   );

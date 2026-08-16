@@ -4,10 +4,10 @@ import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { buildCalendarWeeks, dateKey, formatDayNumber } from "@/lib/campaign-calendar";
 import { processCampaignNow } from "@/lib/actions/campaign";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CalendarItemCard } from "@/components/campaign/calendar-item-card";
 import { Button } from "@/components/ui/button";
-
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default async function CampaignDetailPage({
   params,
@@ -16,6 +16,7 @@ export default async function CampaignDetailPage({
 }) {
   const { id } = await params;
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
 
   const campaign = await db.campaign.findFirst({
     where: { id, companyId: company.id },
@@ -51,19 +52,15 @@ export default async function CampaignDetailPage({
       {pendingCount > 0 && (
         <form action={processCampaignNow.bind(null, campaign.id)} className="flex items-center gap-3">
           <Button type="submit" size="sm">
-            Process now
+            {dict.common.processNow}
           </Button>
-          <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-            {pendingCount} post{pendingCount === 1 ? "" : "s"} still generating — this app doesn&apos;t
-            have a real scheduler wired up in this environment, so click to process the queue
-            yourself (production would run this automatically; see README).
-          </p>
+          <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.processingHint(pendingCount)}</p>
         </form>
       )}
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[760px] grid-cols-7 gap-2">
-          {WEEKDAY_LABELS.map((label) => (
+          {dict.campaigns.weekdays.map((label) => (
             <div key={label} className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
               {label}
             </div>

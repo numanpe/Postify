@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { updateBrandKit } from "@/lib/actions/brand-kit";
 import { Button } from "@/components/ui/button";
+import { useDict } from "@/components/i18n/locale-provider";
 
 type BrandKitDefaults = {
   primaryColor: string | null;
@@ -15,12 +16,13 @@ type BrandKitDefaults = {
 
 export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
   const [state, action, pending] = useActionState(updateBrandKit, undefined);
+  const dict = useDict().brandKit;
 
   return (
     <form action={action} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1">
         <label htmlFor="logo" className="text-sm font-medium">
-          Logo
+          {dict.logo}
         </label>
         <input id="logo" name="logo" type="file" accept="image/*" className="text-sm" />
       </div>
@@ -28,7 +30,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
       <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="primaryColor" className="text-sm font-medium">
-            Primary
+            {dict.primary}
           </label>
           <input
             id="primaryColor"
@@ -40,7 +42,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="secondaryColor" className="text-sm font-medium">
-            Secondary
+            {dict.secondary}
           </label>
           <input
             id="secondaryColor"
@@ -52,7 +54,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="accentColor" className="text-sm font-medium">
-            Accent
+            {dict.accent}
           </label>
           <input
             id="accentColor"
@@ -66,7 +68,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="fontHeading" className="text-sm font-medium">
-          Heading font
+          {dict.headingFont}
         </label>
         <input
           id="fontHeading"
@@ -78,7 +80,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="fontBody" className="text-sm font-medium">
-          Body font
+          {dict.bodyFont}
         </label>
         <input
           id="fontBody"
@@ -90,8 +92,8 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
 
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <Button type="submit" pending={pending} pendingLabel="Saving…">
-        Save Brand Kit
+      <Button type="submit" pending={pending} pendingLabel={dict.saving}>
+        {dict.save}
       </Button>
     </form>
   );

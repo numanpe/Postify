@@ -10,4 +10,15 @@
     background-color: #c1272d;
     color: #faf8f5;
   }
+
+  /* Fraunces/Karla have no Arabic glyphs — Tajawal (the same family
+     already bundled for the poster/video render pipeline) takes over
+     for both body and headings whenever the document is RTL, rather
+     than silently falling back to a generic system Arabic face. */
+  [dir="rtl"] body {
+    font-family: var(--font-tajawal), system-ui, sans-serif;
+  }
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4 {
+    font-family: var(--font-tajawal), system-ui, sans-serif;
+  }
 }

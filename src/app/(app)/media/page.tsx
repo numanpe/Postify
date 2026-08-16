@@ -5,10 +5,13 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { formatBytes } from "@/lib/format";
 import { deleteMedia } from "@/lib/actions/media";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { UploadMediaForm } from "@/components/media/upload-media-form";
 
 export default async function MediaPage() {
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
 
   const assets = await db.mediaAsset.findMany({
     where: { companyId: company.id },
@@ -18,17 +21,14 @@ export default async function MediaPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Media Library</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Photos, video, audio, and brand assets for {company.name}. Tags shown here are
-          structural only — semantic search arrives once AI tagging is built.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.media.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.media.subtitle(company.name)}</p>
       </div>
 
       <UploadMediaForm />
 
       {assets.length === 0 ? (
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">No media uploaded yet.</p>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.media.noMedia}</p>
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((asset) => (
@@ -59,7 +59,7 @@ export default async function MediaPage() {
                   type="submit"
                   className="w-full rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card px-2 py-1 text-xs font-medium text-ink-soft dark:text-ink-soft-dark"
                 >
-                  Delete
+                  {dict.common.delete}
                 </button>
               </form>
             </li>

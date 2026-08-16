@@ -2,10 +2,14 @@ import Link from "next/link";
 
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CampaignForm } from "@/components/campaign/campaign-form";
 
 export default async function CampaignsPage() {
   const { company } = await requireCompany();
+  const locale = await getLocale();
+  const dict = getDictionary(locale);
 
   const campaigns = await db.campaign.findMany({
     where: { companyId: company.id },
@@ -16,17 +20,15 @@ export default async function CampaignsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Campaigns</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Plan a run of coherent, connected posts for {company.name} across several days.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.campaigns.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.subtitle(company.name)}</p>
       </div>
 
       <CampaignForm />
 
       {campaigns.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">Your campaigns</h2>
+          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.yourCampaigns}</h2>
           <ul className="flex flex-col gap-2">
             {campaigns.map((campaign) => {
               const readyCount = campaign.items.filter(
@@ -45,11 +47,11 @@ export default async function CampaignsPage() {
                     <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
                       {dates.length > 0 && (
                         <>
-                          {dates[0].toLocaleDateString()} – {dates[dates.length - 1].toLocaleDateString()} ·{" "}
+                          {dates[0].toLocaleDateString(locale)} – {dates[dates.length - 1].toLocaleDateString(locale)} ·{" "}
                         </>
                       )}
-                      {campaign.items.length} posts · {readyCount} ready
-                      {failedCount > 0 ? ` · ${failedCount} failed` : ""}
+                      {dict.campaigns.postsCount(campaign.items.length)} · {dict.campaigns.readyCount(readyCount)}
+                      {failedCount > 0 ? ` · ${dict.campaigns.failedCount(failedCount)}` : ""}
                     </p>
                   </Link>
                 </li>

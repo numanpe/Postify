@@ -2,6 +2,8 @@ import Image from "next/image";
 
 import { storage } from "@/lib/storage";
 import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from "@/lib/actions/campaign";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { CampaignItemStatus } from "@prisma/client";
 
 const STATUS_STYLES: Record<CampaignItemStatus, string> = {
@@ -28,14 +30,16 @@ interface CalendarItemCardProps {
 // element and every action is a plain bound server action form, so no
 // client-side state is needed for what's otherwise a fully interactive
 // card (approve / edit + regenerate / remove).
-export function CalendarItemCard({ item }: CalendarItemCardProps) {
+export async function CalendarItemCard({ item }: CalendarItemCardProps) {
+  const dict = getDictionary(await getLocale());
+
   return (
     <div
       data-campaign-item-id={item.id}
       className="flex flex-col gap-1 rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card p-1.5 text-xs"
     >
       <span className={`w-fit rounded px-1.5 py-0.5 font-medium ${STATUS_STYLES[item.status]}`}>
-        {item.status}
+        {dict.status[item.status]}
       </span>
 
       {item.poster?.asset && (
@@ -60,7 +64,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
       )}
 
       <details>
-        <summary className="cursor-pointer text-ink-soft dark:text-ink-soft-dark">Manage</summary>
+        <summary className="cursor-pointer text-ink-soft dark:text-ink-soft-dark">{dict.common.manage}</summary>
         <div className="mt-1 flex flex-col gap-1">
           {item.status === "READY" && (
             <form action={approveCampaignItem.bind(null, item.id)}>
@@ -68,7 +72,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
                 type="submit"
                 className="w-full rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
               >
-                Approve
+                {dict.common.approve}
               </button>
             </form>
           )}
@@ -81,7 +85,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
               className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5"
             />
             <button type="submit" className="rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
-              {item.status === "FAILED" ? "Retry" : "Regenerate"}
+              {item.status === "FAILED" ? dict.common.retry : dict.common.regenerate}
             </button>
           </form>
 
@@ -90,7 +94,7 @@ export function CalendarItemCard({ item }: CalendarItemCardProps) {
               type="submit"
               className="w-full rounded border border-paper-border dark:border-night-border px-1.5 py-0.5 text-red-600 dark:text-red-400"
             >
-              Remove
+              {dict.common.remove}
             </button>
           </form>
         </div>

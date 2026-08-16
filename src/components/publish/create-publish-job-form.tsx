@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import { createPublishJob } from "@/lib/actions/publish";
 import { Button } from "@/components/ui/button";
+import { useDict } from "@/components/i18n/locale-provider";
 
 interface SocialAccountOption {
   id: string;
@@ -18,11 +19,6 @@ interface PosterOption {
   cta: string | null;
 }
 
-const PLATFORM_LABELS: Record<string, string> = {
-  FACEBOOK: "Facebook Page",
-  INSTAGRAM: "Instagram",
-};
-
 export function CreatePublishJobForm({
   accounts,
   posters,
@@ -32,6 +28,11 @@ export function CreatePublishJobForm({
 }) {
   const [state, action, pending] = useActionState(createPublishJob, undefined);
   const [selectedPosterId, setSelectedPosterId] = useState(posters[0]?.id ?? "");
+  const dict = useDict().publish;
+  const platformLabels: Record<string, string> = {
+    FACEBOOK: dict.platformFacebook,
+    INSTAGRAM: dict.platformInstagram,
+  };
 
   const selectedPoster = posters.find((poster) => poster.id === selectedPosterId);
   const suggestedCaption = selectedPoster
@@ -42,7 +43,7 @@ export function CreatePublishJobForm({
     <form action={action} className="flex w-full max-w-md flex-col gap-4">
       <div className="flex flex-col gap-1">
         <label htmlFor="socialAccountId" className="text-sm font-medium">
-          Publish to
+          {dict.publishTo}
         </label>
         <select
           id="socialAccountId"
@@ -52,7 +53,7 @@ export function CreatePublishJobForm({
         >
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {PLATFORM_LABELS[account.platform] ?? account.platform} — {account.displayName}
+              {platformLabels[account.platform] ?? account.platform} — {account.displayName}
             </option>
           ))}
         </select>
@@ -60,7 +61,7 @@ export function CreatePublishJobForm({
 
       <div className="flex flex-col gap-1">
         <label htmlFor="posterId" className="text-sm font-medium">
-          Poster
+          {dict.poster}
         </label>
         <select
           id="posterId"
@@ -80,7 +81,7 @@ export function CreatePublishJobForm({
 
       <div className="flex flex-col gap-1">
         <label htmlFor="caption" className="text-sm font-medium">
-          Caption
+          {dict.caption}
         </label>
         <textarea
           id="caption"
@@ -96,7 +97,7 @@ export function CreatePublishJobForm({
 
       <div className="flex flex-col gap-1">
         <label htmlFor="scheduledFor" className="text-sm font-medium">
-          When <span className="font-normal text-ink-soft dark:text-ink-soft-dark">(leave blank to publish now)</span>
+          {dict.when} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{dict.whenHint}</span>
         </label>
         <input
           id="scheduledFor"
@@ -108,8 +109,8 @@ export function CreatePublishJobForm({
 
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <Button type="submit" pending={pending} pendingLabel="Queuing…">
-        Queue post
+      <Button type="submit" pending={pending} pendingLabel={dict.queuing}>
+        {dict.queuePost}
       </Button>
     </form>
   );

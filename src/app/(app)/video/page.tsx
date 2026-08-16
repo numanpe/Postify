@@ -1,10 +1,13 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { VideoForm } from "@/components/video/video-form";
 
 export default async function VideoPage() {
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
 
   const [assets, videos, openAiCredential] = await Promise.all([
     // Excludes brand logos and previously-generated posters/videos —
@@ -34,18 +37,15 @@ export default async function VideoPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Video Studio</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Generate a short video for {company.name}: script, real/AI B-roll, captions, music, and
-          your branding.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.video.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.video.subtitle(company.name)}</p>
       </div>
 
       <VideoForm assets={assets} hasOpenAiKey={!!openAiCredential} />
 
       {videos.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">Previous videos</h2>
+          <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.video.previousVideos}</h2>
           <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
             {videos.map((video) => (
               <li

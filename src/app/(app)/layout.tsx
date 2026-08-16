@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { requireCompany } from "@/lib/session";
 import { signOut } from "@/auth";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export default async function AppLayout({
   children,
@@ -9,6 +11,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
+
+  const linkClass =
+    "font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark";
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -18,29 +24,29 @@ export default async function AppLayout({
           <span className="text-sm text-ink-soft dark:text-ink-soft-dark">{company.name}</span>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          <Link href="/studio" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Content Studio
+          <Link href="/studio" className={linkClass}>
+            {dict.nav.studio}
           </Link>
-          <Link href="/poster" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Poster Studio
+          <Link href="/poster" className={linkClass}>
+            {dict.nav.poster}
           </Link>
-          <Link href="/video" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Video Studio
+          <Link href="/video" className={linkClass}>
+            {dict.nav.video}
           </Link>
-          <Link href="/campaigns" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Campaigns
+          <Link href="/campaigns" className={linkClass}>
+            {dict.nav.campaigns}
           </Link>
-          <Link href="/publish" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Publish
+          <Link href="/publish" className={linkClass}>
+            {dict.nav.publish}
           </Link>
-          <Link href="/media" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Media Library
+          <Link href="/media" className={linkClass}>
+            {dict.nav.media}
           </Link>
-          <Link href="/brand-kit" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Brand Kit
+          <Link href="/brand-kit" className={linkClass}>
+            {dict.nav.brandKit}
           </Link>
-          <Link href="/settings" className="font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-            Settings
+          <Link href="/settings" className={linkClass}>
+            {dict.nav.settings}
           </Link>
           <form
             action={async () => {
@@ -48,8 +54,8 @@ export default async function AppLayout({
               await signOut({ redirectTo: "/login" });
             }}
           >
-            <button type="submit" className="text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark">
-              Sign out
+            <button type="submit" className={linkClass}>
+              {dict.nav.signOut}
             </button>
           </form>
         </nav>

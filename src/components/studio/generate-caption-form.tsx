@@ -4,9 +4,11 @@ import { useActionState } from "react";
 
 import { generateCaption } from "@/lib/actions/content";
 import { Button } from "@/components/ui/button";
+import { useDict } from "@/components/i18n/locale-provider";
 
 export function GenerateCaptionForm() {
   const [state, action, pending] = useActionState(generateCaption, undefined);
+  const dict = useDict().studio;
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-4">
@@ -14,12 +16,12 @@ export function GenerateCaptionForm() {
         <input
           type="text"
           name="topic"
-          placeholder="What's this post about? e.g. our new spring menu"
+          placeholder={dict.topicPlaceholder}
           required
           className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
-        <Button type="submit" pending={pending} pendingLabel="Generating…" size="sm">
-          Generate
+        <Button type="submit" pending={pending} pendingLabel={dict.generating} size="sm">
+          {dict.generate}
         </Button>
       </form>
 

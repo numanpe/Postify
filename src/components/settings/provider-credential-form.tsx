@@ -4,15 +4,17 @@ import { useActionState } from "react";
 
 import { saveProviderCredential } from "@/lib/actions/provider-credentials";
 import { Button } from "@/components/ui/button";
+import { useDict } from "@/components/i18n/locale-provider";
 
 export function ProviderCredentialForm() {
   const [state, action, pending] = useActionState(saveProviderCredential, undefined);
+  const dict = useDict().settings;
 
   return (
     <form action={action} className="flex w-full max-w-sm flex-col gap-4">
       <div className="flex flex-col gap-1">
         <label htmlFor="provider" className="text-sm font-medium">
-          Provider
+          {dict.provider}
         </label>
         <select
           id="provider"
@@ -28,7 +30,7 @@ export function ProviderCredentialForm() {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="apiKey" className="text-sm font-medium">
-          API key
+          {dict.apiKey}
         </label>
         <input
           id="apiKey"
@@ -42,8 +44,8 @@ export function ProviderCredentialForm() {
 
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
 
-      <Button type="submit" pending={pending} pendingLabel="Saving…">
-        Save key
+      <Button type="submit" pending={pending} pendingLabel={dict.saving}>
+        {dict.saveKey}
       </Button>
     </form>
   );

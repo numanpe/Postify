@@ -1,8 +1,11 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { removeProviderCredential } from "@/lib/actions/provider-credentials";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
 
+// Brand names — not translated regardless of locale.
 const PROVIDER_LABELS: Record<string, string> = {
   OPENAI: "OpenAI",
   ANTHROPIC: "Anthropic",
@@ -10,6 +13,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 export default async function SettingsPage() {
   const { company } = await requireCompany();
+  const dict = getDictionary(await getLocale());
 
   const credentials = await db.providerCredential.findMany({
     where: { companyId: company.id },
@@ -19,12 +23,8 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">AI Providers</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Optional — Postify works fully without any key. Add your own OpenAI or Anthropic key for
-          higher-quality generation. Your key is encrypted at rest and never shown again after
-          saving.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.settings.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.settings.subtitle}</p>
       </div>
 
       {credentials.length > 0 && (
@@ -42,7 +42,7 @@ export default async function SettingsPage() {
                   type="submit"
                   className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark"
                 >
-                  Remove
+                  {dict.common.remove}
                 </button>
               </form>
             </li>

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { processPublishJobsNow } from "@/lib/actions/publish";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ConnectAccounts } from "@/components/publish/connect-accounts";
 import { CreatePublishJobForm } from "@/components/publish/create-publish-job-form";
 import { PublishJobList } from "@/components/publish/publish-job-list";
@@ -15,6 +17,7 @@ export default async function PublishPage({
 }) {
   const { company } = await requireCompany();
   const { meta, detail } = await searchParams;
+  const dict = getDictionary(await getLocale());
 
   const [accounts, posters, jobs] = await Promise.all([
     db.socialAccount.findMany({ where: { companyId: company.id }, orderBy: { connectedAt: "asc" } }),
@@ -39,20 +42,18 @@ export default async function PublishPage({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">Publish</h1>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Post an existing poster directly to a connected Facebook Page or Instagram account.
-        </p>
+        <h1 className="text-xl font-semibold">{dict.publish.title}</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.publish.subtitle}</p>
       </div>
 
       {meta === "connected" && (
         <p className="rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950 px-3 py-2 text-sm text-green-800 dark:text-green-300">
-          Connected successfully.
+          {dict.publish.connectedSuccess}
         </p>
       )}
       {meta === "error" && (
         <p className="rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-800 dark:text-red-300">
-          Couldn&apos;t connect: {detail ?? "Unknown error."}
+          {dict.publish.connectedError(detail ?? "Unknown error.")}
         </p>
       )}
 
@@ -60,16 +61,14 @@ export default async function PublishPage({
 
       {posters.length === 0 ? (
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          No posters yet — generate one in the{" "}
+          {dict.publish.noPostersYetPrefix}{" "}
           <Link href="/poster" className="underline">
-            Poster Studio
+            {dict.nav.poster}
           </Link>{" "}
-          first.
+          {dict.publish.noPostersYetSuffix}
         </p>
       ) : accounts.length === 0 ? (
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-          Connect a Facebook Page or Instagram account above before you can publish.
-        </p>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.publish.connectFirst}</p>
       ) : (
         <CreatePublishJobForm accounts={accounts} posters={posters} />
       )}
@@ -77,13 +76,9 @@ export default async function PublishPage({
       {pendingCount > 0 && (
         <form action={processPublishJobsNow} className="flex flex-wrap items-center gap-3">
           <Button type="submit" size="sm">
-            Process now
+            {dict.common.processNow}
           </Button>
-          <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
-            {pendingCount} job{pendingCount === 1 ? "" : "s"} queued — this app doesn&apos;t have a
-            real scheduler wired up in this environment, so click to process the queue yourself
-            (production would run this automatically; see README).
-          </p>
+          <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.publish.processingHint(pendingCount)}</p>
         </form>
       )}
 
