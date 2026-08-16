@@ -4,7 +4,7 @@ import { fetchWithRetry } from "../http";
 import type { PublishPostInput, PublishPostOutput, SocialProvider } from "./types";
 import { SocialProviderError } from "./types";
 
-const GRAPH_VERSION = "v21.0";
+const GRAPH_VERSION = "v23.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 // Facebook's Page photo endpoint accepts a direct multipart binary

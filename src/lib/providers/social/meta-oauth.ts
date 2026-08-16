@@ -1,6 +1,6 @@
 import "server-only";
 
-const GRAPH_VERSION = "v21.0";
+const GRAPH_VERSION = "v23.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 function getAppCredentials(): { appId: string; appSecret: string } {
@@ -22,15 +22,26 @@ function getRedirectUri(): string {
   return `${appUrl.replace(/\/$/, "")}/api/social/meta/callback`;
 }
 
-// Page-level permissions only — Postify never publishes to a personal
-// profile, only Pages/Business assets the connecting user administers.
-const SCOPES = [
-  "pages_show_list",
-  "pages_read_engagement",
-  "pages_manage_posts",
-  "instagram_basic",
-  "instagram_content_publish",
-].join(",");
+// Business-type apps use "Facebook Login for Business": permissions are
+// bundled into a Login Configuration created in the app dashboard
+// (Facebook Login for Business -> Configurations), referenced here by
+// its config_id — NOT requested ad hoc via a scope param. Meta's own
+// docs are explicit that the classic scope-based dialog is discouraged
+// (and in practice unreliable/rejected) for Business apps requesting
+// Page/Instagram permissions; using it was the actual cause of a
+// confusing "domain not in app's domains" error that had nothing to do
+// with the domain. The Configuration itself is where
+// pages_show_list/pages_read_engagement/pages_manage_posts/
+// instagram_basic/instagram_content_publish are selected — not in code.
+function getLoginConfigId(): string {
+  const configId = process.env.META_LOGIN_CONFIG_ID;
+  if (!configId) {
+    throw new Error(
+      "META_LOGIN_CONFIG_ID is not set. Create a Login Configuration in the Meta app dashboard (Facebook Login for Business -> Configurations) selecting pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, and instagram_content_publish, then set its Configuration ID here.",
+    );
+  }
+  return configId;
+}
 
 export function buildAuthorizeUrl(state: string): string {
   const { appId } = getAppCredentials();
@@ -38,7 +49,7 @@ export function buildAuthorizeUrl(state: string): string {
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("state", state);
-  url.searchParams.set("scope", SCOPES);
+  url.searchParams.set("config_id", getLoginConfigId());
   url.searchParams.set("response_type", "code");
   return url.toString();
 }
