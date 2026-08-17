@@ -9,7 +9,7 @@ import { requireCompany } from "@/lib/session";
 import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
-import { processCampaignItems } from "@/lib/jobs/process-campaign-items";
+import { processCampaignItems, processSingleCampaignItem } from "@/lib/jobs/process-campaign-items";
 import { triggerCampaignProcessing } from "@/lib/jobs/trigger";
 
 export type CreateCampaignState = { error: string } | undefined;
@@ -138,6 +138,16 @@ export async function approveCampaignItem(itemId: string): Promise<void> {
 // argument is always the form's FormData (React's calling convention
 // for bound form actions) — an empty/missing "angle" field means a
 // plain retry with the existing text.
+//
+// Awaits the actual generation itself (processSingleCampaignItem)
+// rather than the fire-and-forget triggerCampaignProcessing() the rest
+// of this file uses — a real production incident showed that on Vercel
+// serverless, a fire-and-forget call can be frozen mid-render with no
+// error ever recorded, leaving the item stuck in GENERATING forever.
+// Awaiting means the Server Action's own response (and this route's
+// maxDuration budget — see campaigns/[id]/page.tsx) doesn't return
+// until the item has genuinely finished, one way or another, so
+// "Regenerate" always reflects a real outcome, not a silent no-op.
 export async function regenerateCampaignItem(itemId: string, formData: FormData): Promise<void> {
   const { company } = await requireCompany();
   const item = await requireOwnedCampaignItem(itemId, company.id);
@@ -145,7 +155,7 @@ export async function regenerateCampaignItem(itemId: string, formData: FormData)
   const newAngle = formData.get("angle");
   const trimmed = typeof newAngle === "string" ? newAngle.trim() : "";
 
-  await db.campaignItem.update({
+  const updated = await db.campaignItem.update({
     where: { id: item.id },
     data: {
       angle: trimmed ? trimmed : item.angle,
@@ -153,10 +163,16 @@ export async function regenerateCampaignItem(itemId: string, formData: FormData)
       retryCount: 0,
       nextAttemptAt: new Date(),
       errorMessage: null,
+      // See POSTER_TEMPLATE_ROTATION/selectAutoAssetIds in
+      // process-campaign-items.ts — guarantees this regenerate produces
+      // a genuinely different template/footage choice, not a
+      // pixel-identical re-render of the same deterministic inputs.
+      generationAttempt: { increment: 1 },
     },
+    include: { campaign: true },
   });
 
-  triggerCampaignProcessing();
+  await processSingleCampaignItem(updated);
   revalidatePath(`/campaigns/${item.campaignId}`);
 }
 

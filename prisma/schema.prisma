@@ -265,6 +265,13 @@ model CampaignItem {
   angle         String // this day's specific sub-topic, from the campaign plan — shown in the calendar UI regardless of asset type
   assetType     CampaignAssetType  @default(POSTER)
   status        CampaignItemStatus @default(PENDING)
+  // Incremented on every explicit "Regenerate" click (process-campaign-items.ts).
+  // Threaded into which poster template gets used and which auto-selected
+  // B-roll assets a video gets, so an explicit regenerate is guaranteed to
+  // produce a genuinely different output — the BRAND-gradient poster
+  // pipeline and the free-tier script generator are both otherwise fully
+  // deterministic given identical inputs.
+  generationAttempt Int @default(0)
 
   // Poster-pipeline inputs (assetType == POSTER). Nullable: falls back
   // to `angle` as the headline for backward compatibility with items

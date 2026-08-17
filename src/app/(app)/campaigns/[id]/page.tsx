@@ -9,6 +9,13 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CalendarItemCard } from "@/components/campaign/calendar-item-card";
 import { Button } from "@/components/ui/button";
 
+// Requests the platform's maximum available execution time for this
+// page's Server Actions (processCampaignNow, regenerateCampaignItem,
+// which now awaits real generation instead of firing-and-forgetting —
+// see campaign.ts). See process-campaign-items.ts's stuck-video
+// investigation note for why this matters.
+export const maxDuration = 300;
+
 export default async function CampaignDetailPage({
   params,
 }: {
