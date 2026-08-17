@@ -10,7 +10,7 @@ import { encryptSecret } from "@/lib/crypto";
 export type ProviderCredentialState = { error: string } | undefined;
 
 const SaveSchema = z.object({
-  provider: z.enum(["OPENAI", "ANTHROPIC"]),
+  provider: z.enum(["OPENAI", "ANTHROPIC", "ELEVENLABS"]),
   apiKey: z.string().trim().min(10, "That doesn't look like a valid API key.").max(500),
 });
 

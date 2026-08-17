@@ -4,11 +4,14 @@ import { removeProviderCredential } from "@/lib/actions/provider-credentials";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
+import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
+import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 
 // Brand names — not translated regardless of locale.
 const PROVIDER_LABELS: Record<string, string> = {
   OPENAI: "OpenAI",
   ANTHROPIC: "Anthropic",
+  ELEVENLABS: "ElevenLabs",
 };
 
 export default async function SettingsPage() {
@@ -51,6 +54,10 @@ export default async function SettingsPage() {
       )}
 
       <ProviderCredentialForm />
+
+      <VoiceEngineToggle currentEngine={company.voiceEngine} />
+
+      <ApiKeyGuide dict={dict.settings} />
     </div>
   );
 }

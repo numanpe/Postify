@@ -9,7 +9,7 @@ export default async function VideoPage() {
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [assets, videos, openAiCredential] = await Promise.all([
+  const [assets, videos, voiceCredential] = await Promise.all([
     // Excludes brand logos and previously-generated posters/videos —
     // none of those are real B-roll footage (see Phase 3's photo-picker
     // fix for the same category of bug with poster backgrounds).
@@ -29,10 +29,15 @@ export default async function VideoPage() {
       include: { asset: true },
       orderBy: { createdAt: "desc" },
     }),
-    db.providerCredential.findUnique({
-      where: { companyId_provider: { companyId: company.id, provider: "OPENAI" } },
+    db.providerCredential.findFirst({
+      where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS"] } },
     }),
   ]);
+
+  // FREE (the default) always works — no key needed. BYOK only works
+  // once a matching credential is saved. Mirrors the exact contract
+  // getVoiceProviderForCompany() uses server-side.
+  const narrationAvailable = company.voiceEngine === "FREE" || !!voiceCredential;
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,7 +46,7 @@ export default async function VideoPage() {
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.video.subtitle(company.name)}</p>
       </div>
 
-      <VideoForm assets={assets} hasOpenAiKey={!!openAiCredential} />
+      <VideoForm assets={assets} narrationAvailable={narrationAvailable} />
 
       {videos.length > 0 && (
         <div className="flex flex-col gap-3">

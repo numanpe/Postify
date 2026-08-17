@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import { generateVideo } from "@/lib/actions/video";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,22 @@ interface MediaAssetOption {
 
 export function VideoForm({
   assets,
-  hasOpenAiKey,
+  narrationAvailable,
 }: {
   assets: MediaAssetOption[];
-  hasOpenAiKey: boolean;
+  narrationAvailable: boolean;
 }) {
   const [state, action, pending] = useActionState(generateVideo, undefined);
   const dict = useDict().video;
+  const router = useRouter();
+
+  // See poster-form.tsx's identical effect — client-side refresh
+  // instead of the server calling revalidatePath.
+  useEffect(() => {
+    if (state?.status === "success") {
+      router.refresh();
+    }
+  }, [state, router]);
 
   return (
     <form action={action} className="flex w-full max-w-md flex-col gap-4">
@@ -54,9 +64,9 @@ export function VideoForm({
       </div>
 
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="useNarration" disabled={!hasOpenAiKey} />
+        <input type="checkbox" name="useNarration" defaultChecked={narrationAvailable} disabled={!narrationAvailable} />
         {dict.narration}
-        {!hasOpenAiKey && <span className="text-ink-soft dark:text-ink-soft-dark">{dict.narrationHint}</span>}
+        {!narrationAvailable && <span className="text-ink-soft dark:text-ink-soft-dark">{dict.narrationHint}</span>}
       </label>
 
       <div className="flex flex-col gap-1">
