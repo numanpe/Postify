@@ -6,6 +6,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
+import { PublishingSettings } from "@/components/settings/publishing-settings";
 
 // Brand names — not translated regardless of locale.
 const PROVIDER_LABELS: Record<string, string> = {
@@ -18,10 +19,17 @@ export default async function SettingsPage() {
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const credentials = await db.providerCredential.findMany({
-    where: { companyId: company.id },
-    orderBy: { createdAt: "asc" },
-  });
+  const [credentials, aggregatorCredentials] = await Promise.all([
+    db.providerCredential.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.aggregatorCredential.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, provider: true, keyPreview: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +66,8 @@ export default async function SettingsPage() {
       <VoiceEngineToggle currentEngine={company.voiceEngine} />
 
       <ApiKeyGuide dict={dict.settings} />
+
+      <PublishingSettings publishingMode={company.publishingMode} credentials={aggregatorCredentials} />
     </div>
   );
 }

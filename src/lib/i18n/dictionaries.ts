@@ -96,6 +96,21 @@ export interface Dictionary {
     openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
     elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
   };
+  publishing: {
+    settingsTitle: string; settingsSubtitle: string;
+    modeManualTitle: string; modeManualDescription: string;
+    modeAggregatorTitle: string; modeAggregatorRecommended: string; modeAggregatorDescription: string;
+    modeDirectApiTitle: string; modeDirectApiDescription: string;
+    useThisMethod: string; currentMethod: string;
+    apiKeyLabel: string; accountMapLabel: string; accountMapHint: string; accountMapPlaceholder: string;
+    saveAndUse: string; saving: string; savedCredential: (provider: string) => string;
+    advancedOptions: string; comingSoon: string; goToDirectMeta: string; tiktokNotIntegrated: string;
+    downloadButton: string; downloadedToast: string;
+    publishViaProvider: (provider: string) => string; publishing: string;
+    publishDirect: string; selectAccount: string; noAccountsForDirect: string;
+    lastAttemptSucceeded: string; lastAttemptFailed: (message: string) => string;
+    staleWarning: (days: number) => string; extendRetention: string; fileCleanedUp: string;
+  };
 }
 
 export const dictionaries: Record<"en" | "ar", Dictionary> = {
@@ -322,6 +337,46 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       ],
       elevenLabsGuideLinkLabel: "Get ElevenLabs key → elevenlabs.io",
     },
+    publishing: {
+      settingsTitle: "Publishing",
+      settingsSubtitle:
+        "Choose how your posters and videos get published from campaign cards. Manual download is always free and always works — the other options are optional.",
+      modeManualTitle: "Manual Download & Copy",
+      modeManualDescription: "Zero setup, 100% free. Download the file, paste the caption yourself.",
+      modeAggregatorTitle: "Zernio / Automated Social Router",
+      modeAggregatorRecommended: "(Recommended)",
+      modeAggregatorDescription:
+        "Paste your own Zernio API key — posts go out through your Zernio account, at Zernio's own pricing. Postify never charges for this.",
+      modeDirectApiTitle: "Direct Meta / TikTok API",
+      modeDirectApiDescription:
+        "Publish straight to a Facebook Page or Instagram account you connect below. TikTok isn't integrated yet.",
+      useThisMethod: "Use this method",
+      currentMethod: "Currently in use",
+      apiKeyLabel: "API key",
+      accountMapLabel: "Platform account IDs",
+      accountMapHint: "From your Zernio dashboard — one per platform you want to publish to.",
+      accountMapPlaceholder: "FACEBOOK:acc_123, INSTAGRAM:acc_456",
+      saveAndUse: "Save & use Zernio",
+      saving: "Saving…",
+      savedCredential: (provider: string) => `${provider} key saved.`,
+      advancedOptions: "Advanced options",
+      comingSoon: "Coming soon",
+      goToDirectMeta: "Connect Facebook / Instagram →",
+      tiktokNotIntegrated: "TikTok — no integration exists yet. Not offered as a fake option.",
+      downloadButton: "Download & copy caption",
+      downloadedToast: "Downloaded — caption and hashtags copied.",
+      publishViaProvider: (provider: string) => `Publish via ${provider}`,
+      publishing: "Publishing…",
+      publishDirect: "Publish directly",
+      selectAccount: "Account",
+      noAccountsForDirect: "Connect a Facebook/Instagram account in Publish first.",
+      lastAttemptSucceeded: "Published successfully.",
+      lastAttemptFailed: (message: string) => `Publish failed: ${message}`,
+      staleWarning: (days: number) =>
+        `Not downloaded or published in over ${days} days — it may be removed soon to save storage.`,
+      extendRetention: "Keep for 30 more days",
+      fileCleanedUp: "The original file was removed after a confirmed publish — captions and history are still saved.",
+    },
   },
   ar: {
     nav: {
@@ -544,6 +599,45 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "في قسم محرك التعليق الصوتي أعلاه، بدّل إلى \"استخدام مفتاح API الخاص بي\" ليتم استخدامه فعليًا في الفيديوهات.",
       ],
       elevenLabsGuideLinkLabel: "احصل على مفتاح ElevenLabs ← elevenlabs.io",
+    },
+    publishing: {
+      settingsTitle: "النشر",
+      settingsSubtitle:
+        "اختر طريقة نشر ملصقاتك وفيديوهاتك من بطاقات الحملة. التنزيل اليدوي مجاني دائمًا ويعمل دائمًا — بقية الخيارات اختيارية.",
+      modeManualTitle: "التنزيل اليدوي والنسخ",
+      modeManualDescription: "بلا إعداد، مجاني 100%. نزّل الملف والصق التسمية التوضيحية بنفسك.",
+      modeAggregatorTitle: "Zernio / موجّه النشر الآلي",
+      modeAggregatorRecommended: "(موصى به)",
+      modeAggregatorDescription:
+        "الصق مفتاح Zernio الخاص بك — تُنشر المنشورات عبر حساب Zernio الخاص بك، وفق أسعار Zernio نفسها. بوستيفاي لا يفرض رسومًا على هذا مطلقًا.",
+      modeDirectApiTitle: "واجهة Meta / TikTok المباشرة",
+      modeDirectApiDescription:
+        "انشر مباشرة إلى صفحة فيسبوك أو حساب إنستغرام تربطه أدناه. TikTok غير مدمج بعد.",
+      useThisMethod: "استخدام هذه الطريقة",
+      currentMethod: "قيد الاستخدام حاليًا",
+      apiKeyLabel: "مفتاح API",
+      accountMapLabel: "معرّفات حسابات المنصّات",
+      accountMapHint: "من لوحة تحكم Zernio — واحد لكل منصّة تريد النشر إليها.",
+      accountMapPlaceholder: "FACEBOOK:acc_123, INSTAGRAM:acc_456",
+      saveAndUse: "حفظ واستخدام Zernio",
+      saving: "جارٍ الحفظ…",
+      savedCredential: (provider: string) => `تم حفظ مفتاح ${provider}.`,
+      advancedOptions: "خيارات متقدمة",
+      comingSoon: "قريبًا",
+      goToDirectMeta: "ربط فيسبوك / إنستغرام ←",
+      tiktokNotIntegrated: "TikTok — لا يوجد تكامل بعد. لا يُعرض كخيار وهمي.",
+      downloadButton: "تنزيل ونسخ التسمية التوضيحية",
+      downloadedToast: "تم التنزيل — تم نسخ التسمية التوضيحية والوسوم.",
+      publishViaProvider: (provider: string) => `النشر عبر ${provider}`,
+      publishing: "جارٍ النشر…",
+      publishDirect: "نشر مباشر",
+      selectAccount: "الحساب",
+      noAccountsForDirect: "اربط حساب فيسبوك/إنستغرام من صفحة النشر أولًا.",
+      lastAttemptSucceeded: "تم النشر بنجاح.",
+      lastAttemptFailed: (message: string) => `فشل النشر: ${message}`,
+      staleWarning: (days: number) => `لم يُنزَّل أو يُنشر منذ أكثر من ${days} يومًا — قد تتم إزالته قريبًا لتوفير المساحة.`,
+      extendRetention: "الاحتفاظ به 30 يومًا إضافية",
+      fileCleanedUp: "تمت إزالة الملف الأصلي بعد نشر مؤكد — التسميات التوضيحية والسجل ما زالا محفوظين.",
     },
   },
 };

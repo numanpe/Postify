@@ -1,0 +1,113 @@
+import type { SocialAggregatorProvider } from "@prisma/client";
+
+// Provider-agnostic post payload, per the Task 1 spec's own field list —
+// every adapter (Zernio today, others once their real API shapes are
+// verified) translates this into its own wire format internally.
+export interface AggregatorPostInput {
+  // Kept even though only Zernio's direct-upload flow uses the raw bytes
+  // — Postproxy and Buffer both need a real, publicly-fetchable URL
+  // instead (same constraint Instagram's own Graph API has — see
+  // src/lib/public-asset-links.ts), which those adapters mint themselves
+  // from mediaAssetId immediately before the call and revoke right after.
+  mediaAssetId: string;
+  mediaBuffer: Buffer;
+  mediaMimeType: string;
+  mediaKind: "image" | "video";
+  captionText: string;
+  hashtags: string[];
+  // One entry per target platform, each carrying the account ID the user
+  // registered on the aggregator's own dashboard (see
+  // AggregatorCredential.accountMap) — an adapter that has no account ID
+  // for a requested platform should skip it, not guess one.
+  platforms: { platform: string; accountId: string }[];
+  scheduledTime?: Date;
+}
+
+export interface AggregatorPostOutput {
+  externalPostId: string;
+  // Not every aggregator confirms a per-post URL synchronously — null is
+  // honest, never guessed.
+  externalPostUrl: string | null;
+}
+
+export interface SocialAggregatorAdapter {
+  readonly provider: SocialAggregatorProvider;
+  publishPost(input: AggregatorPostInput): Promise<AggregatorPostOutput>;
+}
+
+// Thrown both for real call failures (bad key, rate limit, provider down)
+// and for providers whose real API request/response shape hasn't been
+// verified yet — see resolver.ts. Either way this must surface to the
+// user, never be swallowed into a fake "published successfully."
+export class AggregatorProviderError extends Error {
+  constructor(
+    public providerName: string,
+    message: string,
+    public cause?: unknown,
+  ) {
+    super(message);
+    this.name = "AggregatorProviderError";
+  }
+}
+
+// Static catalog for the Settings UI — one entry per provider named in
+// the spec, each carrying what was actually verified (see the Provider
+// Reality Check done before this file was written) rather than the
+// spec's unverified claims. `implemented: false` providers still appear
+// in "Advanced options" so the UI is honest about what exists without
+// silently hiding them.
+export interface AggregatorProviderInfo {
+  provider: SocialAggregatorProvider;
+  displayName: string;
+  homepage: string;
+  pricingSummary: string;
+  implemented: boolean;
+  unimplementedReason?: string;
+}
+
+export const AGGREGATOR_PROVIDERS: AggregatorProviderInfo[] = [
+  {
+    provider: "ZERNIO",
+    displayName: "Zernio",
+    homepage: "https://zernio.com",
+    pricingSummary: "First 2 accounts free, then $6/account (3-10), $3/account (11-100).",
+    implemented: true,
+  },
+  {
+    // Verified: POST https://api.postproxy.dev/api/posts, Bearer auth,
+    // JSON body {post:{body,scheduled_at?},profiles:[...],media:[...]},
+    // self-serve key at the Postproxy dashboard. Live-tested with a
+    // deliberately invalid key against the real endpoint — got a clean
+    // {"error":"Invalid API key"} 401, confirming the shape is real.
+    provider: "POSTPROXY",
+    displayName: "Postproxy",
+    homepage: "https://postproxy.dev",
+    pricingSummary: "Free tier: 10 posts/mo. Paid plans start at $17/mo.",
+    implemented: true,
+  },
+  {
+    provider: "UPLOAD_POST",
+    displayName: "Upload-Post",
+    homepage: "https://upload-post.com",
+    pricingSummary: "Free tier available. Paid plans reported to start around $16/mo.",
+    implemented: false,
+    unimplementedReason:
+      "Upload-Post's video-upload endpoint (POST /api/upload, multipart/form-data with a video field) is verified and real, but this app publishes posters (images) far more often than video, and Upload-Post's separate photo-upload endpoint and its exact field names could not be confirmed from public docs despite repeated attempts — this app won't guess them. Coming soon for poster publishing; ask if you want video-only support in the meantime.",
+  },
+  {
+    // Verified: self-serve personal API key at
+    // publish.buffer.com/settings/api (no OAuth/partner approval needed
+    // for this BYOK use case — the OAuth gating reported elsewhere is
+    // for third-party apps acting on OTHER users' accounts, not this).
+    // Endpoint https://api.buffer.com (GraphQL), Bearer auth — live-tested
+    // with an invalid key and got a clean GraphQL UNAUTHENTICATED error,
+    // confirming the endpoint/auth shape. The createPost mutation's exact
+    // input field names come from a single documentation source (not
+    // independently cross-verified) — flagged in buffer-adapter.ts.
+    provider: "BUFFER",
+    displayName: "Buffer",
+    homepage: "https://buffer.com",
+    pricingSummary: "Per-channel pricing on Buffer's own plans; API terms are separate.",
+    implemented: true,
+  },
+];

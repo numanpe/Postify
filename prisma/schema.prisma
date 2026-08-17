@@ -57,16 +57,30 @@ model Company {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  members             CompanyMember[]
-  brandKit            BrandKit?
-  creativeDna         CreativeDna?
-  mediaAssets         MediaAsset[]
-  providerCredentials ProviderCredential[]
-  posters             Poster[]
-  videos              Video[]
-  campaigns           Campaign[]
-  socialAccounts      SocialAccount[]
-  publishJobs         PublishJob[]
+  // Which of the three campaign-card publish paths this company currently
+  // has selected as its default — drives which button set is highlighted
+  // in the UI. Manual is the zero-setup default; every company starts here.
+  publishingMode     PublishingMode            @default(MANUAL)
+  selectedAggregator SocialAggregatorProvider?
+
+  members               CompanyMember[]
+  brandKit              BrandKit?
+  creativeDna           CreativeDna?
+  mediaAssets           MediaAsset[]
+  providerCredentials   ProviderCredential[]
+  posters               Poster[]
+  videos                Video[]
+  campaigns             Campaign[]
+  socialAccounts        SocialAccount[]
+  publishJobs           PublishJob[]
+  aggregatorCredentials AggregatorCredential[]
+  aggregatorPublishLogs AggregatorPublishLog[]
+}
+
+enum PublishingMode {
+  MANUAL // download the file yourself, post it by hand — zero setup, always available
+  AGGREGATOR // route through a BYOK social-aggregator adapter (see SocialAggregatorProvider)
+  DIRECT_API // publish straight through this app's own Meta Graph API integration
 }
 
 // The multi-tenant boundary: every company-scoped query must go through
@@ -140,6 +154,30 @@ model MediaAsset {
   orientation String?
 
   createdAt DateTime @default(now())
+
+  // Storage-cleanup bookkeeping (cleanupMediaStorage in
+  // src/lib/storage-cleanup.ts). The DB row and its metadata/captions are
+  // never deleted by cleanup — only the heavy file in storage.storageKey.
+  // storageDeletedAt set = the file is gone; callers must check this
+  // before calling storage.get(storageKey) and show "no longer available"
+  // instead of a broken image/video.
+  storageDeletedAt DateTime?
+  // Bumped every time a user uses the "Download Asset & Copy Caption"
+  // button — counts toward the stale-retention cron's "undownloaded"
+  // check, but explicitly NEVER counts as publish confirmation and never
+  // triggers cleanupMediaStorage on its own.
+  downloadedAt DateTime?
+  // Set by the daily retention cron (flag-stale-media) when this asset is
+  // older than MEDIA_RETENTION_DAYS with no download and no successful
+  // publish. Cleared on download, on successful publish, or when the user
+  // clicks "extend retention". The cron only ever sets this flag — it
+  // never deletes anything itself.
+  staleFlaggedAt DateTime?
+  // Bumped when the user clicks "extend retention" on a flagged card —
+  // the cron's age check uses max(retentionExtendedAt, createdAt), so an
+  // extension genuinely restarts the countdown rather than just hiding
+  // the warning.
+  retentionExtendedAt DateTime?
 
   brandKitLogo BrandKit?         @relation("BrandKitLogo")
   posterOutput Poster?           @relation("PosterOutput")
@@ -287,9 +325,10 @@ model CampaignItem {
 
   // Distribution draft, generated alongside the asset — pre-fills the
   // real Publish form (src/lib/actions/publish.ts) for poster items.
-  // Video publishing isn't implemented in this app yet (see Video
-  // model), so for video items this is informational only, not wired
-  // to an actual publish action.
+  // Direct Meta Graph API publishing (existing PublishJob/SocialAccount
+  // machinery) only ever handles photos, so for video items this is only
+  // wired to the aggregator publish path (Zernio supports video media),
+  // not Direct API Publish.
   captionText     String?
   hashtags        String[]         @default([])
   // Only ever populated from the company's actually-connected accounts
@@ -304,6 +343,8 @@ model CampaignItem {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  aggregatorPublishLogs AggregatorPublishLog[]
 
   @@index([campaignId])
   @@index([status, nextAttemptAt])
@@ -437,6 +478,76 @@ model SocialAccount {
 
   @@unique([companyId, platform, externalAccountId])
   @@index([companyId])
+}
+
+// The four providers verified against real, current, publicly-documented
+// APIs and pricing before this enum was written (see the "Provider
+// Reality Check" done ahead of this migration). Only ZERNIO has a real
+// adapter (src/lib/providers/aggregator/zernio-adapter.ts) built against
+// verified request/response shapes from docs.zernio.com — the other
+// three are real, existing products but their exact API request/response
+// schemas weren't fetchable with enough confidence to code against
+// safely, so their adapters throw a "Coming soon" AggregatorProviderError
+// rather than faking a call. See src/lib/providers/aggregator/resolver.ts.
+enum SocialAggregatorProvider {
+  ZERNIO
+  POSTPROXY
+  UPLOAD_POST
+  BUFFER
+}
+
+// BYOK storage for a social-aggregator API key, one row per (company,
+// provider) — same shape and same AES-256-GCM encryption as
+// ProviderCredential, kept as a separate model because these are a
+// different category of credential (third-party publishing routers, not
+// AI generation vendors) with their own per-platform account mapping.
+// Never touch this table without going through
+// src/lib/actions/aggregator-credentials.ts.
+model AggregatorCredential {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  provider     SocialAggregatorProvider
+  encryptedKey String
+  keyPreview   String
+  // Maps this app's SocialPlatform values (e.g. "FACEBOOK") to the
+  // account ID the aggregator itself assigned when the user connected
+  // that account on the aggregator's own dashboard — e.g. Zernio's
+  // 24-character accountId. The aggregator, not this app, owns that
+  // connection; this is just the pointer to it. Record<string, string>.
+  accountMap Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, provider])
+}
+
+// Append-only audit log of "Publish via Selected Provider" attempts from
+// a campaign card — deliberately not a retry/backoff queue table like
+// PublishJob or CampaignItem, since this button is a single synchronous
+// user-triggered attempt, not a scheduled job; a full queue here would be
+// unused machinery. Kept even on failure so the card can show real
+// publish history, and kept forever (never deleted by cleanup) so it
+// remains real audit history after the source file is gone.
+model AggregatorPublishLog {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  campaignItemId String
+  campaignItem   CampaignItem @relation(fields: [campaignItemId], references: [id], onDelete: Cascade)
+
+  provider       SocialAggregatorProvider
+  succeeded      Boolean
+  externalPostId String?
+  errorMessage   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([campaignItemId])
 }
 
 enum PublishStatus {

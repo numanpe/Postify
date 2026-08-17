@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Poster, PublishJob, SocialAccount, MediaAsset } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { createPublicAssetLink, revokePublicAssetLinksForAsset } from "@/lib/public-asset-links";
@@ -17,6 +19,8 @@ export interface ProcessResult {
   succeededCount: number;
   failedCount: number;
 }
+
+type DueJob = PublishJob & { socialAccount: SocialAccount; poster: (Poster & { asset: MediaAsset }) | null };
 
 // Retry/backoff bookkeeping mirrors process-campaign-items.ts. DRAFT jobs
 // are never picked up here — only SCHEDULED (queued, due) ones — a job
@@ -43,65 +47,78 @@ export async function processPublishJobs(batchSize = 3): Promise<ProcessResult> 
   let failedCount = 0;
 
   for (const job of dueJobs) {
-    await db.publishJob.update({ where: { id: job.id }, data: { status: "PUBLISHING" } });
+    const ok = await processSinglePublishJob(job);
+    if (ok) succeededCount += 1;
+    else failedCount += 1;
+  }
+
+  return { processedCount: dueJobs.length, succeededCount, failedCount };
+}
+
+// Extracted so a single explicit publish attempt (the campaign card's
+// "Direct API Publish" button — src/lib/actions/campaign-publish.ts) can
+// await exactly one job's real outcome instead of a batch call that
+// might process a different, unrelated due job first — same reasoning as
+// processSingleCampaignItem in process-campaign-items.ts. Returns
+// true/false rather than throwing so callers can decide what to do next
+// (e.g. only run cleanupMediaStorage on a real true).
+export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
+  await db.publishJob.update({ where: { id: job.id }, data: { status: "PUBLISHING" } });
+
+  try {
+    if (!job.poster) {
+      throw new Error("This job's poster no longer exists — it may have been deleted.");
+    }
+
+    const provider = getSocialProvider(job.socialAccount);
+    const imageBuffer = await storage.get(job.poster.asset.storageKey);
+
+    // Only Instagram needs a public URL (see instagram-provider.ts) —
+    // minted right before the attempt and revoked right after, win or
+    // lose, so the exposure window is as small as possible.
+    const publicImageUrl =
+      job.socialAccount.platform === "INSTAGRAM"
+        ? await createPublicAssetLink(job.poster.asset.id)
+        : undefined;
 
     try {
-      if (!job.poster) {
-        throw new Error("This job's poster no longer exists — it may have been deleted.");
-      }
-
-      const provider = getSocialProvider(job.socialAccount);
-      const imageBuffer = await storage.get(job.poster.asset.storageKey);
-
-      // Only Instagram needs a public URL (see instagram-provider.ts) —
-      // minted right before the attempt and revoked right after, win or
-      // lose, so the exposure window is as small as possible.
-      const publicImageUrl =
-        job.socialAccount.platform === "INSTAGRAM"
-          ? await createPublicAssetLink(job.poster.asset.id)
-          : undefined;
-
-      try {
-        const result = await provider.publishPost({
-          imageBuffer,
-          imageMimeType: job.poster.asset.mimeType,
-          caption: job.caption,
-          publicImageUrl,
-        });
-
-        await db.publishJob.update({
-          where: { id: job.id },
-          data: {
-            status: "PUBLISHED",
-            externalPostId: result.externalPostId,
-            externalPostUrl: result.externalPostUrl,
-            errorMessage: null,
-          },
-        });
-        succeededCount += 1;
-      } finally {
-        if (publicImageUrl) {
-          await revokePublicAssetLinksForAsset(job.poster.asset.id);
-        }
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      const nextRetryCount = job.retryCount + 1;
-      const isPermanent = nextRetryCount >= MAX_RETRIES;
-      const backoffSec = BASE_BACKOFF_SEC * 2 ** job.retryCount;
+      const result = await provider.publishPost({
+        imageBuffer,
+        imageMimeType: job.poster.asset.mimeType,
+        caption: job.caption,
+        publicImageUrl,
+      });
 
       await db.publishJob.update({
         where: { id: job.id },
         data: {
-          status: "FAILED",
-          errorMessage: message,
-          retryCount: nextRetryCount,
-          nextAttemptAt: isPermanent ? job.nextAttemptAt : new Date(Date.now() + backoffSec * 1000),
+          status: "PUBLISHED",
+          externalPostId: result.externalPostId,
+          externalPostUrl: result.externalPostUrl,
+          errorMessage: null,
         },
       });
-      failedCount += 1;
+      return true;
+    } finally {
+      if (publicImageUrl) {
+        await revokePublicAssetLinksForAsset(job.poster.asset.id);
+      }
     }
-  }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error.";
+    const nextRetryCount = job.retryCount + 1;
+    const isPermanent = nextRetryCount >= MAX_RETRIES;
+    const backoffSec = BASE_BACKOFF_SEC * 2 ** job.retryCount;
 
-  return { processedCount: dueJobs.length, succeededCount, failedCount };
+    await db.publishJob.update({
+      where: { id: job.id },
+      data: {
+        status: "FAILED",
+        errorMessage: message,
+        retryCount: nextRetryCount,
+        nextAttemptAt: isPermanent ? job.nextAttemptAt : new Date(Date.now() + backoffSec * 1000),
+      },
+    });
+    return false;
+  }
 }

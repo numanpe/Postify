@@ -8,6 +8,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CalendarItemCard } from "@/components/campaign/calendar-item-card";
 import { Button } from "@/components/ui/button";
+import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
 
 // Requests the platform's maximum available execution time for this
 // page's Server Actions (processCampaignNow, regenerateCampaignItem,
@@ -25,21 +26,38 @@ export default async function CampaignDetailPage({
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const campaign = await db.campaign.findFirst({
-    where: { id, companyId: company.id },
-    include: {
-      items: {
-        include: {
-          poster: { include: { asset: true } },
-          video: { include: { asset: true } },
+  const [campaign, connectedAccounts, aggregatorCredential] = await Promise.all([
+    db.campaign.findFirst({
+      where: { id, companyId: company.id },
+      include: {
+        items: {
+          include: {
+            poster: { include: { asset: true } },
+            video: { include: { asset: true } },
+            aggregatorPublishLogs: { orderBy: { createdAt: "desc" }, take: 1 },
+          },
+          orderBy: { scheduledDate: "asc" },
         },
-        orderBy: { scheduledDate: "asc" },
       },
-    },
-  });
+    }),
+    db.socialAccount.findMany({
+      where: { companyId: company.id },
+      select: { id: true, platform: true, displayName: true },
+    }),
+    company.selectedAggregator
+      ? db.aggregatorCredential.findUnique({
+          where: { companyId_provider: { companyId: company.id, provider: company.selectedAggregator } },
+        })
+      : null,
+  ]);
   if (!campaign) {
     notFound();
   }
+
+  const retentionDays = Number.parseInt(process.env.MEDIA_RETENTION_DAYS ?? "", 10) || 30;
+  const aggregatorProviderName = aggregatorCredential
+    ? AGGREGATOR_PROVIDERS.find((p) => p.provider === aggregatorCredential.provider)?.displayName ?? null
+    : null;
 
   const weeks = buildCalendarWeeks(campaign.items.map((item) => item.scheduledDate));
   const itemsByDate = new Map<string, typeof campaign.items>();
@@ -90,7 +108,14 @@ export default async function CampaignDetailPage({
               >
                 <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{formatDayNumber(date)}</p>
                 {dayItems.map((item) => (
-                  <CalendarItemCard key={item.id} item={item} />
+                  <CalendarItemCard
+                    key={item.id}
+                    item={item}
+                    connectedAccounts={connectedAccounts}
+                    aggregatorConfigured={!!aggregatorCredential}
+                    aggregatorProviderName={aggregatorProviderName}
+                    retentionDays={retentionDays}
+                  />
                 ))}
               </div>
             );
