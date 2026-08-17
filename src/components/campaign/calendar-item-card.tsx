@@ -4,7 +4,7 @@ import { storage } from "@/lib/storage";
 import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from "@/lib/actions/campaign";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import type { CampaignItemStatus } from "@prisma/client";
+import type { CampaignAssetType, CampaignItemStatus, SocialPlatform } from "@prisma/client";
 
 const STATUS_STYLES: Record<CampaignItemStatus, string> = {
   PENDING: "bg-paper-card dark:bg-night-card text-ink-soft dark:text-ink-soft-dark",
@@ -18,9 +18,16 @@ interface CalendarItemCardProps {
   item: {
     id: string;
     angle: string;
+    assetType: CampaignAssetType;
     status: CampaignItemStatus;
     errorMessage: string | null;
+    captionText: string | null;
+    hashtags: string[];
+    targetPlatforms: SocialPlatform[];
     poster: {
+      asset: { storageKey: string; width: number | null; height: number | null };
+    } | null;
+    video: {
       asset: { storageKey: string; width: number | null; height: number | null };
     } | null;
   };
@@ -38,9 +45,14 @@ export async function CalendarItemCard({ item }: CalendarItemCardProps) {
       data-campaign-item-id={item.id}
       className="flex flex-col gap-1 rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card p-1.5 text-xs"
     >
-      <span className={`w-fit rounded px-1.5 py-0.5 font-medium ${STATUS_STYLES[item.status]}`}>
-        {dict.status[item.status]}
-      </span>
+      <div className="flex items-center gap-1">
+        <span className={`w-fit rounded px-1.5 py-0.5 font-medium ${STATUS_STYLES[item.status]}`}>
+          {dict.status[item.status]}
+        </span>
+        <span className="w-fit rounded border border-paper-border dark:border-night-border px-1.5 py-0.5 text-ink-soft dark:text-ink-soft-dark">
+          {item.assetType === "VIDEO" ? dict.campaigns.assetTypeVideo : dict.campaigns.assetTypePoster}
+        </span>
+      </div>
 
       {item.poster?.asset && (
         <Image
@@ -53,9 +65,29 @@ export async function CalendarItemCard({ item }: CalendarItemCardProps) {
         />
       )}
 
+      {item.video?.asset && (
+        // Burned-in captions are already part of the rendered video itself.
+        <video
+          src={storage.url(item.video.asset.storageKey)}
+          controls
+          muted
+          className="aspect-square w-full rounded bg-black object-cover"
+        />
+      )}
+
       <p className="line-clamp-2 text-ink-soft dark:text-ink-soft-dark" title={item.angle}>
         {item.angle}
       </p>
+
+      {item.captionText && (item.status === "READY" || item.status === "APPROVED") && (
+        <details>
+          <summary className="cursor-pointer text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.captionLabel}</summary>
+          <p className="mt-1 whitespace-pre-wrap">{item.captionText}</p>
+          {item.hashtags.length > 0 && (
+            <p className="mt-1 text-ink-soft dark:text-ink-soft-dark">{item.hashtags.join(" ")}</p>
+          )}
+        </details>
+      )}
 
       {item.errorMessage && (
         <p className="text-red-600 dark:text-red-400" title={item.errorMessage}>

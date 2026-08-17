@@ -65,7 +65,11 @@ export async function uploadMedia(
     });
   }
 
-  revalidatePath("/media");
+  // Media grid refresh happens client-side (upload-media-form.tsx's
+  // router.refresh() on success) instead of here — see poster.ts's
+  // identical change. deleteMedia below keeps revalidatePath: it's a
+  // void action bound directly to a <form>, with no client component
+  // able to trigger a refresh after it runs.
 }
 
 export async function deleteMedia(assetId: string): Promise<void> {

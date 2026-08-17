@@ -22,7 +22,10 @@ export default async function CampaignDetailPage({
     where: { id, companyId: company.id },
     include: {
       items: {
-        include: { poster: { include: { asset: true } } },
+        include: {
+          poster: { include: { asset: true } },
+          video: { include: { asset: true } },
+        },
         orderBy: { scheduledDate: "asc" },
       },
     },
@@ -45,7 +48,12 @@ export default async function CampaignDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{campaign.name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">{campaign.name}</h1>
+          <span className="rounded-full border border-paper-border dark:border-night-border px-2 py-0.5 text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
+            {campaign.campaignType}
+          </span>
+        </div>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{campaign.objective}</p>
       </div>
 

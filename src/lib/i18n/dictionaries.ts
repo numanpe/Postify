@@ -45,6 +45,11 @@ export interface Dictionary {
     formatSquare: string; formatStory: string; formatLandscape: string; background: string;
     backgroundBrand: string; backgroundPhoto: string; backgroundAI: string; photo: string;
     photoHint: string; generatedSuccess: string; generate: string; generating: string;
+    template: string;
+    templateMinimalName: string; templateMinimalDescription: string;
+    templateBoldHeadlineName: string; templateBoldHeadlineDescription: string;
+    templatePromotionalBannerName: string; templatePromotionalBannerDescription: string;
+    templateSplitProductName: string; templateSplitProductDescription: string;
   };
   video: {
     title: string; subtitle: (name: string) => string; previousVideos: string; topic: string;
@@ -59,6 +64,7 @@ export interface Dictionary {
     failedCount: (n: number) => string; objective: string; objectivePlaceholder: string;
     startDate: string; days: string; submit: string; submitPending: string;
     processingHint: (n: number) => string; weekdays: string[];
+    assetTypePoster: string; assetTypeVideo: string; captionLabel: string; hashtagsLabel: string;
   };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
@@ -82,6 +88,13 @@ export interface Dictionary {
   settings: {
     title: string; subtitle: string; provider: string; apiKey: string; saveKey: string;
     saving: string;
+    voiceEngineTitle: string; voiceEngineSubtitle: string;
+    voiceEngineFree: string; voiceEngineFreeDescription: string;
+    voiceEngineByok: string; voiceEngineByokDescription: string;
+    voiceEngineSave: string; voiceEngineSaved: string;
+    apiKeyGuideTitle: string; apiKeyGuideSubtitle: string;
+    openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
+    elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
   };
 }
 
@@ -158,10 +171,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       background: "Background",
       backgroundBrand: "Brand gradient (free)",
       backgroundPhoto: "A photo from Media Library",
-      backgroundAI: "AI-generated (needs an OpenAI key in Settings)",
+      backgroundAI: "AI-generated (free — add an OpenAI key in Settings for higher, more consistent quality)",
       photo: "Photo",
       photoHint: '(used only when Background is set to "A photo")',
       generatedSuccess: "Poster generated — see it below.",
+      template: "Design template",
+      templateMinimalName: "Minimal",
+      templateMinimalDescription: "Clean full-bleed photo with understated bottom text.",
+      templateBoldHeadlineName: "Bold Headline",
+      templateBoldHeadlineDescription: "Large, confident type over a darkened photo.",
+      templatePromotionalBannerName: "Promotional Banner",
+      templatePromotionalBannerDescription: "Photo up top, solid brand-color banner below.",
+      templateSplitProductName: "Split Product View",
+      templateSplitProductDescription: "Photo and a solid brand panel with logo, message, and CTA.",
       generate: "Generate poster",
       generating: "Generating…",
     },
@@ -177,7 +199,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       formatStory: "Story / Reel (9:16)",
       formatLandscape: "Landscape (16:9)",
       narration: "Add spoken narration",
-      narrationHint: "(needs an OpenAI key in Settings)",
+      narrationHint: "(add an OpenAI or ElevenLabs key in Settings, or switch to the free voice engine)",
       footage: "Footage",
       footageHint: "(pick up to 5 — used in the order listed below)",
       noFootage:
@@ -204,6 +226,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processingHint: (n: number) =>
         `${n} post${n === 1 ? " is" : "s are"} still generating — this app doesn't have a real scheduler wired up in this environment, so click to process the queue yourself (production would run this automatically; see README).`,
       weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      assetTypePoster: "Poster",
+      assetTypeVideo: "Video",
+      captionLabel: "Caption",
+      hashtagsLabel: "Hashtags",
     },
     publish: {
       title: "Publish",
@@ -260,11 +286,41 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     settings: {
       title: "AI Providers",
       subtitle:
-        "Optional — Postify works fully without any key. Add your own OpenAI or Anthropic key for higher-quality generation. Your key is encrypted at rest and never shown again after saving.",
+        "Optional — Postify works fully without any key. Add your own OpenAI, Anthropic, or ElevenLabs key for higher-quality generation. Your key is encrypted at rest and never shown again after saving.",
       provider: "Provider",
       apiKey: "API key",
       saveKey: "Save key",
       saving: "Saving…",
+      voiceEngineTitle: "Voiceover engine",
+      voiceEngineSubtitle: "Choose how spoken narration for your videos gets generated.",
+      voiceEngineFree: "Use built-in free model",
+      voiceEngineFreeDescription:
+        "No key needed. Runs on a free, community-maintained engine — quality is good but it's not an official Microsoft/OpenAI product, so it can occasionally be slower or unavailable.",
+      voiceEngineByok: "Use my own API key (OpenAI or ElevenLabs)",
+      voiceEngineByokDescription:
+        "Higher, studio-grade voice quality. Requires an OpenAI or ElevenLabs key saved below — narration will fail until one is added.",
+      voiceEngineSave: "Save",
+      voiceEngineSaved: "Saved.",
+      apiKeyGuideTitle: "How to get an API key",
+      apiKeyGuideSubtitle: "Step-by-step, for anyone who hasn't done this before.",
+      openaiGuideTitle: "OpenAI (scripts + AI images + voice)",
+      openaiGuideSteps: [
+        "Go to platform.openai.com and sign up or log in.",
+        "Open Settings → Billing and add a payment method (OpenAI requires this even for small usage).",
+        "Go to API keys, click \"Create new secret key\", and give it a name like \"Postify\".",
+        "Copy the key immediately — OpenAI only shows it once.",
+        "Paste it into the API key field above, choose OpenAI as the provider, and save.",
+      ],
+      openaiGuideLinkLabel: "Get OpenAI key → platform.openai.com/api-keys",
+      elevenLabsGuideTitle: "ElevenLabs (hyper-realistic voiceovers)",
+      elevenLabsGuideSteps: [
+        "Go to elevenlabs.io and sign up or log in.",
+        "Open your Profile (click your name, bottom-left) → API Keys.",
+        "Click \"Create API key\", name it \"Postify\", and copy it.",
+        "Paste it into the API key field above, choose ElevenLabs as the provider, and save.",
+        "In the voiceover engine section above, switch to \"Use my own API key\" so videos actually use it.",
+      ],
+      elevenLabsGuideLinkLabel: "Get ElevenLabs key → elevenlabs.io",
     },
   },
   ar: {
@@ -338,10 +394,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       background: "الخلفية",
       backgroundBrand: "تدرّج العلامة (مجاني)",
       backgroundPhoto: "صورة من مكتبة الوسائط",
-      backgroundAI: "من إنشاء الذكاء الاصطناعي (يتطلب مفتاح OpenAI في الإعدادات)",
+      backgroundAI: "من إنشاء الذكاء الاصطناعي (مجاني — أضف مفتاح OpenAI في الإعدادات لجودة أعلى وأكثر ثباتًا)",
       photo: "الصورة",
       photoHint: '(تُستخدم فقط عند اختيار "صورة" كخلفية)',
       generatedSuccess: "تم إنشاء الملصق — شاهده أدناه.",
+      template: "قالب التصميم",
+      templateMinimalName: "بسيط",
+      templateMinimalDescription: "صورة كاملة بخلفية نظيفة ونص سفلي هادئ.",
+      templateBoldHeadlineName: "عنوان جريء",
+      templateBoldHeadlineDescription: "خط كبير وواثق فوق صورة معتّمة.",
+      templatePromotionalBannerName: "لافتة ترويجية",
+      templatePromotionalBannerDescription: "صورة في الأعلى، وشريط بلون العلامة أسفلها.",
+      templateSplitProductName: "عرض منتج مقسّم",
+      templateSplitProductDescription: "صورة ولوحة بلون العلامة تضم الشعار والرسالة والدعوة لاتخاذ إجراء.",
       generate: "إنشاء الملصق",
       generating: "جارٍ الإنشاء…",
     },
@@ -357,7 +422,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       formatStory: "ستوري / ريل (9:16)",
       formatLandscape: "أفقي (16:9)",
       narration: "أضف تعليقًا صوتيًا",
-      narrationHint: "(يتطلب مفتاح OpenAI في الإعدادات)",
+      narrationHint: "(أضف مفتاح OpenAI أو ElevenLabs في الإعدادات، أو بدّل إلى محرك الصوت المجاني)",
       footage: "اللقطات",
       footageHint: "(اختر حتى 5 — تُستخدم بالترتيب المدرج أدناه)",
       noFootage:
@@ -384,6 +449,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processingHint: (n: number) =>
         `لا يزال ${n} ${n === 1 ? "منشور قيد" : "منشورات قيد"} الإنشاء — لا يوجد مجدول تلقائي حقيقي في هذه البيئة، لذا اضغط للمعالجة يدويًا (في الإنتاج ستتم هذه العملية تلقائيًا).`,
       weekdays: ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"],
+      assetTypePoster: "ملصق",
+      assetTypeVideo: "فيديو",
+      captionLabel: "التسمية التوضيحية",
+      hashtagsLabel: "الوسوم",
     },
     publish: {
       title: "النشر",
@@ -440,11 +509,41 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     settings: {
       title: "مزوّدو الذكاء الاصطناعي",
       subtitle:
-        "اختياري — يعمل بوستيفاي بشكل كامل دون أي مفتاح. أضف مفتاح OpenAI أو Anthropic الخاص بك للحصول على نتائج أعلى جودة. يتم تشفير مفتاحك عند التخزين ولا يُعرض مجددًا بعد الحفظ.",
+        "اختياري — يعمل بوستيفاي بشكل كامل دون أي مفتاح. أضف مفتاح OpenAI أو Anthropic أو ElevenLabs الخاص بك للحصول على نتائج أعلى جودة. يتم تشفير مفتاحك عند التخزين ولا يُعرض مجددًا بعد الحفظ.",
       provider: "المزوّد",
       apiKey: "مفتاح API",
       saveKey: "حفظ المفتاح",
       saving: "جارٍ الحفظ…",
+      voiceEngineTitle: "محرك التعليق الصوتي",
+      voiceEngineSubtitle: "اختر الطريقة التي يُنشأ بها التعليق الصوتي لمقاطع الفيديو الخاصة بك.",
+      voiceEngineFree: "استخدام النموذج المجاني المدمج",
+      voiceEngineFreeDescription:
+        "لا حاجة لأي مفتاح. يعمل على محرك مجاني يديره المجتمع — الجودة جيدة، لكنه ليس منتجًا رسميًا من مايكروسوفت أو OpenAI، لذا قد يكون أبطأ أو غير متاح أحيانًا.",
+      voiceEngineByok: "استخدام مفتاح API الخاص بي (OpenAI أو ElevenLabs)",
+      voiceEngineByokDescription:
+        "جودة صوت أعلى بمستوى استوديو احترافي. يتطلب حفظ مفتاح OpenAI أو ElevenLabs أدناه — سيفشل إنشاء التعليق الصوتي حتى تتم إضافة مفتاح.",
+      voiceEngineSave: "حفظ",
+      voiceEngineSaved: "تم الحفظ.",
+      apiKeyGuideTitle: "كيفية الحصول على مفتاح API",
+      apiKeyGuideSubtitle: "خطوة بخطوة، لمن لم يفعل هذا من قبل.",
+      openaiGuideTitle: "OpenAI (النصوص + الصور بالذكاء الاصطناعي + الصوت)",
+      openaiGuideSteps: [
+        "اذهب إلى platform.openai.com وأنشئ حسابًا أو سجّل الدخول.",
+        "افتح الإعدادات ← الفوترة وأضف وسيلة دفع (يتطلبها OpenAI حتى للاستخدام البسيط).",
+        "اذهب إلى API keys، اضغط \"Create new secret key\"، وسمِّه مثلًا \"Postify\".",
+        "انسخ المفتاح فورًا — يعرضه OpenAI مرة واحدة فقط.",
+        "الصقه في حقل مفتاح API أعلاه، اختر OpenAI كمزوّد، ثم احفظ.",
+      ],
+      openaiGuideLinkLabel: "احصل على مفتاح OpenAI ← platform.openai.com/api-keys",
+      elevenLabsGuideTitle: "ElevenLabs (تعليق صوتي فائق الواقعية)",
+      elevenLabsGuideSteps: [
+        "اذهب إلى elevenlabs.io وأنشئ حسابًا أو سجّل الدخول.",
+        "افتح الملف الشخصي (اضغط اسمك أسفل اليسار) ← API Keys.",
+        "اضغط \"Create API key\"، سمِّه \"Postify\"، وانسخه.",
+        "الصقه في حقل مفتاح API أعلاه، اختر ElevenLabs كمزوّد، ثم احفظ.",
+        "في قسم محرك التعليق الصوتي أعلاه، بدّل إلى \"استخدام مفتاح API الخاص بي\" ليتم استخدامه فعليًا في الفيديوهات.",
+      ],
+      elevenLabsGuideLinkLabel: "احصل على مفتاح ElevenLabs ← elevenlabs.io",
     },
   },
 };

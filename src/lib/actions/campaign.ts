@@ -43,10 +43,36 @@ export async function createCampaign(
   const context = await getCompanyContext(company.id);
   const textProvider = await getTextProviderForCompany(company.id);
 
-  let angles: string[];
+  // <input type="date"> submits "YYYY-MM-DD", which Date parses as UTC
+  // midnight — advancing with setUTCDate (not the local-time setDate)
+  // keeps this consistent with the calendar grid's date math
+  // (src/lib/campaign-calendar.ts) regardless of server timezone.
+  const start = new Date(startDate);
+  const scheduledDates: Date[] = [];
+  for (let i = 0; i < days; i += 1) {
+    const date = new Date(start);
+    date.setUTCDate(date.getUTCDate() + i);
+    scheduledDates.push(date);
+  }
+
+  // Only platforms this company can actually publish to — never a
+  // platform this app has no integration for at all (e.g. TikTok).
+  const connectedAccounts = await db.socialAccount.findMany({
+    where: { companyId: company.id },
+    select: { platform: true },
+    distinct: ["platform"],
+  });
+  const connectedPlatforms = connectedAccounts.map((a) => a.platform);
+
+  let brief;
   try {
-    const plan = await textProvider.generateCampaignPlan({ context, objective, itemCount: days });
-    angles = plan.angles;
+    brief = await textProvider.generateCampaignBrief({
+      context,
+      objective,
+      itemCount: days,
+      scheduledDates: scheduledDates.map((d) => d.toISOString().slice(0, 10)),
+      connectedPlatforms,
+    });
   } catch (error) {
     if (error instanceof ProviderError) {
       return { error: `${error.providerName}: ${error.message}` };
@@ -54,22 +80,25 @@ export async function createCampaign(
     throw error;
   }
 
-  // <input type="date"> submits "YYYY-MM-DD", which Date parses as UTC
-  // midnight — advancing with setUTCDate (not the local-time setDate)
-  // keeps this consistent with the calendar grid's date math
-  // (src/lib/campaign-calendar.ts) regardless of server timezone.
-  const start = new Date(startDate);
   const campaign = await db.campaign.create({
     data: {
       companyId: company.id,
       name: objective.length > 60 ? `${objective.slice(0, 57)}...` : objective,
       objective,
+      campaignType: brief.campaignType,
       items: {
-        create: angles.map((angle, index) => {
-          const scheduledDate = new Date(start);
-          scheduledDate.setUTCDate(scheduledDate.getUTCDate() + index);
-          return { scheduledDate, angle };
-        }),
+        create: brief.items.map((item, index) => ({
+          scheduledDate: scheduledDates[index],
+          angle: item.angle,
+          assetType: item.assetType,
+          headline: item.headline,
+          subhead: item.subhead,
+          cta: item.cta,
+          captionText: item.captionText,
+          hashtags: item.hashtags,
+          targetPlatforms: item.targetPlatforms,
+          suggestedPostAt: new Date(item.suggestedPostAt),
+        })),
       },
     },
   });
