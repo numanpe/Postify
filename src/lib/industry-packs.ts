@@ -20,6 +20,22 @@ export interface IndustryPack {
   // for those three sections; these two are script-specific.
   scriptContexts: string[]; // sets up the situation/problem before the value prop
   scriptMessages: string[]; // ties directly to the specific topic being promoted
+  // Poster AI-background generation (src/lib/poster/background-context.ts):
+  // concrete lighting/texture/mood guidance, not buzzwords — fed into the
+  // Visual Prompt Engineer stage. forbiddenStyles are hard negative
+  // constraints so an image model doesn't drift into a look that clashes
+  // with the industry (e.g. neon cyberpunk for a farm poster).
+  visualTone: string;
+  forbiddenStyles: string[];
+  // Campaign Generator (src/lib/campaign/creative-director.ts): the
+  // free tier's real, non-random hashtag set for this industry — no
+  // LLM call, so these can't be "AI-generated hashtags" the way BYOK's
+  // can be, but they're genuine industry-relevant tags, not filler.
+  hashtags: string[];
+  // Short, 2-5 word punchy poster headlines — distinct from `hooks`
+  // above, which are full sentences meant for captions/scripts. A
+  // poster headline needs to read at a glance, not like a caption.
+  shortHeadlines: string[];
 }
 
 export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
@@ -50,6 +66,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "When {{company}} puts its name on {{topic}}, that's a promise about how it was grown.",
       "{{topic}} reflects what {{company}} has always believed: real food takes real care.",
     ],
+    visualTone: "Warm natural sunlight, organic textures, wide open fields, golden-hour lighting",
+    forbiddenStyles: ["neon cyberpunk", "futuristic sci-fi", "dark dystopian tones", "urban concrete backdrops"],
+    hashtags: ["#Agriculture", "#FarmFresh", "#LocalFarm", "#Harvest", "#SupportLocal"],
+    shortHeadlines: ["Fresh From Our Fields", "Harvested With Care", "Grown Right, Every Time"],
   },
   "Construction & Engineering": {
     toneDefault: "confident, precise, safety-and-craftsmanship focused",
@@ -78,6 +98,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "From the first blueprint to the final walkthrough, {{topic}} carries {{company}}'s standard.",
       "{{topic}} is proof that {{company}} builds the way it promises to.",
     ],
+    visualTone: "Clean industrial lines, steel and concrete textures, dramatic directional light, structured geometry",
+    forbiddenStyles: ["whimsical cartoon style", "pastel soft-focus", "organic wilderness", "cluttered chaotic composition"],
+    hashtags: ["#Construction", "#Engineering", "#BuiltToLast", "#ProjectManagement", "#Craftsmanship"],
+    shortHeadlines: ["Built To Last", "Precision You Can Trust", "Another Standard Met"],
   },
   Education: {
     toneDefault: "encouraging, professional, focused on growth",
@@ -106,6 +130,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} built {{topic}} to turn small wins into lasting confidence.",
       "{{topic}} gives students the support to grow at their own pace, with {{company}} alongside them.",
     ],
+    visualTone: "Bright even lighting, clean modern spaces, optimistic open composition",
+    forbiddenStyles: ["dark moody tones", "neon cyberpunk", "cluttered chaotic composition", "unsettling imagery"],
+    hashtags: ["#Education", "#Learning", "#StudentSuccess", "#EnrollNow", "#BackToSchool"],
+    shortHeadlines: ["Learning That Sticks", "Confidence Starts Here", "Your Next Step Forward"],
   },
   "Real Estate": {
     toneDefault: "polished, aspirational, trustworthy",
@@ -134,6 +162,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "With {{topic}}, {{company}} handles the details so you can focus on what matters.",
       "{{topic}} reflects what {{company}} does best: matching people with the right place, honestly.",
     ],
+    visualTone: "Polished architectural lines, natural window light, aspirational interiors and exteriors",
+    forbiddenStyles: ["cluttered rooms", "cartoon style", "neon cyberpunk", "harsh overexposed lighting"],
+    hashtags: ["#RealEstate", "#DreamHome", "#PropertyForSale", "#HomeSearch", "#JustListed"],
+    shortHeadlines: ["Your Next Chapter Awaits", "Home Starts Here", "Find Your Fit"],
   },
   Healthcare: {
     toneDefault: "calm, reassuring, evidence-based",
@@ -162,6 +194,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} approaches {{topic}} the way every patient deserves: carefully, and without guesswork.",
       "{{topic}} is part of how {{company}} earns your trust, one visit at a time.",
     ],
+    visualTone: "Soft even clinical-clean lighting, calm neutral tones, gentle depth of field",
+    forbiddenStyles: ["dark horror tones", "neon cyberpunk", "chaotic cluttered scenes", "graphic medical imagery"],
+    hashtags: ["#Healthcare", "#PatientCare", "#WellnessJourney", "#HealthyLiving", "#BookNow"],
+    shortHeadlines: ["Care That Listens", "Your Health, Our Focus", "Trusted Care, Every Visit"],
   },
   "Retail & E-commerce": {
     toneDefault: "energetic, direct, deal-forward",
@@ -190,6 +226,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} chose {{topic}} because it's the real deal, not just another item on a shelf.",
       "{{topic}} is what happens when {{company}} actually listens to what you want.",
     ],
+    visualTone: "Bright punchy studio lighting, bold product-forward composition, vibrant color accents",
+    forbiddenStyles: ["dark moody tones", "cluttered chaotic composition", "rustic vintage textures", "flat low-contrast lighting"],
+    hashtags: ["#ShopNow", "#NewArrival", "#RetailTherapy", "#LimitedStock", "#SaleAlert"],
+    shortHeadlines: ["Just Dropped", "Shop The New Arrivals", "Deals Worth Sharing"],
   },
   "Hospitality & Food": {
     toneDefault: "warm, sensory, inviting",
@@ -218,6 +258,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} built {{topic}} around real ingredients, not shortcuts.",
       "{{topic}} is {{company}}'s way of making an ordinary meal feel like an occasion.",
     ],
+    visualTone: "Warm ambient lighting, rich food and table textures, inviting shallow depth of field",
+    forbiddenStyles: ["cold clinical lighting", "neon cyberpunk", "cartoon style", "artificial plastic textures"],
+    hashtags: ["#Foodie", "#EatLocal", "#MadeFresh", "#DineWithUs", "#TasteTheDifference"],
+    shortHeadlines: ["Made Fresh Daily", "Pull Up A Seat", "Taste The Difference"],
   },
   "Professional Services": {
     toneDefault: "clear, competent, no-nonsense",
@@ -246,6 +290,10 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} approaches {{topic}} the same way with every client: straight answers, real expertise.",
       "{{topic}} exists because {{company}} believes good advice shouldn't be complicated.",
     ],
+    visualTone: "Clean minimal studio lighting, sharp geometric composition, muted confident palette",
+    forbiddenStyles: ["cluttered chaotic composition", "neon cyberpunk", "whimsical cartoon style", "rustic vintage textures"],
+    hashtags: ["#ProfessionalServices", "#Consulting", "#ExpertAdvice", "#TrustedPartner", "#GetInTouch"],
+    shortHeadlines: ["Expertise You Can Trust", "Straight Answers, Real Results", "We Handle The Details"],
   },
   Other: {
     toneDefault: "clear, genuine, professional",
@@ -274,5 +322,24 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "{{company}} built {{topic}} to actually be useful, not just new.",
       "{{topic}} says a lot about how {{company}} does things.",
     ],
+    visualTone: "Clean natural lighting, genuine real-world setting, balanced composition",
+    forbiddenStyles: ["neon cyberpunk", "dark dystopian tones", "cartoon style", "cluttered chaotic composition"],
+    hashtags: ["#SmallBusiness", "#ShopLocal", "#NewPost", "#CheckItOut", "#SupportLocal"],
+    shortHeadlines: ["Something New Is Here", "Worth Sharing", "See What Is New"],
   },
+};
+
+// Deterministic per-industry composition style for design_parameters —
+// not random, so the same industry always leans toward the same visual
+// language across generations.
+export const INDUSTRY_COMPOSITION_STYLE: Record<Industry, "Minimalist" | "Bold Geometric" | "Organic"> = {
+  Agriculture: "Organic",
+  "Construction & Engineering": "Bold Geometric",
+  Education: "Minimalist",
+  "Real Estate": "Bold Geometric",
+  Healthcare: "Minimalist",
+  "Retail & E-commerce": "Bold Geometric",
+  "Hospitality & Food": "Organic",
+  "Professional Services": "Minimalist",
+  Other: "Minimalist",
 };

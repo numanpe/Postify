@@ -6,9 +6,14 @@ import type {
   GenerateCaptionOutput,
   GenerateScriptInput,
   GenerateScriptOutput,
-  GenerateCampaignPlanInput,
-  GenerateCampaignPlanOutput,
+  GenerateCampaignBriefInput,
+  GenerateCampaignBriefOutput,
+  CampaignBriefItem,
+  ExpandBackgroundPromptInput,
+  ExpandBackgroundPromptOutput,
 } from "./types";
+import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
+import { isArabicScript } from "@/lib/poster/direction";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -51,6 +56,27 @@ const CAMPAIGN_ARC: string[][] = [
   ["One last look at {{objective}}.", "Before it's gone: {{objective}}."],
 ];
 
+// Real keyword matching against the objective text, not a random
+// label — deliberately not an exhaustive enum (see CampaignBriefOutput's
+// doc comment): any objective that doesn't match a known pattern gets
+// "General" rather than a forced, wrong category.
+function inferCampaignType(objective: string): string {
+  const lower = objective.toLowerCase();
+  if (/\blaunch/.test(lower)) return "Product Launch";
+  if (/\b(sale|discount|% ?off|deal|clearance)\b/.test(lower)) return "Seasonal Sale";
+  if (/\b(course|class|workshop|learn|training|webinar)\b/.test(lower)) return "Educational";
+  if (/\b(flash|today only|limited time|24 ?hours?|this week only)\b/.test(lower)) return "Flash Promo";
+  if (/\b(customer|testimonial|review|story|success story)\b/.test(lower)) return "Customer Story";
+  return "General";
+}
+
+// A short, 2-5 word poster headline (per the spec's own example) —
+// distinct from the longer, sentence-length `hooks` used for
+// captions/scripts.
+function shortHeadline(seed: string, options: string[]): string {
+  return options[pickIndex(seed, options.length)];
+}
+
 // The zero-key free path: industry pack + company context filled into
 // templates, no LLM call, works everywhere, never fails or rate-limits.
 export class TemplateTextProvider implements TextProvider {
@@ -90,20 +116,125 @@ export class TemplateTextProvider implements TextProvider {
     };
   }
 
-  async generateCampaignPlan({
+  // The AI Creative Director's free tier: no LLM call, so campaign
+  // type, headlines, and hashtags all come from real, hand-written
+  // industry-pack content and deterministic keyword matching — not
+  // generative, but genuinely differentiated by industry/objective, and
+  // by construction contains none of the banned filler words (they were
+  // never written into the packs).
+  async generateCampaignBrief({
     context,
     objective,
     itemCount,
-  }: GenerateCampaignPlanInput): Promise<GenerateCampaignPlanOutput> {
-    const vars = { company: context.name, objective };
-    const angles: string[] = [];
+    scheduledDates,
+    connectedPlatforms,
+  }: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
+    const { pack, name, secondaryNiches, companyId } = context;
+    const vars = { company: name, objective, niches: secondaryNiches.join(", ") };
+    const campaignType = inferCampaignType(objective);
 
+    const items: CampaignBriefItem[] = [];
     for (let i = 0; i < itemCount; i += 1) {
       const stage = CAMPAIGN_ARC[i % CAMPAIGN_ARC.length];
       const variant = stage[Math.floor(i / CAMPAIGN_ARC.length) % stage.length];
-      angles.push(capitalizeSentences(fillTemplate(variant, vars)));
+      const angle = capitalizeSentences(fillTemplate(variant, vars));
+
+      const seed = `${companyId}:${objective}:${i}`;
+      // {{topic}} here is the raw objective, not `angle` — `angle` is
+      // already a full sentence (CAMPAIGN_ARC wrapped it), and these
+      // hook/valueProp/cta templates ALSO wrap {{topic}} into a
+      // sentence ("{{topic}} — grown with care..."); splicing a
+      // sentence into a sentence produced real grammatically broken
+      // output ("We put the same care into What makes X worth it. That
+      // we put into..."), caught by generating and visually inspecting
+      // a real poster. Matches how generateCaption/generateScript
+      // already use their raw `topic` input directly, with no
+      // second wrapping layer.
+      const topicVars = { ...vars, topic: objective };
+      const hook = pick(seed, "h", pack.hooks, topicVars);
+      const valueProp = pick(seed, "v", pack.valueProps, topicVars);
+      const cta = pick(seed, "c", pack.ctas, topicVars);
+      const captionText = `${hook} ${valueProp} ${cta}`.replace(/\s+/g, " ").trim();
+
+      // A multi-day campaign opens with a video (a stronger first
+      // impression) and fills the rest with posters (cheaper, faster,
+      // always free-tier viable) — a deliberate, deterministic mix, not
+      // every item defaulting to the slower/heavier asset type.
+      const assetType: CampaignBriefItem["assetType"] = i === 0 && itemCount > 1 ? "VIDEO" : "POSTER";
+
+      // A single, honest constant post time rather than a fake
+      // "AI-optimized" claim — this app has no real engagement
+      // analytics yet to base a smarter suggestion on.
+      const suggestedPostAt = `${scheduledDates[i]}T10:00:00.000Z`;
+
+      items.push({
+        assetType,
+        angle,
+        ...(assetType === "POSTER"
+          ? { headline: shortHeadline(`${seed}:headline`, pack.shortHeadlines), subhead: valueProp, cta }
+          : { videoTopic: angle }),
+        captionText,
+        hashtags: pack.hashtags,
+        suggestedPostAt,
+        targetPlatforms: connectedPlatforms,
+      });
     }
 
-    return { angles, providerName: this.name };
+    return { campaignType, items, providerName: this.name };
+  }
+
+  // Deterministic, rule-based expansion — no LLM call, works with zero
+  // keys. Still concrete rather than buzzwordy: weaves in the real
+  // industry visual tone and the actual reading-direction/text-space
+  // consequence for the chosen template, rather than a generic
+  // "photorealistic, hyper-detailed" filler.
+  async expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput> {
+    const {
+      rawUserPrompt,
+      industry,
+      visualTone,
+      forbiddenStyles,
+      layoutDirection,
+      aspectRatio,
+      reservesTextSpace,
+      accentColorsForBackground,
+    } = input;
+
+    const directionClause =
+      layoutDirection === "RTL" ? "the headline will read right-to-left in Arabic" : "the headline will read left-to-right in English";
+
+    const clearanceClause = reservesTextSpace
+      ? ` Keep the lower portion of the frame visually calmer and less busy, since ${directionClause} and a dark gradient will sit over that area for legible overlaid text.`
+      : ` This background will not have any text overlaid on it directly — ${directionClause} on a separate solid panel elsewhere on the poster.`;
+
+    // The free image model doesn't reliably interpret non-Latin script
+    // as a subject cue — verified live: an Arabic headline about grass
+    // produced an unrelated portrait scene, while the same pipeline
+    // with an English headline produced an accurate field photo. There
+    // is no LLM here to translate the headline's meaning, so for
+    // non-Latin script this anchors on the real, English, industry-
+    // derived subject instead of embedding text the model can't use —
+    // the poster's actual on-image text is unaffected, since that's
+    // rendered separately by the (already RTL-correct) template, not
+    // drawn by the image model.
+    const article = /^[aeiou]/i.test(industry) ? "an" : "a";
+    const subjectClause = isArabicScript(rawUserPrompt) ? `A background photo for ${article} ${industry} business` : rawUserPrompt;
+
+    const expandedVisualPrompt = `${subjectClause}. ${visualTone}.${clearanceClause} No text, no logos, no watermarks in the image itself.`
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const negativePrompt = [...forbiddenStyles, "embedded text", "watermark", "logo", "blurry", "low quality"].join(", ");
+
+    return {
+      expandedVisualPrompt,
+      negativePrompt,
+      designParameters: {
+        aspectRatio,
+        colorPalette: accentColorsForBackground.slice(0, 3),
+        compositionStyle: INDUSTRY_COMPOSITION_STYLE[industry as Industry] ?? "Minimalist",
+      },
+      providerName: this.name,
+    };
   }
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AspectRatio, BackgroundSource } from "@prisma/client";
+import type { AspectRatio, BackgroundSource, PosterTemplate } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getCompanyContext } from "@/lib/company-context";
@@ -8,8 +8,18 @@ import { storage, buildStorageKey } from "@/lib/storage";
 import { renderPoster } from "./render";
 import { runPosterQualityGate } from "./quality-gate";
 import { POSTER_DIMENSIONS } from "./dimensions";
-import { getBrandGradientProvider, getAiImageProviderForCompany } from "@/lib/providers/image/resolver";
+import { POSTER_TEMPLATES } from "./templates";
+import { buildPosterBackgroundContext } from "./background-context";
+import { getBrandGradientProvider, getAiImageProviderForPoster } from "@/lib/providers/image/resolver";
 import { ImageProviderError } from "@/lib/providers/image/types";
+import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
+import { ProviderError } from "@/lib/providers/text/types";
+
+const ASPECT_RATIO_LABEL: Record<AspectRatio, "1:1" | "9:16" | "16:9"> = {
+  SQUARE: "1:1",
+  STORY: "9:16",
+  LANDSCAPE: "16:9",
+};
 
 export interface GeneratePosterCoreInput {
   companyId: string;
@@ -18,6 +28,7 @@ export interface GeneratePosterCoreInput {
   subhead?: string;
   cta?: string;
   aspectRatio: AspectRatio;
+  template: PosterTemplate;
   backgroundSource: BackgroundSource;
   backgroundAssetId?: string;
 }
@@ -48,12 +59,19 @@ export async function generatePosterCore(
     headline: input.headline,
     companyLocale: context.locale,
     aspectRatio: input.aspectRatio,
+    contrastSpec: POSTER_TEMPLATES[input.template].contrastSpec,
   });
   if (!gate.passed) {
     const failMessages = gate.issues.filter((issue) => issue.severity === "fail").map((issue) => issue.message);
     throw new PosterGenerationError(failMessages.join(" "));
   }
   const warnings = gate.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.message);
+
+  // Fetched once, ahead of the background-source branch, since the AI
+  // path's Stage 1 context (below) and the final render both need it —
+  // one real logo lookup driving both, not two.
+  const logoBuffer = brandKit?.logoAsset ? await storage.get(brandKit.logoAsset.storageKey) : null;
+  const logoMimeType = brandKit?.logoAsset?.mimeType ?? null;
 
   let backgroundBuffer: Buffer;
   let backgroundMimeType: string;
@@ -89,10 +107,44 @@ export async function generatePosterCore(
     backgroundMimeType = asset.mimeType;
     resolvedBackgroundAssetId = asset.id;
   } else {
-    const provider = await getAiImageProviderForCompany(input.companyId);
-    if (!provider) {
-      throw new PosterGenerationError("Add an OpenAI key in Settings to generate AI backgrounds.");
+    // Two-stage pipeline: Stage 1 (background-context.ts) shapes the
+    // real Company/BrandKit data already fetched above into the loose
+    // visual-guidance channel; Stage 2 (TextProvider.expandBackgroundPrompt)
+    // expands that + the headline into a concrete generation prompt.
+    // Stage 2 reuses the exact same free/BYOK text provider resolution
+    // as scripts/captions, so this also works with zero keys.
+    const { backgroundGeneratorContext } = buildPosterBackgroundContext({
+      context,
+      brandKit,
+      logoBuffer,
+      logoMimeType,
+      headline: input.headline,
+      template: input.template,
+    });
+
+    const textProvider = await getTextProviderForCompany(input.companyId);
+    let expanded;
+    try {
+      expanded = await textProvider.expandBackgroundPrompt({
+        rawUserPrompt: input.headline,
+        industry: backgroundGeneratorContext.industry,
+        visualTone: backgroundGeneratorContext.visualTone,
+        accentColorsForBackground: backgroundGeneratorContext.accentColorsForBackground,
+        forbiddenStyles: backgroundGeneratorContext.forbiddenStyles,
+        layoutDirection: backgroundGeneratorContext.layoutDirection,
+        aspectRatio: ASPECT_RATIO_LABEL[input.aspectRatio],
+        reservesTextSpace: POSTER_TEMPLATES[input.template].contrastSpec.kind === "overlay",
+      });
+    } catch (error) {
+      if (error instanceof ProviderError) {
+        throw new PosterGenerationError(`${error.providerName}: ${error.message}`);
+      }
+      throw error;
     }
+
+    // Never null — free (Pollinations, no key) when unconfigured, BYOK
+    // OpenAI otherwise. See resolver.ts.
+    const provider = await getAiImageProviderForPoster(input.companyId);
     try {
       const result = await provider.generateBackground({
         companyName: context.name,
@@ -101,6 +153,8 @@ export async function generatePosterCore(
         topic: input.headline,
         widthPx: width,
         heightPx: height,
+        expandedPrompt: expanded.expandedVisualPrompt,
+        negativePrompt: expanded.negativePrompt,
       });
       backgroundBuffer = result.buffer;
       backgroundMimeType = result.mimeType;
@@ -112,14 +166,12 @@ export async function generatePosterCore(
     }
   }
 
-  const logoBuffer = brandKit?.logoAsset ? await storage.get(brandKit.logoAsset.storageKey) : null;
-  const logoMimeType = brandKit?.logoAsset?.mimeType ?? null;
-
   const rendered = await renderPoster({
     headline: input.headline,
     subhead: input.subhead,
     cta: input.cta,
     aspectRatio: input.aspectRatio,
+    template: input.template,
     backgroundBuffer,
     backgroundMimeType,
     logoBuffer,
@@ -163,6 +215,7 @@ export async function generatePosterCore(
       subhead: input.subhead,
       cta: input.cta,
       aspectRatio: input.aspectRatio,
+      template: input.template,
       backgroundSource: input.backgroundSource,
       backgroundAssetId: resolvedBackgroundAssetId,
     },

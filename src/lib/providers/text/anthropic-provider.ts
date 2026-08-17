@@ -7,11 +7,20 @@ import type {
   GenerateScriptInput,
   GenerateScriptOutput,
   VideoScriptSections,
-  GenerateCampaignPlanInput,
-  GenerateCampaignPlanOutput,
+  GenerateCampaignBriefInput,
+  GenerateCampaignBriefOutput,
+  ExpandBackgroundPromptInput,
+  ExpandBackgroundPromptOutput,
 } from "./types";
 import { ProviderError } from "./types";
-import { buildCaptionPrompt, buildScriptPrompt, buildCampaignPlanPrompt } from "./prompt";
+import {
+  buildCaptionPrompt,
+  buildScriptPrompt,
+  buildCampaignBriefPrompt,
+  parseCampaignBriefResponse,
+  buildBackgroundExpansionPrompt,
+  parseExpandedPromptResponse,
+} from "./prompt";
 import { fetchWithRetry } from "../http";
 
 const MODEL = "claude-3-5-haiku-20241022";
@@ -124,29 +133,38 @@ export class AnthropicTextProvider implements TextProvider {
     return { script, providerName: this.name, model: MODEL, estimatedCostUsd };
   }
 
-  async generateCampaignPlan({
-    context,
-    objective,
-    itemCount,
-  }: GenerateCampaignPlanInput): Promise<GenerateCampaignPlanOutput> {
-    const { system, user } = buildCampaignPlanPrompt(context, objective, itemCount);
-    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 600);
+  async generateCampaignBrief(input: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
+    const { system, user } = buildCampaignBriefPrompt({
+      context: input.context,
+      objective: input.objective,
+      itemCount: input.itemCount,
+      scheduledDates: input.scheduledDates,
+      connectedPlatforms: input.connectedPlatforms,
+    });
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 1500);
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripCodeFence(content));
     } catch (error) {
-      throw new ProviderError(this.name, "Anthropic returned malformed campaign plan JSON.", error);
+      throw new ProviderError(this.name, "Anthropic returned malformed campaign brief JSON.", error);
     }
 
-    const angles = (parsed as { angles?: unknown }).angles;
-    if (!Array.isArray(angles) || angles.length !== itemCount || !angles.every((a) => typeof a === "string" && a)) {
-      throw new ProviderError(
-        this.name,
-        `Anthropic didn't return exactly ${itemCount} campaign angles.`,
-      );
+    const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
+    return { ...brief, model: MODEL, estimatedCostUsd };
+  }
+
+  async expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput> {
+    const { system, user } = buildBackgroundExpansionPrompt(input);
+    const { content } = await this.messagesRequest(system, user, 400);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed background-prompt JSON.", error);
     }
 
-    return { angles: angles as string[], providerName: this.name, model: MODEL, estimatedCostUsd };
+    return parseExpandedPromptResponse(parsed, this.name);
   }
 }
