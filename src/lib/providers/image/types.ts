@@ -5,6 +5,14 @@ export interface GenerateBackgroundInput {
   topic: string;
   widthPx: number;
   heightPx: number;
+  // Poster generation's two-stage pipeline (background-context.ts +
+  // TextProvider.expandBackgroundPrompt) supplies these — a richer,
+  // brand-grounded prompt than the fields above alone can build. When
+  // absent (video.ts's AI B-roll stills, which don't run that
+  // pipeline), providers fall back to building a simpler prompt from
+  // companyName/industry/tone/topic.
+  expandedPrompt?: string;
+  negativePrompt?: string;
 }
 
 export interface GenerateBackgroundOutput {

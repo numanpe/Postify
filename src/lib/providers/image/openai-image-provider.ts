@@ -27,7 +27,12 @@ export class OpenAIImageProvider implements ImageProvider {
   constructor(private readonly apiKey: string) {}
 
   async generateBackground(input: GenerateBackgroundInput): Promise<GenerateBackgroundOutput> {
-    const prompt = buildBackgroundPrompt(input);
+    // gpt-image-1 has no separate negative-prompt parameter, so fold it
+    // into the main prompt as an explicit "avoid" clause — the standard
+    // approach for single-prompt image models.
+    const prompt = input.expandedPrompt
+      ? `${input.expandedPrompt}${input.negativePrompt ? ` Avoid: ${input.negativePrompt}.` : ""}`
+      : buildBackgroundPrompt(input);
     const size = nearestSize(input.widthPx, input.heightPx);
 
     let response: Response;
