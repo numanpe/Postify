@@ -43,7 +43,10 @@ export default async function PosterPage() {
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.poster.subtitle(company.name)}</p>
       </div>
 
-      <PosterForm photoAssets={photoAssets} />
+      <PosterForm
+        photoAssets={photoAssets}
+        defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
+      />
 
       {posters.length > 0 && (
         <div className="flex flex-col gap-3">

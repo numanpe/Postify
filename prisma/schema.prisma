@@ -53,6 +53,7 @@ model Company {
   primaryIndustry String
   secondaryNiches String[] @default([])
   locale          Locale   @default(EN)
+  voiceEngine     VoiceEngine @default(FREE)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -162,6 +163,18 @@ enum BackgroundSource {
   AI // BYOK — generated via ImageProvider (Phase 3's gpt-image-1 adapter)
 }
 
+// Four real, distinct layouts (src/lib/poster/templates.tsx), not a
+// single hardcoded design — MINIMAL/BOLD_HEADLINE composite text over
+// the photo with a translucent scrim; PROMOTIONAL_BANNER/SPLIT_PRODUCT
+// put text on a solid brand-color panel instead (a stronger, simpler
+// contrast guarantee than any overlay — see quality-gate.ts).
+enum PosterTemplate {
+  MINIMAL
+  BOLD_HEADLINE
+  PROMOTIONAL_BANNER
+  SPLIT_PRODUCT
+}
+
 // A rendered poster. The pipeline (src/lib/poster/) always produces a
 // real PNG via Satori + resvg — no placeholder/fake output is ever
 // saved here. `asset` is that PNG, stored and served through the same
@@ -179,6 +192,7 @@ model Poster {
   cta      String?
 
   aspectRatio       AspectRatio
+  template          PosterTemplate   @default(MINIMAL)
   backgroundSource  BackgroundSource
   // Only set when backgroundSource is PHOTO or AI-with-a-reference —
   // SetNull rather than Cascade because deleting the source photo
@@ -215,6 +229,12 @@ model Campaign {
 
   name      String
   objective String
+  // Free text, not a Prisma enum — SME industries (construction,
+  // education, real estate, etc.) need campaign types beyond a fixed
+  // set over time, so this stays open rather than hard-coded. The AI
+  // Creative Director infers it from the objective (src/lib/campaign/
+  // creative-director.ts); never asked of the user as a separate field.
+  campaignType String @default("General")
 
   createdAt DateTime @default(now())
 
@@ -223,21 +243,53 @@ model Campaign {
   @@index([companyId])
 }
 
+// Only the asset types with a real backing renderer — offering
+// "carousel" here would be fake functionality, since no carousel
+// pipeline exists in this app.
+enum CampaignAssetType {
+  POSTER
+  VIDEO
+}
+
 // Background-job bookkeeping lives directly on the row (retryCount,
 // nextAttemptAt) rather than a separate generic job-queue table — one
-// job type (generate this item's poster), so a dedicated queue
-// abstraction would be premature. See src/lib/jobs/ for the processor.
+// job type per item (generate this item's poster or video), so a
+// dedicated queue abstraction would be premature. See src/lib/jobs/ for
+// the processor.
 model CampaignItem {
   id         String   @id @default(cuid())
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   scheduledDate DateTime
-  angle         String // this day's specific sub-topic, from the campaign plan
+  angle         String // this day's specific sub-topic, from the campaign plan — shown in the calendar UI regardless of asset type
+  assetType     CampaignAssetType  @default(POSTER)
   status        CampaignItemStatus @default(PENDING)
+
+  // Poster-pipeline inputs (assetType == POSTER). Nullable: falls back
+  // to `angle` as the headline for backward compatibility with items
+  // created before these fields existed.
+  headline String?
+  subhead  String?
+  cta      String?
 
   posterId String? @unique
   poster   Poster? @relation(fields: [posterId], references: [id], onDelete: SetNull)
+  videoId  String? @unique
+  video    Video?  @relation(fields: [videoId], references: [id], onDelete: SetNull)
+
+  // Distribution draft, generated alongside the asset — pre-fills the
+  // real Publish form (src/lib/actions/publish.ts) for poster items.
+  // Video publishing isn't implemented in this app yet (see Video
+  // model), so for video items this is informational only, not wired
+  // to an actual publish action.
+  captionText     String?
+  hashtags        String[]         @default([])
+  // Only ever populated from the company's actually-connected accounts
+  // (SocialAccount) — never a platform this app can't really publish
+  // to (e.g. TikTok, which has no integration here at all).
+  targetPlatforms SocialPlatform[] @default([])
+  suggestedPostAt DateTime?
 
   errorMessage  String?
   retryCount    Int      @default(0)
@@ -283,6 +335,8 @@ model Video {
 
   createdAt DateTime @default(now())
 
+  campaignItem CampaignItem?
+
   @@index([companyId])
 }
 
@@ -306,6 +360,19 @@ model VideoScene {
 enum AiProviderKind {
   OPENAI
   ANTHROPIC
+  ELEVENLABS
+}
+
+// FREE (default) uses the bundled edge-tts community engine — no key,
+// no cost, works out of the box. BYOK routes narration through
+// whichever of OPENAI/ELEVENLABS credential the company has saved
+// instead — an explicit opt-in rather than the implicit
+// "BYOK-wins-automatically" pattern text/image providers use, because
+// unlike those, picking BYOK here can incur real per-generation cost
+// even though a key might already exist for another capability.
+enum VoiceEngine {
+  FREE
+  BYOK
 }
 
 // BYOK storage, one row per (company, vendor) — not per capability. A

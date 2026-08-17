@@ -11,7 +11,9 @@ export interface GradientColors {
 
 // Used only when a company hasn't set brand colors yet — a neutral,
 // professional-looking default rather than an empty/white background.
-const DEFAULT_GRADIENT: [string, string] = ["#1f2937", "#374151"];
+// Exported so templates.tsx's solid-panel templates fall back to the
+// same neutral pair instead of inventing a third default.
+export const DEFAULT_GRADIENT: [string, string] = ["#1f2937", "#374151"];
 
 function escapeSvgAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");

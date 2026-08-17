@@ -1,7 +1,6 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 
 import { requireCompany } from "@/lib/session";
 import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate";
@@ -35,6 +34,7 @@ const PosterSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   aspectRatio: z.enum(["SQUARE", "STORY", "LANDSCAPE"]),
+  template: z.enum(["MINIMAL", "BOLD_HEADLINE", "PROMOTIONAL_BANNER", "SPLIT_PRODUCT"]),
   backgroundSource: z.enum(["BRAND", "PHOTO", "AI"]),
   // .nullish() (not .optional()) — formData.get() returns null, not
   // undefined, for a field that's absent from the form entirely (the
@@ -57,6 +57,7 @@ export async function generatePoster(
     subhead: formData.get("subhead"),
     cta: formData.get("cta"),
     aspectRatio: formData.get("aspectRatio"),
+    template: formData.get("template"),
     backgroundSource: formData.get("backgroundSource"),
     backgroundAssetId: formData.get("backgroundAssetId"),
   });
@@ -71,7 +72,9 @@ export async function generatePoster(
       userId: user.id,
       ...parsed.data,
     });
-    revalidatePath("/poster");
+    // Poster list refresh happens client-side (poster-form.tsx's
+    // router.refresh() on success) instead of here — avoids a metered
+    // ISR write on every single generation. See README's ISR Writes note.
     return { status: "success", posterId: result.posterId, warnings: result.warnings };
   } catch (error) {
     if (error instanceof PosterGenerationError) {

@@ -8,6 +8,7 @@ export interface QualityGateInput {
   headline: string;
   companyLocale: "EN" | "AR";
   aspectRatio: AspectRatio;
+  contrastSpec: TemplateContrastSpec;
 }
 
 export interface QualityGateIssue {
@@ -21,22 +22,43 @@ export interface QualityGateResult {
   issues: QualityGateIssue[];
 }
 
-// Must match the scrim gradient in render.tsx exactly: "linear-gradient(
-// to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 75%)".
-// Stops are fractions of height measured from the bottom edge (CSS "to
-// top" starts the gradient at the bottom).
-const SCRIM_STOPS: ReadonlyArray<readonly [number, number]> = [
-  [0, 0.88],
-  [0.42, 0.55],
-  [0.75, 0],
-  [1, 0],
-];
+// [heightFraction, alpha] pairs along a "to top" gradient measured from
+// the scrim's zero-reference edge (matches the CSS "to top" convention
+// already used in templates.tsx) — a template's contrast guarantee is
+// only as real as this matching its actual rendered scrim exactly.
+export type ScrimStops = ReadonlyArray<readonly [number, number]>;
 
-function scrimAlphaAt(heightFraction: number): number {
-  const clamped = Math.min(heightFraction, 1);
-  for (let i = 0; i < SCRIM_STOPS.length - 1; i += 1) {
-    const [f0, a0] = SCRIM_STOPS[i];
-    const [f1, a1] = SCRIM_STOPS[i + 1];
+// Text composited over the photo/gradient background behind a
+// translucent scrim — contrast depends on how dark the underlying photo
+// could be, so it's proven against the worst case (a pure white photo).
+export interface OverlayContrastSpec {
+  kind: "overlay";
+  scrimStops: ScrimStops;
+  // Fraction of height (from the scrim's zero-reference edge) where the
+  // headline's near edge can land in the worst case (most wrapped
+  // lines) — must mirror the template's real proportional sizing.
+  headlineNearEdgeFraction: (aspectRatio: AspectRatio) => number;
+}
+
+// Text sits on a solid, fully-known color (a panel, not a photo) —
+// contrast is exact math, not a worst-case estimate, and paired with
+// readableTextColor() at render time it's mathematically guaranteed
+// >=4.58:1 (the provable minimum of max(contrast-vs-white,
+// contrast-vs-black) across every possible color) regardless of which
+// brand color the panel ends up being — comfortably above the 3:1 large
+// text minimum this gate enforces, so no aspect-ratio-specific
+// computation is needed at all.
+export interface PanelContrastSpec {
+  kind: "panel";
+}
+
+export type TemplateContrastSpec = OverlayContrastSpec | PanelContrastSpec;
+
+function scrimAlphaAt(stops: ScrimStops, heightFraction: number): number {
+  const clamped = Math.min(Math.max(heightFraction, 0), 1);
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    const [f0, a0] = stops[i];
+    const [f1, a1] = stops[i + 1];
     if (clamped >= f0 && clamped <= f1) {
       const t = (clamped - f0) / (f1 - f0);
       return a0 + (a1 - a0) * t;
@@ -47,57 +69,30 @@ function scrimAlphaAt(heightFraction: number): number {
 
 // Worst-case (highest-luminance-possible) background is a pure white
 // photo — any real photo is darker, so if contrast passes against
-// white it passes against anything. This is a mathematical guarantee
-// derived from the known scrim design, not a sample of one rendered
-// image, so it holds for every poster the pipeline produces.
-function worstCaseContrastAt(heightFraction: number): number {
-  const alpha = scrimAlphaAt(heightFraction);
+// white it passes against anything. A mathematical guarantee derived
+// from the scrim design, not a sample of one rendered image.
+function worstCaseOverlayContrast(spec: OverlayContrastSpec, aspectRatio: AspectRatio): number {
+  const fraction = spec.headlineNearEdgeFraction(aspectRatio);
+  const alpha = scrimAlphaAt(spec.scrimStops, fraction);
   const composited = 255 * (1 - alpha); // black scrim over white photo, per channel
   const grayHex = `#${Math.round(composited).toString(16).padStart(2, "0").repeat(3)}`;
   return contrastRatio("#ffffff", grayHex);
 }
 
-// Mirrors render.tsx's proportional sizing exactly (scaleBasis =
-// min(width, height), same 0.065/0.03/0.024/0.06/0.02/0.014 constants)
-// so this is a real prediction of where the headline's top edge can
-// land, not a guessed fraction. Assumes a conservative worst case: 3
-// wrapped headline lines, 2 wrapped subhead lines, and a CTA badge, all
-// present at once — real posts are usually shorter than this.
-function headlineTopFraction(aspectRatio: AspectRatio): number {
-  const { width, height } = POSTER_DIMENSIONS[aspectRatio];
-  const scaleBasis = Math.min(width, height);
-
-  const headlineFontSize = scaleBasis * 0.065;
-  const subheadFontSize = scaleBasis * 0.03;
-  const ctaFontSize = scaleBasis * 0.024;
-  const padding = scaleBasis * 0.06;
-  const gap = scaleBasis * 0.02;
-  const ctaVerticalPadding = scaleBasis * 0.014;
-
-  const headlineBlock = headlineFontSize * 1.15 * 3;
-  const subheadBlock = subheadFontSize * 1.3 * 2;
-  const ctaBlock = ctaFontSize + 2 * ctaVerticalPadding;
-
-  const totalPx = padding + headlineBlock + gap + subheadBlock + gap + ctaBlock;
-  return totalPx / height;
-}
-
-// WCAG AA large-text minimum. The headline is always well above the
-// 24px/18.66px-bold large-text threshold at every supported aspect
-// ratio (smallest headline size is ~70px on a 1080-basis canvas), so
-// 3:1 — not the stricter 4.5:1 for normal text — is the correct bar
-// here. Subhead/CTA sit strictly below the headline in the stack
-// (more scrim coverage, so higher contrast) or have their own
-// construction-time contrast guarantee (CTA badge text color, see
-// readableTextColor in contrast.ts), so the headline position is the
-// binding constraint.
+// WCAG AA large-text minimum. Every template's headline is well above
+// the 24px/18.66px-bold large-text threshold at every supported aspect
+// ratio, so 3:1 — not the stricter 4.5:1 for normal text — is the
+// correct bar here.
 const MIN_HEADLINE_CONTRAST = 3;
 
 export function runPosterQualityGate(input: QualityGateInput): QualityGateResult {
   const issues: QualityGateIssue[] = [];
 
-  const fraction = headlineTopFraction(input.aspectRatio);
-  const contrast = worstCaseContrastAt(fraction);
+  const contrast =
+    input.contrastSpec.kind === "panel"
+      ? Infinity // proven >=4.58:1 by construction — see PanelContrastSpec doc above
+      : worstCaseOverlayContrast(input.contrastSpec, input.aspectRatio);
+
   if (contrast < MIN_HEADLINE_CONTRAST) {
     issues.push({
       code: "contrast",
@@ -132,4 +127,12 @@ export function runPosterQualityGate(input: QualityGateInput): QualityGateResult
     passed: !issues.some((issue) => issue.severity === "fail"),
     issues,
   };
+}
+
+// Shared by templates.tsx (to build the actual render) and this file's
+// tests/callers — keeps the aspect-ratio-proportional sizing constants
+// in exactly one place so render and gate can never drift apart.
+export function scaleBasisFor(aspectRatio: AspectRatio): number {
+  const { width, height } = POSTER_DIMENSIONS[aspectRatio];
+  return Math.min(width, height);
 }
