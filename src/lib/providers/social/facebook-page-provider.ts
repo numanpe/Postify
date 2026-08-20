@@ -1,7 +1,7 @@
 import "server-only";
 
 import { fetchWithRetry } from "../http";
-import type { PublishPostInput, PublishPostOutput, SocialProvider } from "./types";
+import type { EngagementResult, PublishPostInput, PublishPostOutput, SocialProvider } from "./types";
 import { SocialProviderError } from "./types";
 
 const GRAPH_VERSION = "v23.0";
@@ -47,6 +47,37 @@ export class FacebookPageProvider implements SocialProvider {
     }
 
     return { externalPostId, externalPostUrl: await this.getPermalink(externalPostId) };
+  }
+
+  // "reactions", not "likes" — verified against the current Graph API
+  // Post reference before this was written, which lists reactions (not
+  // the older likes edge) as the current field. Facebook Page posts
+  // don't expose a reach/impressions figure through this same field set
+  // the way Instagram media does, so this provider never sets `reach`.
+  async getEngagement(postId: string): Promise<EngagementResult> {
+    const url = new URL(`${GRAPH_BASE}/${postId}`);
+    url.searchParams.set("fields", "reactions.summary(true),comments.summary(true),shares");
+    url.searchParams.set("access_token", this.pageAccessToken);
+
+    const response = await fetchWithRetry(url.toString(), { method: "GET" }, 15_000);
+    const body = (await response.json()) as {
+      reactions?: { summary?: { total_count?: number } };
+      comments?: { summary?: { total_count?: number } };
+      shares?: { count?: number };
+      error?: { message?: string };
+    };
+    if (!response.ok || body.error) {
+      throw new SocialProviderError(
+        "facebook",
+        body.error?.message ?? `Facebook engagement fetch failed (${response.status}).`,
+      );
+    }
+
+    return {
+      likes: body.reactions?.summary?.total_count ?? 0,
+      comments: body.comments?.summary?.total_count ?? 0,
+      shares: body.shares?.count ?? 0,
+    };
   }
 
   // Never guess a post URL — only report one Meta actually confirms.

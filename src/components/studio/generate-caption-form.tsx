@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { generateCaption } from "@/lib/actions/content";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
+import { NavIcons } from "@/components/icons";
 
 export function GenerateCaptionForm() {
   const [state, action, pending] = useActionState(generateCaption, undefined);
@@ -21,6 +22,7 @@ export function GenerateCaptionForm() {
           className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
         <Button type="submit" pending={pending} pendingLabel={dict.generating} size="sm">
+          <NavIcons.studio size={16} aria-hidden="true" />
           {dict.generate}
         </Button>
       </form>

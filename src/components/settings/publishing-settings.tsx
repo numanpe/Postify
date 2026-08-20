@@ -10,6 +10,8 @@ import {
 import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
+import { NavIcons, ActionIcons } from "@/components/icons";
+import { Zap } from "lucide-react";
 import type { PublishingMode, SocialAggregatorProvider } from "@prisma/client";
 
 interface AggregatorCredentialRow {
@@ -99,14 +101,20 @@ export function PublishingSettings({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">{dict.settingsTitle}</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <NavIcons.publish size={18} aria-hidden="true" />
+          {dict.settingsTitle}
+        </h2>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.settingsSubtitle}</p>
       </div>
 
       {/* Manual — always available, zero setup */}
       <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">{dict.modeManualTitle}</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <ActionIcons.download size={16} aria-hidden="true" />
+            {dict.modeManualTitle}
+          </span>
           {publishingMode === "MANUAL" ? (
             <span className="text-xs text-green-700 dark:text-green-400">{dict.currentMethod}</span>
           ) : (
@@ -124,7 +132,8 @@ export function PublishingSettings({
       {/* Zernio — recommended automated provider */}
       <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">
+          <span className="flex items-center gap-1.5 font-medium">
+            <Zap size={16} aria-hidden="true" />
             {dict.modeAggregatorTitle} <span className="text-xs font-normal text-ink-soft dark:text-ink-soft-dark">{dict.modeAggregatorRecommended}</span>
           </span>
           {publishingMode === "AGGREGATOR" && (
@@ -149,7 +158,10 @@ export function PublishingSettings({
       {/* Direct API — Meta is real, TikTok is honestly not */}
       <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">{dict.modeDirectApiTitle}</span>
+          <span className="flex items-center gap-1.5 font-medium">
+            <ActionIcons.publishDirect size={16} aria-hidden="true" />
+            {dict.modeDirectApiTitle}
+          </span>
           {publishingMode === "DIRECT_API" ? (
             <span className="text-xs text-green-700 dark:text-green-400">{dict.currentMethod}</span>
           ) : (

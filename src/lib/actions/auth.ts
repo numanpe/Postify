@@ -3,11 +3,18 @@
 import { z } from "zod";
 import { AuthError } from "next-auth";
 
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 
 export type AuthFormState = { error: string } | undefined;
+
+// Extracted from an inline closure in the (app) layout so the client-side
+// AppNav component (needed for the mobile menu toggle) can bind it to a
+// <form action={...}> the same way the old server-only layout did.
+export async function signOutAction(): Promise<void> {
+  await signOut({ redirectTo: "/login" });
+}
 
 const SignUpSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120),

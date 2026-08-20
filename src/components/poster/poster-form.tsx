@@ -6,13 +6,22 @@ import { useRouter } from "next/navigation";
 import { generatePoster } from "@/lib/actions/poster";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
+import { NavIcons } from "@/components/icons";
 
 interface PhotoAsset {
   id: string;
   fileName: string;
 }
 
-const TEMPLATE_IDS = ["MINIMAL", "BOLD_HEADLINE", "PROMOTIONAL_BANNER", "SPLIT_PRODUCT"] as const;
+const TEMPLATE_IDS = [
+  "MINIMAL",
+  "BOLD_HEADLINE",
+  "PROMOTIONAL_BANNER",
+  "SPLIT_PRODUCT",
+  "MODERN_BANNER",
+  "BADGE_OFFER",
+  "MINIMALIST_FRAME",
+] as const;
 
 export function PosterForm({
   photoAssets,
@@ -46,12 +55,18 @@ export function PosterForm({
     BOLD_HEADLINE: dict.templateBoldHeadlineName,
     PROMOTIONAL_BANNER: dict.templatePromotionalBannerName,
     SPLIT_PRODUCT: dict.templateSplitProductName,
+    MODERN_BANNER: dict.templateModernBannerName,
+    BADGE_OFFER: dict.templateBadgeOfferName,
+    MINIMALIST_FRAME: dict.templateMinimalistFrameName,
   };
   const templateDescriptions: Record<(typeof TEMPLATE_IDS)[number], string> = {
     MINIMAL: dict.templateMinimalDescription,
     BOLD_HEADLINE: dict.templateBoldHeadlineDescription,
     PROMOTIONAL_BANNER: dict.templatePromotionalBannerDescription,
     SPLIT_PRODUCT: dict.templateSplitProductDescription,
+    MODERN_BANNER: dict.templateModernBannerDescription,
+    BADGE_OFFER: dict.templateBadgeOfferDescription,
+    MINIMALIST_FRAME: dict.templateMinimalistFrameDescription,
   };
 
   return (
@@ -176,6 +191,7 @@ export function PosterForm({
       )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.generating}>
+        <NavIcons.poster size={18} aria-hidden="true" />
         {dict.generate}
       </Button>
     </form>

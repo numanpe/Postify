@@ -10,6 +10,8 @@ import {
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { DownloadCopyButton } from "./download-copy-button";
+import { VideoEditModal } from "./video-edit-modal";
+import { ActionIcons, NavIcons } from "@/components/icons";
 import type { CampaignAssetType, CampaignItemStatus, SocialPlatform } from "@prisma/client";
 
 const STATUS_STYLES: Record<CampaignItemStatus, string> = {
@@ -159,8 +161,9 @@ export async function CalendarItemCard({
             <form action={approveCampaignItem.bind(null, item.id)}>
               <button
                 type="submit"
-                className="w-full rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
               >
+                <ActionIcons.approve size={14} aria-hidden="true" />
                 {dict.common.approve}
               </button>
             </form>
@@ -170,18 +173,24 @@ export async function CalendarItemCard({
             <DownloadCopyButton itemId={item.id} captionText={item.captionText} hashtags={item.hashtags} />
           )}
 
+          {fileAvailable && item.assetType === "VIDEO" && item.video?.asset && (
+            <VideoEditModal itemId={item.id} videoUrl={storage.url(item.video.asset.storageKey)} />
+          )}
+
           {fileAvailable &&
             (aggregatorConfigured && aggregatorProviderName ? (
               <form action={publishCampaignItemViaAggregator.bind(null, item.id)}>
                 <button
                   type="submit"
-                  className="w-full rounded border border-paper-border dark:border-night-border px-1.5 py-0.5"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5"
                 >
+                  <ActionIcons.publishProvider size={14} aria-hidden="true" />
                   {pubDict.publishViaProvider(aggregatorProviderName)}
                 </button>
               </form>
             ) : (
-              <a href="/settings" className="text-ink-soft dark:text-ink-soft-dark underline">
+              <a href="/settings" className="inline-flex items-center gap-1.5 text-ink-soft dark:text-ink-soft-dark underline">
+                <NavIcons.settings size={14} aria-hidden="true" />
                 {pubDict.modeAggregatorTitle}
               </a>
             ))}
@@ -200,7 +209,8 @@ export async function CalendarItemCard({
                     </option>
                   ))}
                 </select>
-                <button type="submit" className="w-full rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
+                <button type="submit" className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
+                  <ActionIcons.publishDirect size={14} aria-hidden="true" />
                   {pubDict.publishDirect}
                 </button>
               </form>
@@ -216,7 +226,12 @@ export async function CalendarItemCard({
               rows={2}
               className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5"
             />
-            <button type="submit" className="rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
+            <button type="submit" className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
+              {item.status === "FAILED" ? (
+                <ActionIcons.retry size={14} aria-hidden="true" />
+              ) : (
+                <ActionIcons.regenerate size={14} aria-hidden="true" />
+              )}
               {item.status === "FAILED" ? dict.common.retry : dict.common.regenerate}
             </button>
           </form>
@@ -224,8 +239,9 @@ export async function CalendarItemCard({
           <form action={removeCampaignItem.bind(null, item.id)}>
             <button
               type="submit"
-              className="w-full rounded border border-paper-border dark:border-night-border px-1.5 py-0.5 text-red-600 dark:text-red-400"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5 text-red-600 dark:text-red-400"
             >
+              <ActionIcons.remove size={14} aria-hidden="true" />
               {dict.common.remove}
             </button>
           </form>

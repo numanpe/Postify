@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "audit:mobile": "node scripts/mobile-audit.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -21,6 +22,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "^2.4.3",
+    "lucide-react": "^1.33.0",
     "msedge-tts": "^2.0.7",
     "next": "^16.3.1",
     "next-auth": "5.0.0-beta.32",
@@ -39,6 +41,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.18.0",
     "eslint-config-next": "^16.3.1",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.49",
     "prisma": "^6.2.1",
     "tailwindcss": "^3.4.17",

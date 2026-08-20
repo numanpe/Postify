@@ -8,6 +8,8 @@ import { deleteMedia } from "@/lib/actions/media";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { UploadMediaForm } from "@/components/media/upload-media-form";
+import { EmptyState } from "@/components/empty-state";
+import { NavIcons } from "@/components/icons";
 
 export default async function MediaPage() {
   const { company } = await requireCompany();
@@ -28,7 +30,7 @@ export default async function MediaPage() {
       <UploadMediaForm />
 
       {assets.length === 0 ? (
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.media.noMedia}</p>
+        <EmptyState icon={NavIcons.media} title={dict.media.noMedia} hint={dict.media.noMediaHint} />
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((asset) => (

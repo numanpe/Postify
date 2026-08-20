@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useDict } from "@/components/i18n/locale-provider";
+import { ActionIcons } from "@/components/icons";
 
 // Task 2, Option 1: "Download Asset & Copy Caption". One real click does
 // both — copies caption+hashtags to the clipboard, then triggers the
@@ -46,8 +47,9 @@ export function DownloadCopyButton({
       <button
         type="button"
         onClick={handleClick}
-        className="w-full rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded bg-primary px-1.5 py-0.5 text-paper dark:bg-primary-dark dark:text-night"
       >
+        <ActionIcons.download size={14} aria-hidden="true" />
         {dict.downloadButton}
       </button>
       {showToast && (

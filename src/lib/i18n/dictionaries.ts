@@ -19,7 +19,7 @@
 export interface Dictionary {
   nav: {
     studio: string; poster: string; video: string; campaigns: string; publish: string;
-    media: string; brandKit: string; settings: string; signOut: string;
+    media: string; brandKit: string; settings: string; signOut: string; repurpose: string; menu: string;
   };
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
@@ -50,6 +50,9 @@ export interface Dictionary {
     templateBoldHeadlineName: string; templateBoldHeadlineDescription: string;
     templatePromotionalBannerName: string; templatePromotionalBannerDescription: string;
     templateSplitProductName: string; templateSplitProductDescription: string;
+    templateModernBannerName: string; templateModernBannerDescription: string;
+    templateBadgeOfferName: string; templateBadgeOfferDescription: string;
+    templateMinimalistFrameName: string; templateMinimalistFrameDescription: string;
   };
   video: {
     title: string; subtitle: (name: string) => string; previousVideos: string; topic: string;
@@ -57,6 +60,9 @@ export interface Dictionary {
     formatLandscape: string; narration: string; narrationHint: string; footage: string;
     footageHint: string; noFootage: string; kindVideo: string; kindPhoto: string;
     generatedSuccess: string; generate: string; generating: string;
+    editVideo: string; editVideoTrimStart: string; editVideoTrimEnd: string;
+    editVideoOverlayText: string; editVideoOverlayPlaceholder: string;
+    editVideoSave: string; editVideoSaving: string; editVideoSaved: string; editVideoCancel: string;
   };
   campaigns: {
     title: string; subtitle: (name: string) => string; yourCampaigns: string;
@@ -65,6 +71,7 @@ export interface Dictionary {
     startDate: string; days: string; submit: string; submitPending: string;
     processingHint: (n: number) => string; weekdays: string[];
     assetTypePoster: string; assetTypeVideo: string; captionLabel: string; hashtagsLabel: string;
+    noCampaignsHint: string;
   };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
@@ -77,7 +84,7 @@ export interface Dictionary {
     viewPost: string; platformFacebook: string; platformInstagram: string;
   };
   media: {
-    title: string; subtitle: (name: string) => string; noMedia: string; uploadHint: string;
+    title: string; subtitle: (name: string) => string; noMedia: string; noMediaHint: string; uploadHint: string;
     upload: string; uploading: string;
   };
   brandKit: {
@@ -95,6 +102,19 @@ export interface Dictionary {
     apiKeyGuideTitle: string; apiKeyGuideSubtitle: string;
     openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
     elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
+    insightsTitle: string; insightsNoData: string;
+    insightsSentence: (topic: string, relativeScore: number) => string;
+    insightsConfidence: (tier: string, sampleSize: number) => string;
+    confidenceLow: string; confidenceMedium: string; confidenceHigh: string;
+  };
+  repurpose: {
+    title: string; subtitle: string;
+    sourcePoster: string; sourceVideo: string; sourceText: string;
+    choosePoster: string; chooseVideo: string; describePlaceholder: string;
+    formatsLabel: string; formatPoster: string; formatVideo: string; formatCaptions: string;
+    generate: string; generating: string;
+    resultTitle: string; resultPoster: string; resultVideo: string; resultCaptions: string;
+    copyButton: string; copiedToast: string;
   };
   publishing: {
     settingsTitle: string; settingsSubtitle: string;
@@ -125,6 +145,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       brandKit: "Brand Kit",
       settings: "Settings",
       signOut: "Sign out",
+      repurpose: "Repurpose",
+      menu: "Menu",
     },
     common: {
       save: "Save",
@@ -199,6 +221,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templatePromotionalBannerDescription: "Photo up top, solid brand-color banner below.",
       templateSplitProductName: "Split Product View",
       templateSplitProductDescription: "Photo and a solid brand panel with logo, message, and CTA.",
+      templateModernBannerName: "Modern Banner",
+      templateModernBannerDescription: "Bottom gradient with a brand-color accent bar beside the text — clean and current.",
+      templateBadgeOfferName: "Badge & Offer",
+      templateBadgeOfferDescription: "A centered accent-color card holds the whole message — built for a sale or offer.",
+      templateMinimalistFrameName: "Minimalist Frame",
+      templateMinimalistFrameDescription: "Clean bottom text with a thin brand-color border frame and a subtle logo watermark.",
       generate: "Generate poster",
       generating: "Generating…",
     },
@@ -224,6 +252,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "Video generated — see it below.",
       generate: "Generate video",
       generating: "Generating… this can take a minute",
+      editVideo: "Edit Video",
+      editVideoTrimStart: "Trim start",
+      editVideoTrimEnd: "Trim end",
+      editVideoOverlayText: "Overlay text",
+      editVideoOverlayPlaceholder: "e.g. Limited time only",
+      editVideoSave: "Save edit",
+      editVideoSaving: "Saving edit…",
+      editVideoSaved: "Saved — the updated video will appear on the card.",
+      editVideoCancel: "Cancel",
     },
     campaigns: {
       title: "Campaigns",
@@ -245,6 +282,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       assetTypeVideo: "Video",
       captionLabel: "Caption",
       hashtagsLabel: "Hashtags",
+      noCampaignsHint: "Describe an objective above and we'll plan a coherent week of posts for you — no campaigns yet.",
     },
     publish: {
       title: "Publish",
@@ -282,6 +320,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       subtitle: (name: string) =>
         `Photos, video, audio, and brand assets for ${name}. Tags shown here are structural only — semantic search arrives once AI tagging is built.`,
       noMedia: "No media uploaded yet.",
+      noMediaHint: "Add your logo, product photos, or site footage — they'll show up here and become real building blocks for your posters and videos.",
       uploadHint: "Photos, videos, or audio — up to 25MB each.",
       upload: "Upload",
       uploading: "Uploading…",
@@ -336,6 +375,38 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "In the voiceover engine section above, switch to \"Use my own API key\" so videos actually use it.",
       ],
       elevenLabsGuideLinkLabel: "Get ElevenLabs key → elevenlabs.io",
+      insightsTitle: "What's working",
+      insightsNoData:
+        "Not enough published posts with measured engagement yet — this fills in once you've published several posts through a connected Facebook or Instagram account.",
+      insightsSentence: (topic: string, relativeScore: number) =>
+        `${topic} posts are getting ${relativeScore}x your average engagement.`,
+      insightsConfidence: (tier: string, sampleSize: number) =>
+        `Confidence: ${tier} (based on ${sampleSize} published post${sampleSize === 1 ? "" : "s"}).`,
+      confidenceLow: "low",
+      confidenceMedium: "medium",
+      confidenceHigh: "high",
+    },
+    repurpose: {
+      title: "Repurpose This",
+      subtitle: "Turn one piece of content into a small package of new formats — reusing your existing pipelines, not a new one.",
+      sourcePoster: "An existing poster",
+      sourceVideo: "An existing video",
+      sourceText: "Describe it myself",
+      choosePoster: "Choose a poster",
+      chooseVideo: "Choose a video",
+      describePlaceholder: "e.g. our new spring menu, 20% off this weekend",
+      formatsLabel: "Generate as",
+      formatPoster: "Poster",
+      formatVideo: "Video (Reel)",
+      formatCaptions: "3 caption variants",
+      generate: "Generate package",
+      generating: "Generating… this can take a minute",
+      resultTitle: "Your repurposed package",
+      resultPoster: "New poster",
+      resultVideo: "New video",
+      resultCaptions: "Caption variants",
+      copyButton: "Copy",
+      copiedToast: "Copied.",
     },
     publishing: {
       settingsTitle: "Publishing",
@@ -354,7 +425,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       currentMethod: "Currently in use",
       apiKeyLabel: "API key",
       accountMapLabel: "Platform account IDs",
-      accountMapHint: "From your Zernio dashboard — one per platform you want to publish to.",
+      accountMapHint:
+        "From your provider's own dashboard — one per platform you want to publish to. Upload-Post instead uses a single profile name: add _PROFILE_:your_upload_post_username.",
       accountMapPlaceholder: "FACEBOOK:acc_123, INSTAGRAM:acc_456",
       saveAndUse: "Save & use Zernio",
       saving: "Saving…",
@@ -389,6 +461,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       brandKit: "هوية العلامة",
       settings: "الإعدادات",
       signOut: "تسجيل الخروج",
+      repurpose: "إعادة التوظيف",
+      menu: "القائمة",
     },
     common: {
       save: "حفظ",
@@ -462,6 +536,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templatePromotionalBannerDescription: "صورة في الأعلى، وشريط بلون العلامة أسفلها.",
       templateSplitProductName: "عرض منتج مقسّم",
       templateSplitProductDescription: "صورة ولوحة بلون العلامة تضم الشعار والرسالة والدعوة لاتخاذ إجراء.",
+      templateModernBannerName: "لافتة عصرية",
+      templateModernBannerDescription: "تدرّج سفلي مع شريط تمييز بلون العلامة بجانب النص — نظيف وعصري.",
+      templateBadgeOfferName: "شارة وعرض",
+      templateBadgeOfferDescription: "بطاقة مركزية بلون العلامة تحمل الرسالة كاملة — مصمّمة للتخفيضات والعروض.",
+      templateMinimalistFrameName: "إطار بسيط",
+      templateMinimalistFrameDescription: "نص سفلي نظيف مع إطار رفيع بلون العلامة وعلامة مائية خفيفة للشعار.",
       generate: "إنشاء الملصق",
       generating: "جارٍ الإنشاء…",
     },
@@ -487,6 +567,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "تم إنشاء الفيديو — شاهده أدناه.",
       generate: "إنشاء الفيديو",
       generating: "جارٍ الإنشاء… قد يستغرق ذلك دقيقة",
+      editVideo: "تعديل الفيديو",
+      editVideoTrimStart: "بداية القص",
+      editVideoTrimEnd: "نهاية القص",
+      editVideoOverlayText: "نص فوق الفيديو",
+      editVideoOverlayPlaceholder: "مثال: لفترة محدودة فقط",
+      editVideoSave: "حفظ التعديل",
+      editVideoSaving: "جارٍ حفظ التعديل…",
+      editVideoSaved: "تم الحفظ — سيظهر الفيديو المُحدَّث على البطاقة.",
+      editVideoCancel: "إلغاء",
     },
     campaigns: {
       title: "الحملات",
@@ -508,6 +597,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       assetTypeVideo: "فيديو",
       captionLabel: "التسمية التوضيحية",
       hashtagsLabel: "الوسوم",
+      noCampaignsHint: "صف هدفًا أعلاه وسنخطط لك أسبوعًا متكاملًا من المنشورات — لا توجد حملات بعد.",
     },
     publish: {
       title: "النشر",
@@ -545,6 +635,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       subtitle: (name: string) =>
         `الصور والفيديو والصوت وأصول العلامة لـ${name}. الوسوم المعروضة هنا هيكلية فقط — سيتوفر البحث الدلالي عند تفعيل وسم الذكاء الاصطناعي.`,
       noMedia: "لم يتم رفع أي وسائط بعد.",
+      noMediaHint: "أضف شعارك أو صور منتجاتك أو لقطات موقعك — ستظهر هنا وتصبح لبنات حقيقية لملصقاتك وفيديوهاتك.",
       uploadHint: "صور أو فيديوهات أو ملفات صوتية — بحد أقصى 25 ميغابايت لكل ملف.",
       upload: "رفع",
       uploading: "جارٍ الرفع…",
@@ -599,6 +690,37 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "في قسم محرك التعليق الصوتي أعلاه، بدّل إلى \"استخدام مفتاح API الخاص بي\" ليتم استخدامه فعليًا في الفيديوهات.",
       ],
       elevenLabsGuideLinkLabel: "احصل على مفتاح ElevenLabs ← elevenlabs.io",
+      insightsTitle: "ما الذي ينجح",
+      insightsNoData:
+        "لا توجد منشورات كافية منشورة وقيست تفاعلاتها بعد — ستظهر هذه المعلومات بعد نشر عدة منشورات عبر حساب فيسبوك أو إنستغرام متصل.",
+      insightsSentence: (topic: string, relativeScore: number) =>
+        `منشورات "${topic}" تحقق تفاعلاً يعادل ${relativeScore}× متوسط تفاعلك.`,
+      insightsConfidence: (tier: string, sampleSize: number) => `مستوى الثقة: ${tier} (استنادًا إلى ${sampleSize} منشورًا).`,
+      confidenceLow: "منخفض",
+      confidenceMedium: "متوسط",
+      confidenceHigh: "عالٍ",
+    },
+    repurpose: {
+      title: "إعادة توظيف المحتوى",
+      subtitle: "حوّل قطعة محتوى واحدة إلى مجموعة صيغ جديدة — باستخدام أنظمتك الحالية، وليس نظامًا جديدًا.",
+      sourcePoster: "ملصق موجود",
+      sourceVideo: "فيديو موجود",
+      sourceText: "وصفه بنفسي",
+      choosePoster: "اختر ملصقًا",
+      chooseVideo: "اختر فيديو",
+      describePlaceholder: "مثال: قائمة طعامنا الجديدة لفصل الربيع، خصم 20% نهاية هذا الأسبوع",
+      formatsLabel: "إنشاء كـ",
+      formatPoster: "ملصق",
+      formatVideo: "فيديو (ريل)",
+      formatCaptions: "3 نسخ من التسمية التوضيحية",
+      generate: "إنشاء المجموعة",
+      generating: "جارٍ الإنشاء… قد يستغرق ذلك دقيقة",
+      resultTitle: "مجموعتك المُعاد توظيفها",
+      resultPoster: "ملصق جديد",
+      resultVideo: "فيديو جديد",
+      resultCaptions: "نسخ التسمية التوضيحية",
+      copyButton: "نسخ",
+      copiedToast: "تم النسخ.",
     },
     publishing: {
       settingsTitle: "النشر",
@@ -617,7 +739,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       currentMethod: "قيد الاستخدام حاليًا",
       apiKeyLabel: "مفتاح API",
       accountMapLabel: "معرّفات حسابات المنصّات",
-      accountMapHint: "من لوحة تحكم Zernio — واحد لكل منصّة تريد النشر إليها.",
+      accountMapHint:
+        "من لوحة تحكم المزوّد — واحد لكل منصّة تريد النشر إليها. أما Upload-Post فيستخدم اسم ملف واحد: أضف _PROFILE_:اسم_مستخدمك_في_Upload-Post.",
       accountMapPlaceholder: "FACEBOOK:acc_123, INSTAGRAM:acc_456",
       saveAndUse: "حفظ واستخدام Zernio",
       saving: "جارٍ الحفظ…",

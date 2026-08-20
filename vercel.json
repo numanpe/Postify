@@ -11,6 +11,10 @@
     {
       "path": "/api/jobs/flag-stale-media",
       "schedule": "20 3 * * *"
+    },
+    {
+      "path": "/api/jobs/pull-engagement",
+      "schedule": "30 3 * * *"
     }
   ]
 }

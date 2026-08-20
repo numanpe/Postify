@@ -1,7 +1,7 @@
 import "server-only";
 
 import { fetchWithRetry } from "../http";
-import type { PublishPostInput, PublishPostOutput, SocialProvider } from "./types";
+import type { EngagementResult, PublishPostInput, PublishPostOutput, SocialProvider } from "./types";
 import { SocialProviderError } from "./types";
 
 const GRAPH_VERSION = "v23.0";
@@ -97,6 +97,32 @@ export class InstagramProvider implements SocialProvider {
       "instagram",
       "Timed out waiting for Instagram to finish processing the image.",
     );
+  }
+
+  // "reach", not "impressions" — Meta deprecated impressions for IG
+  // media created after 2024-07-02 (verified against the current
+  // Instagram Graph API reference before this was written). likes/
+  // comments/shares are the confirmed non-deprecated fields on the
+  // media object itself.
+  async getEngagement(mediaId: string): Promise<EngagementResult> {
+    const body = await graphFetch<{
+      like_count?: number;
+      comments_count?: number;
+      insights?: { data?: { name: string; values?: { value: number }[] }[] };
+    }>(`/${mediaId}`, {
+      fields: "like_count,comments_count,insights.metric(reach,shares)",
+      access_token: this.pageAccessToken,
+    });
+
+    const metric = (name: string) =>
+      body.insights?.data?.find((m) => m.name === name)?.values?.[0]?.value ?? 0;
+
+    return {
+      likes: body.like_count ?? 0,
+      comments: body.comments_count ?? 0,
+      shares: metric("shares"),
+      reach: metric("reach"),
+    };
   }
 
   // Never guess a post URL — only report one Meta actually confirms.

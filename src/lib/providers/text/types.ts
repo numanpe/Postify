@@ -4,6 +4,15 @@ import type { SocialPlatform } from "@prisma/client";
 export interface GenerateCaptionInput {
   context: CompanyContext;
   topic: string;
+  // Only meaningful to TemplateProvider's deterministic hash-based
+  // picker (see template-provider.ts) — without this, calling
+  // generateCaption more than once for the identical topic on the free
+  // tier returns byte-identical text every time (no randomness in the
+  // picker), which would make a "generate N variants" caller (e.g.
+  // repurpose.ts) silently produce N copies of the same caption. BYOK
+  // providers ignore this — real LLM sampling already varies call to
+  // call.
+  variantIndex?: number;
 }
 
 export interface GenerateCaptionOutput {

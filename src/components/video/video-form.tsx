@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { generateVideo } from "@/lib/actions/video";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
+import { NavIcons } from "@/components/icons";
 
 interface MediaAssetOption {
   id: string;
@@ -105,6 +106,7 @@ export function VideoForm({
       )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.generating}>
+        <NavIcons.video size={18} aria-hidden="true" />
         {dict.generate}
       </Button>
     </form>

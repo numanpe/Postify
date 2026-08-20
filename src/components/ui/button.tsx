@@ -25,7 +25,10 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const sizeClasses = size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2 text-base";
+  // py-2 (not py-1.5) keeps "sm" visually compact while landing closer
+  // to a real tappable height on touch screens — a mobile audit measured
+  // the old py-1.5 at 32px, under the ~40-44px tap-target guideline.
+  const sizeClasses = size === "sm" ? "px-3 py-2 text-sm" : "px-4 py-2 text-base";
 
   return (
     <button

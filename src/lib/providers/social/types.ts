@@ -16,9 +16,20 @@ export interface PublishPostOutput {
   externalPostUrl: string | null;
 }
 
+export interface EngagementResult {
+  likes: number;
+  comments: number;
+  shares: number;
+  // Instagram only — see EngagementSnapshot.reach in schema.prisma for
+  // why "impressions" isn't used (deprecated by Meta for media created
+  // after 2024-07-02).
+  reach?: number;
+}
+
 export interface SocialProvider {
   readonly platform: SocialPlatform;
   publishPost(input: PublishPostInput): Promise<PublishPostOutput>;
+  getEngagement(externalPostId: string): Promise<EngagementResult>;
 }
 
 // Same contract as ImageProviderError/ProviderError: surfaced directly to

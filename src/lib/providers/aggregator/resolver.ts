@@ -8,15 +8,16 @@ import type { SocialAggregatorAdapter } from "./types";
 import { ZernioAdapter } from "./zernio-adapter";
 import { PostproxyAdapter } from "./postproxy-adapter";
 import { BufferAdapter } from "./buffer-adapter";
+import { UploadPostAdapter } from "./upload-post-adapter";
 
-// ZERNIO, POSTPROXY, and BUFFER have real adapters, each built against
-// verified (and where possible live-tested) API shapes — see
-// AGGREGATOR_PROVIDERS in types.ts for the confidence level and sourcing
-// on each. UPLOAD_POST still throws — its photo-publish endpoint (the
-// one this app actually needs; posters are images) couldn't be verified
-// despite repeated attempts, and this app won't call a guessed API. This
-// throws rather than falling back to a fake success either way, per
-// CLAUDE.md's no-fake-functionality rule.
+// All four providers now have real adapters — see AGGREGATOR_PROVIDERS
+// in types.ts for the confidence level and sourcing on each (Zernio and
+// Postproxy are live-tested against their real request/response shapes;
+// Buffer and Upload-Post have confirmed endpoints/auth but a
+// medium-confidence field-name inference for their exact payloads,
+// flagged in each adapter file). If a field name ever turns out wrong,
+// the real API's own error response surfaces honestly — never a fake
+// success, per CLAUDE.md's no-fake-functionality rule.
 export function getAggregatorAdapter(credential: AggregatorCredential): SocialAggregatorAdapter {
   const info = AGGREGATOR_PROVIDERS.find((p) => p.provider === credential.provider);
   if (!info?.implemented) {
@@ -34,6 +35,8 @@ export function getAggregatorAdapter(credential: AggregatorCredential): SocialAg
       return new PostproxyAdapter(apiKey);
     case "BUFFER":
       return new BufferAdapter(apiKey);
+    case "UPLOAD_POST":
+      return new UploadPostAdapter(apiKey);
     default:
       throw new AggregatorProviderError(credential.provider, "This provider isn't wired up yet.");
   }

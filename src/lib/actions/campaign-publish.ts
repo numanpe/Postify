@@ -78,12 +78,20 @@ export async function publishCampaignItemViaAggregator(itemId: string): Promise<
     }
 
     const accountMap = credential.accountMap as Record<string, string>;
+    // Upload-Post groups every connected platform under one named
+    // profile (accountMap["_PROFILE_"]) rather than a per-platform
+    // account ID — see profileHint in providers/aggregator/types.ts — so
+    // it doesn't need a per-platform accountMap entry to target a
+    // platform, unlike Zernio/Postproxy/Buffer.
+    const isUploadPost = company.selectedAggregator === "UPLOAD_POST";
     const platforms = item.targetPlatforms
       .map((platform) => {
-        const accountId = accountMap[platform];
         const providerPlatformName =
           company.selectedAggregator === "ZERNIO" ? ZERNIO_PLATFORM_NAMES[platform] : platform.toLowerCase();
-        return accountId && providerPlatformName ? { platform: providerPlatformName, accountId } : null;
+        if (!providerPlatformName) return null;
+        if (isUploadPost) return { platform: providerPlatformName, accountId: "" };
+        const accountId = accountMap[platform];
+        return accountId ? { platform: providerPlatformName, accountId } : null;
       })
       .filter((p): p is { platform: string; accountId: string } => p !== null);
 
@@ -102,6 +110,7 @@ export async function publishCampaignItemViaAggregator(itemId: string): Promise<
       captionText: item.captionText ?? item.angle,
       hashtags: item.hashtags,
       platforms,
+      profileHint: accountMap["_PROFILE_"],
     });
 
     await logResult(true, result.externalPostId);

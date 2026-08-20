@@ -434,6 +434,311 @@ function renderSplitProduct(props: TemplateRenderProps): ReactElement {
   );
 }
 
+// ---------- MODERN_BANNER ----------
+// Reuses BOLD_HEADLINE's sizing AND scrim byte-for-byte — not a new,
+// unverified scrim shape. (An earlier draft here invented its own
+// lighter scrim and the real quality gate caught it failing at 2.52:1 —
+// exactly the kind of mistake this shared-constants approach is meant to
+// prevent. Reusing a already-proven-safe shape instead of hand-tuning a
+// new one avoids re-deriving the worst-case math by eye.) The accent bar
+// is the only new visual element, and it's purely decorative — a solid
+// rect beside the text, never behind it — so it doesn't touch the
+// contrast math at all.
+const MODERN_BANNER_SIZES: BottomStackSizes = BOLD_SIZES;
+const MODERN_BANNER_SCRIM: ScrimStops = BOLD_SCRIM;
+
+function renderModernBanner(props: TemplateRenderProps): ReactElement {
+  const { width, height } = props;
+  const scaleBasis = Math.min(width, height);
+  const padding = Math.round(scaleBasis * MODERN_BANNER_SIZES.padding);
+  const accentColor = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
+  const ctaTextColor = readableTextColor(accentColor);
+  const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const barWidth = Math.max(3, Math.round(scaleBasis * 0.012));
+
+  return (
+    <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
+      <img src={props.backgroundDataUri} alt="" style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width,
+          height,
+          display: "flex",
+          // Identical gradient to BOLD_HEADLINE's — see the sizing/scrim
+          // comment above for why this must stay byte-identical.
+          background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.65) 30%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.4) 100%)",
+        }}
+      />
+      {props.logoDataUri && (
+        <img
+          src={props.logoDataUri}
+          alt=""
+          style={{
+            position: "absolute",
+            top: Math.round(padding * 0.6),
+            ...logoPos,
+            maxHeight: Math.round(height * 0.1),
+            maxWidth: Math.round(width * 0.28),
+            objectFit: "contain",
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width,
+          display: "flex",
+          // Row so the accent bar sits beside the text stack, flipped in
+          // RTL so it stays on the text's leading edge either way.
+          flexDirection: props.direction === "rtl" ? "row-reverse" : "row",
+          alignItems: "stretch",
+          padding,
+          gap: Math.round(scaleBasis * 0.02),
+        }}
+      >
+        <div style={{ display: "flex", width: barWidth, borderRadius: barWidth, background: accentColor }} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: props.direction === "rtl" ? "flex-end" : "flex-start",
+            gap: Math.round(scaleBasis * MODERN_BANNER_SIZES.gap),
+            direction: props.direction,
+          }}
+        >
+          <div style={{ display: "flex", fontSize: Math.round(scaleBasis * MODERN_BANNER_SIZES.headlineFontSize), fontWeight: 800, color: "#ffffff", lineHeight: 1.1, textAlign: props.textAlign }}>
+            {props.headline}
+          </div>
+          {props.subhead && (
+            <div style={{ display: "flex", fontSize: Math.round(scaleBasis * MODERN_BANNER_SIZES.subheadFontSize), fontWeight: 400, color: "rgba(255,255,255,0.92)", lineHeight: 1.3, textAlign: props.textAlign }}>
+              {props.subhead}
+            </div>
+          )}
+          {props.cta && (
+            <div
+              style={{
+                display: "flex",
+                marginTop: Math.round(scaleBasis * 0.01),
+                padding: `${Math.round(scaleBasis * MODERN_BANNER_SIZES.ctaVerticalPadding)}px ${Math.round(scaleBasis * 0.028)}px`,
+                borderRadius: Math.round(scaleBasis * 0.4),
+                background: accentColor,
+                color: ctaTextColor,
+                fontSize: Math.round(scaleBasis * MODERN_BANNER_SIZES.ctaFontSize),
+                fontWeight: 700,
+              }}
+            >
+              {props.cta}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- BADGE_OFFER ----------
+// Every piece of text (headline, subhead, CTA) sits inside one centered,
+// solid accent-color card — never directly on the photo — so this is a
+// PanelContrastSpec exactly like PROMOTIONAL_BANNER/SPLIT_PRODUCT:
+// contrast is exact math via readableTextColor, not a worst-case
+// estimate, regardless of which brand color the card ends up being.
+function renderBadgeOffer(props: TemplateRenderProps): ReactElement {
+  const { width, height } = props;
+  const scaleBasis = Math.min(width, height);
+  const cardColor = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
+  const cardTextColor = readableTextColor(cardColor);
+  const padding = Math.round(scaleBasis * 0.07);
+  const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+
+  return (
+    <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
+      <img src={props.backgroundDataUri} alt="" style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width,
+          height,
+          display: "flex",
+          // Just enough of a scrim that the card reads clearly against
+          // any photo — the card itself (not this scrim) is what
+          // guarantees text contrast.
+          background: "rgba(0,0,0,0.25)",
+        }}
+      />
+      {props.logoDataUri && (
+        <img
+          src={props.logoDataUri}
+          alt=""
+          style={{
+            position: "absolute",
+            top: Math.round(padding * 0.6),
+            ...logoPos,
+            maxHeight: Math.round(height * 0.09),
+            maxWidth: Math.round(width * 0.26),
+            objectFit: "contain",
+          }}
+        />
+      )}
+      <div style={{ display: "flex", width, height, alignItems: "center", justifyContent: "center", padding: Math.round(scaleBasis * 0.08) }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            background: cardColor,
+            borderRadius: Math.round(scaleBasis * 0.03),
+            padding,
+            gap: Math.round(scaleBasis * 0.02),
+            direction: props.direction,
+          }}
+        >
+          {props.cta && (
+            <div
+              style={{
+                display: "flex",
+                padding: `${Math.round(scaleBasis * 0.01)}px ${Math.round(scaleBasis * 0.022)}px`,
+                borderRadius: Math.round(scaleBasis * 0.4),
+                border: `${Math.max(2, Math.round(scaleBasis * 0.003))}px solid ${cardTextColor}`,
+                color: cardTextColor,
+                fontSize: Math.round(scaleBasis * 0.022),
+                fontWeight: 700,
+                letterSpacing: Math.round(scaleBasis * 0.002),
+              }}
+            >
+              {props.cta}
+            </div>
+          )}
+          <div style={{ display: "flex", fontSize: Math.round(scaleBasis * 0.065), fontWeight: 800, color: cardTextColor, lineHeight: 1.1, textAlign: "center" }}>
+            {props.headline}
+          </div>
+          {props.subhead && (
+            <div style={{ display: "flex", fontSize: Math.round(scaleBasis * 0.03), fontWeight: 400, color: cardTextColor, opacity: 0.85, lineHeight: 1.3, textAlign: "center" }}>
+              {props.subhead}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- MINIMALIST_FRAME ----------
+// Same proven bottom-anchor-over-photo structure as MINIMAL (an
+// "overlay" contrastSpec, identical sizing/scrim strength), with two
+// purely decorative additions that don't touch the contrast math: a
+// thin brand-color border frame inset from the edges, and a larger,
+// low-opacity logo watermark instead of a small opaque corner mark.
+const MINIMALIST_FRAME_SIZES: BottomStackSizes = MINIMAL_SIZES;
+const MINIMALIST_FRAME_SCRIM: ScrimStops = MINIMAL_SCRIM;
+
+function renderMinimalistFrame(props: TemplateRenderProps): ReactElement {
+  const { width, height } = props;
+  const scaleBasis = Math.min(width, height);
+  const padding = Math.round(scaleBasis * MINIMALIST_FRAME_SIZES.padding);
+  const frameColor = props.brandColors.primary ?? DEFAULT_GRADIENT[0];
+  const frameInset = Math.round(scaleBasis * 0.025);
+  const frameThickness = Math.max(2, Math.round(scaleBasis * 0.006));
+  const ctaBackground = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
+  const ctaTextColor = readableTextColor(ctaBackground);
+
+  return (
+    <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
+      <img src={props.backgroundDataUri} alt="" style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }} />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width,
+          height,
+          display: "flex",
+          background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 42%, rgba(0,0,0,0) 75%)",
+        }}
+      />
+      {props.logoDataUri && (
+        <img
+          src={props.logoDataUri}
+          alt=""
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width,
+            height,
+            objectFit: "contain",
+            opacity: 0.16,
+            padding: Math.round(scaleBasis * 0.18),
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: "absolute",
+          top: frameInset,
+          left: frameInset,
+          width: width - frameInset * 2,
+          height: height - frameInset * 2,
+          display: "flex",
+          border: `${frameThickness}px solid ${frameColor}`,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: props.direction === "rtl" ? "flex-end" : "flex-start",
+          // Exactly MINIMALIST_FRAME_SIZES.padding, matching MINIMAL's —
+          // NOT padding + frameInset. The frame is drawn as an
+          // independent absolutely-positioned rect (above) rather than
+          // folded into the text block's own padding, so the text's real
+          // position always matches what bottomStackNearEdgeFraction
+          // proved safe — padding + frameInset here would silently move
+          // the headline's near edge higher than the quality gate checked.
+          padding,
+          gap: Math.round(scaleBasis * 0.02),
+          direction: props.direction,
+        }}
+      >
+        <div style={{ display: "flex", fontSize: Math.round(scaleBasis * MINIMALIST_FRAME_SIZES.headlineFontSize), fontWeight: 700, color: "#ffffff", lineHeight: 1.15, textAlign: props.textAlign }}>
+          {props.headline}
+        </div>
+        {props.subhead && (
+          <div style={{ display: "flex", fontSize: Math.round(scaleBasis * MINIMALIST_FRAME_SIZES.subheadFontSize), fontWeight: 400, color: "rgba(255,255,255,0.92)", lineHeight: 1.3, textAlign: props.textAlign }}>
+            {props.subhead}
+          </div>
+        )}
+        {props.cta && (
+          <div
+            style={{
+              display: "flex",
+              marginTop: Math.round(scaleBasis * 0.01),
+              padding: `${Math.round(scaleBasis * MINIMALIST_FRAME_SIZES.ctaVerticalPadding)}px ${Math.round(scaleBasis * 0.028)}px`,
+              borderRadius: Math.round(scaleBasis * 0.4),
+              background: ctaBackground,
+              color: ctaTextColor,
+              fontSize: Math.round(scaleBasis * MINIMALIST_FRAME_SIZES.ctaFontSize),
+              fontWeight: 700,
+            }}
+          >
+            {props.cta}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const POSTER_TEMPLATES: Record<PosterTemplate, PosterTemplateDefinition> = {
   MINIMAL: {
     id: "MINIMAL",
@@ -462,5 +767,26 @@ export const POSTER_TEMPLATES: Record<PosterTemplate, PosterTemplateDefinition> 
     description: "Photo and a solid brand panel side by side — logo, message, and CTA together in the panel.",
     contrastSpec: { kind: "panel" },
     render: renderSplitProduct,
+  },
+  MODERN_BANNER: {
+    id: "MODERN_BANNER",
+    name: "Modern Banner",
+    description: "Bottom gradient over the photo with a brand-color accent bar beside the text — clean and current.",
+    contrastSpec: { kind: "overlay", scrimStops: MODERN_BANNER_SCRIM, headlineNearEdgeFraction: (ar) => bottomStackNearEdgeFraction(ar, MODERN_BANNER_SIZES) },
+    render: renderModernBanner,
+  },
+  BADGE_OFFER: {
+    id: "BADGE_OFFER",
+    name: "Badge & Offer",
+    description: "A centered, high-contrast accent-color card holds the whole message — built for a sale or offer.",
+    contrastSpec: { kind: "panel" },
+    render: renderBadgeOffer,
+  },
+  MINIMALIST_FRAME: {
+    id: "MINIMALIST_FRAME",
+    name: "Minimalist Frame",
+    description: "Clean bottom text on a full photo, with a thin brand-color border frame and a subtle logo watermark.",
+    contrastSpec: { kind: "overlay", scrimStops: MINIMALIST_FRAME_SCRIM, headlineNearEdgeFraction: (ar) => bottomStackNearEdgeFraction(ar, MINIMALIST_FRAME_SIZES) },
+    render: renderMinimalistFrame,
   },
 };

@@ -75,6 +75,7 @@ model Company {
   publishJobs           PublishJob[]
   aggregatorCredentials AggregatorCredential[]
   aggregatorPublishLogs AggregatorPublishLog[]
+  engagementSnapshots   EngagementSnapshot[]
 }
 
 enum PublishingMode {
@@ -211,6 +212,9 @@ enum PosterTemplate {
   BOLD_HEADLINE
   PROMOTIONAL_BANNER
   SPLIT_PRODUCT
+  MODERN_BANNER
+  BADGE_OFFER
+  MINIMALIST_FRAME
 }
 
 // A rendered poster. The pipeline (src/lib/poster/) always produces a
@@ -586,8 +590,36 @@ model PublishJob {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  engagementSnapshots EngagementSnapshot[]
+
   @@index([companyId])
   @@index([status, nextAttemptAt])
+}
+
+// One pull's worth of real platform engagement for a PUBLISHED
+// PublishJob — appended daily (pull-engagement.ts), not updated in
+// place, so a real trend is visible rather than only the latest number.
+// Only ever populated from a real Graph API call (SocialProvider.
+// getEngagement) — never estimated or backfilled.
+model EngagementSnapshot {
+  id           String     @id @default(cuid())
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  publishJobId String
+  publishJob   PublishJob @relation(fields: [publishJobId], references: [id], onDelete: Cascade)
+
+  likes    Int
+  comments Int
+  shares   Int
+  // Instagram-only — Meta deprecated "impressions" for media created
+  // after 2024-07-02; "reach" is the current supported metric. Null for
+  // Facebook Page posts, which don't expose this figure the same way.
+  reach Int?
+
+  fetchedAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([publishJobId])
 }
 
 // A short-lived, unguessable, UNAUTHENTICATED public URL for exactly one

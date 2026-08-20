@@ -20,7 +20,15 @@ const AUTO_SELECT_ASSET_COUNT = 6;
 // Real, visually distinct rotation so an explicit "Regenerate" produces
 // a genuinely different poster, not a pixel-identical re-render of the
 // same deterministic BRAND-gradient + MINIMAL-template inputs.
-const POSTER_TEMPLATE_ROTATION: PosterTemplate[] = ["MINIMAL", "BOLD_HEADLINE", "PROMOTIONAL_BANNER", "SPLIT_PRODUCT"];
+const POSTER_TEMPLATE_ROTATION: PosterTemplate[] = [
+  "MINIMAL",
+  "BOLD_HEADLINE",
+  "PROMOTIONAL_BANNER",
+  "SPLIT_PRODUCT",
+  "MODERN_BANNER",
+  "BADGE_OFFER",
+  "MINIMALIST_FRAME",
+];
 
 export interface ProcessResult {
   processedCount: number;
@@ -204,7 +212,7 @@ export async function processSingleCampaignItem(item: DueItem): Promise<boolean>
 // attempt rotates the starting offset into the company's recent-media
 // list so an explicit regenerate uses a genuinely different clip
 // selection, not the identical footage in the identical order.
-async function selectAutoAssetIds(companyId: string, attempt: number): Promise<string[]> {
+export async function selectAutoAssetIds(companyId: string, attempt: number): Promise<string[]> {
   const pool = await db.mediaAsset.findMany({
     where: {
       companyId,

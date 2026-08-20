@@ -82,10 +82,14 @@ function shortHeadline(seed: string, options: string[]): string {
 export class TemplateTextProvider implements TextProvider {
   readonly name = "Free (template)";
 
-  async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
+  async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { pack, name, secondaryNiches, companyId } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
-    const seed = `${companyId}:${topic}`;
+    // Same topic + same companyId is otherwise fully deterministic (see
+    // GenerateCaptionInput.variantIndex's doc comment) — folding the
+    // index into the seed is what makes a real "generate 3 variants"
+    // caller (repurpose.ts) get 3 different picks instead of 3 copies.
+    const seed = `${companyId}:${topic}${variantIndex !== undefined ? `:${variantIndex}` : ""}`;
 
     const hook = pick(seed, "h", pack.hooks, vars);
     const valueProp = pick(seed, "v", pack.valueProps, vars);

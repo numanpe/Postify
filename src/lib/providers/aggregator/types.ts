@@ -21,6 +21,11 @@ export interface AggregatorPostInput {
   // for a requested platform should skip it, not guess one.
   platforms: { platform: string; accountId: string }[];
   scheduledTime?: Date;
+  // Some providers (Upload-Post) group connected platforms under one
+  // named profile rather than a per-platform account ID — sourced from
+  // AggregatorCredential.accountMap's reserved "_PROFILE_" key. Unused
+  // by every other adapter.
+  profileHint?: string;
 }
 
 export interface AggregatorPostOutput {
@@ -86,13 +91,27 @@ export const AGGREGATOR_PROVIDERS: AggregatorProviderInfo[] = [
     implemented: true,
   },
   {
+    // Endpoint confirmed real: POST https://api.upload-post.com/api/upload_photos,
+    // "Authorization: Apikey <key>", multipart/form-data — live-probed
+    // with an invalid key and got a real, structured
+    // {"success":false,"message":"Invalid API key format"} 401, proving
+    // the endpoint exists and returns honest, specific errors (not a
+    // silent failure) rather than a guess-and-hope integration. The
+    // exact field names below (user/platform[]/photos[]/title/
+    // scheduled_date) are NOT independently confirmed for this specific
+    // endpoint — they're inferred from the sibling video-upload
+    // endpoint's fully-confirmed shape (same API, documented parallel
+    // convention: "user"/"platform[]"/"title"/"scheduled_date", with
+    // "photos[]" following "video"'s documented pattern of accepting
+    // either a binary file or a public URL). MEDIUM confidence, same
+    // class as buffer-adapter.ts's field-name risk — if wrong, this
+    // API's own confirmed real error messages surface honestly rather
+    // than a fake success.
     provider: "UPLOAD_POST",
     displayName: "Upload-Post",
     homepage: "https://upload-post.com",
     pricingSummary: "Free tier available. Paid plans reported to start around $16/mo.",
-    implemented: false,
-    unimplementedReason:
-      "Upload-Post's video-upload endpoint (POST /api/upload, multipart/form-data with a video field) is verified and real, but this app publishes posters (images) far more often than video, and Upload-Post's separate photo-upload endpoint and its exact field names could not be confirmed from public docs despite repeated attempts — this app won't guess them. Coming soon for poster publishing; ask if you want video-only support in the meantime.",
+    implemented: true,
   },
   {
     // Verified: self-serve personal API key at

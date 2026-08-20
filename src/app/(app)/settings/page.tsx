@@ -7,6 +7,8 @@ import { ProviderCredentialForm } from "@/components/settings/provider-credentia
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
+import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
+import { ActionIcons } from "@/components/icons";
 
 // Brand names — not translated regardless of locale.
 const PROVIDER_LABELS: Record<string, string> = {
@@ -19,7 +21,7 @@ export default async function SettingsPage() {
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [credentials, aggregatorCredentials] = await Promise.all([
+  const [credentials, aggregatorCredentials, creativeDna] = await Promise.all([
     db.providerCredential.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "asc" },
@@ -29,12 +31,16 @@ export default async function SettingsPage() {
       orderBy: { createdAt: "asc" },
       select: { id: true, provider: true, keyPreview: true },
     }),
+    db.creativeDna.findUnique({ where: { companyId: company.id }, select: { confidenceScores: true } }),
   ]);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{dict.settings.title}</h1>
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          <ActionIcons.apiKey size={20} aria-hidden="true" />
+          {dict.settings.title}
+        </h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.settings.subtitle}</p>
       </div>
 
@@ -68,6 +74,8 @@ export default async function SettingsPage() {
       <ApiKeyGuide dict={dict.settings} />
 
       <PublishingSettings publishingMode={company.publishingMode} credentials={aggregatorCredentials} />
+
+      <CreativeDnaInsights confidenceScores={creativeDna?.confidenceScores} />
     </div>
   );
 }

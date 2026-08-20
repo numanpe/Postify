@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CampaignForm } from "@/components/campaign/campaign-form";
+import { EmptyState } from "@/components/empty-state";
+import { NavIcons } from "@/components/icons";
 
 export default async function CampaignsPage() {
   const { company } = await requireCompany();
@@ -25,6 +27,10 @@ export default async function CampaignsPage() {
       </div>
 
       <CampaignForm />
+
+      {campaigns.length === 0 && (
+        <EmptyState icon={NavIcons.campaigns} title={dict.campaigns.yourCampaigns} hint={dict.campaigns.noCampaignsHint} />
+      )}
 
       {campaigns.length > 0 && (
         <div className="flex flex-col gap-3">
