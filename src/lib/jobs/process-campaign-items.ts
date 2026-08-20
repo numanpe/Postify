@@ -71,7 +71,7 @@ type DueItem = CampaignItem & { campaign: Campaign };
 // now"), a cron-triggered route, or the fire-and-forget trigger right
 // after campaign creation — rather than needing a long-running worker
 // process. See src/lib/actions/campaign.ts and
-// src/app/api/jobs/process-campaign-items/route.ts for the callers.
+// src/app/api/jobs/run/route.ts (?job=process-campaign-items) for the callers.
 export async function processCampaignItems(batchSize = 3): Promise<ProcessResult> {
   const staleThreshold = new Date(Date.now() - STALE_GENERATING_MINUTES * 60 * 1000);
   const dueFilter = {

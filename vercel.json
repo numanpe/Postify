@@ -1,19 +1,19 @@
 {
   "crons": [
     {
-      "path": "/api/jobs/process-campaign-items",
+      "path": "/api/jobs/run?job=process-campaign-items",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/jobs/process-publish-jobs",
+      "path": "/api/jobs/run?job=process-publish-jobs",
       "schedule": "10 3 * * *"
     },
     {
-      "path": "/api/jobs/flag-stale-media",
+      "path": "/api/jobs/run?job=flag-stale-media",
       "schedule": "20 3 * * *"
     },
     {
-      "path": "/api/jobs/pull-engagement",
+      "path": "/api/jobs/run?job=pull-engagement",
       "schedule": "30 3 * * *"
     }
   ]
