@@ -21,7 +21,7 @@ export async function ConnectAccounts({ accounts }: { accounts: ConnectedAccount
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.connectedAccounts}</h2>
         <a
-          href="/api/social/meta/connect"
+          href="/api/social/meta/callback"
           className="rounded-md border border-paper-border dark:border-night-border px-3 py-1.5 text-sm font-medium hover:bg-paper-card dark:hover:bg-night-card"
         >
           {dict.connectButton}
