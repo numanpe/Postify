@@ -20,9 +20,13 @@ function getAppUrl(): string {
 
 // Mints a short-lived, unguessable public URL for exactly one MediaAsset.
 // Only call this immediately before a publish attempt that needs it (the
-// Instagram adapter) — see PublicAssetLink in prisma/schema.prisma for why
-// this narrow, deliberate exception to the app's normal authenticated
-// storage route exists.
+// Instagram adapter, Postproxy, Buffer) — see PublicAssetLink in
+// prisma/schema.prisma for why this narrow, deliberate exception to the
+// app's normal authenticated storage route exists. Served by
+// src/app/api/storage/[...key]/route.ts's "public" branch (folded in
+// from a formerly separate /api/public-assets/[token] route to reduce
+// this deployment's Vercel Function count) — the /api/storage/public/
+// prefix here must match that route's branch check exactly.
 export async function createPublicAssetLink(mediaAssetId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + TTL_MS);
@@ -31,7 +35,7 @@ export async function createPublicAssetLink(mediaAssetId: string): Promise<strin
     data: { mediaAssetId, token, expiresAt },
   });
 
-  return `${getAppUrl()}/api/public-assets/${token}`;
+  return `${getAppUrl()}/api/storage/public/${token}`;
 }
 
 // Called once a publish attempt using the link is done (success or

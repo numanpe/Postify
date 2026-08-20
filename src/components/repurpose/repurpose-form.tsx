@@ -156,14 +156,14 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
           <h2 className="text-sm font-semibold">{dict.resultTitle}</h2>
           {state.posterId && (
             <p className="text-sm">
-              <Link href="/poster" className="underline">
+              <Link href="/studio/poster" className="underline">
                 {dict.resultPoster}
               </Link>
             </p>
           )}
           {state.videoId && (
             <p className="text-sm">
-              <Link href="/video" className="underline">
+              <Link href="/studio/video" className="underline">
                 {dict.resultVideo}
               </Link>
             </p>

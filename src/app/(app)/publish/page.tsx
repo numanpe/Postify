@@ -62,7 +62,7 @@ export default async function PublishPage({
       {posters.length === 0 ? (
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
           {dict.publish.noPostersYetPrefix}{" "}
-          <Link href="/poster" className="underline">
+          <Link href="/studio/poster" className="underline">
             {dict.nav.poster}
           </Link>{" "}
           {dict.publish.noPostersYetSuffix}

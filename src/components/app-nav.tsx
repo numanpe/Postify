@@ -34,9 +34,13 @@ export function AppNav() {
   const [open, setOpen] = useState(false);
 
   const links: NavLink[] = [
-    { href: "/studio", label: dict.nav.studio, icon: NavIcons.studio },
-    { href: "/poster", label: dict.nav.poster, icon: NavIcons.poster },
-    { href: "/video", label: dict.nav.video, icon: NavIcons.video },
+    // All three now live under the one /studio/[mode] route (folded
+    // together to reduce the Vercel Function count) — still three
+    // distinct nav links pointing at their own URL, so this is the same
+    // navigation experience as before, just fewer separate route files.
+    { href: "/studio/captions", label: dict.nav.studio, icon: NavIcons.studio },
+    { href: "/studio/poster", label: dict.nav.poster, icon: NavIcons.poster },
+    { href: "/studio/video", label: dict.nav.video, icon: NavIcons.video },
     { href: "/campaigns", label: dict.nav.campaigns, icon: NavIcons.campaigns },
     { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
     { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },

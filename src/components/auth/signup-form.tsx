@@ -61,7 +61,7 @@ export function SignupForm() {
 
       <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-ink dark:text-ink-dark underline">
+        <Link href="/auth/login" className="font-medium text-ink dark:text-ink-dark underline">
           Log in
         </Link>
       </p>

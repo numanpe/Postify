@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 export async function requireUser() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/login");
+    redirect("/auth/login");
   }
   return session.user;
 }

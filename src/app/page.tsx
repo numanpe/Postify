@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 export default async function HomePage() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const membership = await db.companyMember.findFirst({

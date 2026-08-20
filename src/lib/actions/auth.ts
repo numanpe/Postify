@@ -13,7 +13,7 @@ export type AuthFormState = { error: string } | undefined;
 // AppNav component (needed for the mobile menu toggle) can bind it to a
 // <form action={...}> the same way the old server-only layout did.
 export async function signOutAction(): Promise<void> {
-  await signOut({ redirectTo: "/login" });
+  await signOut({ redirectTo: "/auth/login" });
 }
 
 const SignUpSchema = z.object({

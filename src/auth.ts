@@ -4,11 +4,11 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup"]);
+const PUBLIC_PATHS = new Set(["/", "/auth/login", "/auth/signup"]);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  pages: { signIn: "/auth/login" },
   providers: [
     Credentials({
       credentials: {

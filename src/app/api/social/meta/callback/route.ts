@@ -48,7 +48,7 @@ function redirectToPublish(request: Request, status: "connected" | "error", deta
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
   const membership = await db.companyMember.findFirst({ where: { userId: session.user.id } });
