@@ -1,9 +1,10 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireUser, requireCompany } from "@/lib/session";
 import { INDUSTRIES } from "@/lib/industries";
 
 export type CreateCompanyState = { error: string } | { success: true } | undefined;
@@ -62,5 +63,46 @@ export async function createCompany(
   // would keep showing whatever locale was current before this company
   // (and its locale) existed. The client form does a hard navigation on
   // success instead, which re-resolves everything fresh.
+  return { success: true };
+}
+
+export type UpdateNichesState = { error: string } | { success: true } | undefined;
+
+const UpdateNichesSchema = z.object({
+  secondaryNiches: z
+    .string()
+    .trim()
+    .transform((value) =>
+      value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+});
+
+// The only place secondaryNiches can be changed after onboarding —
+// before this, create-company-form.tsx's one-time submit was the only
+// writer, with no way to fix a stale or mistyped value afterward (a
+// real gap: it feeds directly into every generated caption/script/
+// campaign-brief's nicheLine, per prompt.ts and template-provider.ts).
+export async function updateCompanyNiches(
+  _prevState: UpdateNichesState,
+  formData: FormData,
+): Promise<UpdateNichesState> {
+  const { company } = await requireCompany();
+
+  const parsed = UpdateNichesSchema.safeParse({
+    secondaryNiches: formData.get("secondaryNiches") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  await db.company.update({
+    where: { id: company.id },
+    data: { secondaryNiches: parsed.data.secondaryNiches },
+  });
+
+  revalidatePath("/brand-kit");
   return { success: true };
 }

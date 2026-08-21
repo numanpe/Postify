@@ -6,6 +6,7 @@ import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { BrandKitForm } from "@/components/brand-kit/brand-kit-form";
+import { SecondaryNichesForm } from "@/components/brand-kit/secondary-niches-form";
 
 export default async function BrandKitPage() {
   const { company } = await requireCompany();
@@ -33,6 +34,8 @@ export default async function BrandKitPage() {
           unoptimized
         />
       )}
+
+      <SecondaryNichesForm secondaryNiches={company.secondaryNiches} />
 
       <BrandKitForm brandKit={brandKit} />
     </div>
