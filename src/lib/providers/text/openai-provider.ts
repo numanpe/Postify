@@ -11,6 +11,8 @@ import type {
   GenerateCampaignBriefOutput,
   ExpandBackgroundPromptInput,
   ExpandBackgroundPromptOutput,
+  SummarizeBusinessContextInput,
+  SummarizeBusinessContextOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -20,6 +22,8 @@ import {
   parseCampaignBriefResponse,
   buildBackgroundExpansionPrompt,
   parseExpandedPromptResponse,
+  buildBusinessContextPrompt,
+  parseBusinessContextResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -164,5 +168,20 @@ export class OpenAITextProvider implements TextProvider {
     }
 
     return parseExpandedPromptResponse(parsed, this.name);
+  }
+
+  async summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
+    const { system, user } = buildBusinessContextPrompt(input);
+    const { content } = await this.chatCompletion(system, user, { jsonMode: true, maxTokens: 400 });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      throw new ProviderError(this.name, "OpenAI returned malformed business-context JSON.", error);
+    }
+
+    const result = parseBusinessContextResponse(parsed, this.name);
+    return { ...result, providerName: this.name };
   }
 }

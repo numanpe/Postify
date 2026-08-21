@@ -1,7 +1,14 @@
 import type { SocialPlatform } from "@prisma/client";
 
 import type { CompanyContext } from "@/lib/company-context";
-import type { ExpandBackgroundPromptInput, ExpandBackgroundPromptOutput, CampaignBriefItem, GenerateCampaignBriefOutput } from "./types";
+import type {
+  ExpandBackgroundPromptInput,
+  ExpandBackgroundPromptOutput,
+  CampaignBriefItem,
+  GenerateCampaignBriefOutput,
+  SummarizeBusinessContextInput,
+  SummarizeBusinessContextOutput,
+} from "./types";
 import { ProviderError } from "./types";
 
 // Shared by every BYOK provider so a real LLM's output is grounded in
@@ -11,11 +18,16 @@ export function buildCaptionPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches } = context;
+  const { name, industry, tone, secondaryNiches, businessDescription } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
     : "";
+  // Real company-written words (manual entry or website extraction —
+  // see brand-context.ts) grounds the copy in what this specific
+  // business actually says about itself, not just its industry/tone
+  // labels.
+  const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
 
   const system = [
     `You are a marketing copywriter for a company in the ${industry} industry.`,
@@ -25,7 +37,7 @@ export function buildCaptionPrompt(
     "Never invent specific facts (prices, dates, promises) that weren't given to you.",
   ].join(" ");
 
-  const user = `Company: ${name}.${nicheLine}\n\nWrite a short social media caption about: ${topic}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nWrite a short social media caption about: ${topic}`;
 
   return { system, user };
 }
@@ -37,11 +49,12 @@ export function buildScriptPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches } = context;
+  const { name, industry, tone, secondaryNiches, businessDescription } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
     : "";
+  const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
 
   const system = [
     `You are a video creative director for a company in the ${industry} industry.`,
@@ -54,7 +67,7 @@ export function buildScriptPrompt(
     'Respond with ONLY a JSON object: {"hook": "...", "context": "...", "value": "...", "message": "...", "cta": "..."}',
   ].join(" ");
 
-  const user = `Company: ${name}.${nicheLine}\n\nWrite a video script about: ${topic}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nWrite a video script about: ${topic}`;
 
   return { system, user };
 }
@@ -102,9 +115,10 @@ export function buildCampaignBriefPrompt(input: {
   connectedPlatforms: string[];
 }): { system: string; user: string } {
   const { context, objective, itemCount, scheduledDates, connectedPlatforms } = input;
-  const { name, industry, tone, secondaryNiches, locale } = context;
+  const { name, industry, tone, secondaryNiches, locale, businessDescription } = context;
 
   const nicheLine = secondaryNiches.length ? ` The company also focuses on: ${secondaryNiches.join(", ")}.` : "";
+  const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
   const languageInstruction =
     locale === "AR"
       ? "Write all headline/topic, caption, and hashtag text in natural, culturally idiomatic Arabic — not a literal word-for-word translation of an English draft. Set every item's captionText to read naturally to a native Arabic speaker."
@@ -142,7 +156,7 @@ export function buildCampaignBriefPrompt(input: {
   ].join(" ");
 
   const scheduleLines = scheduledDates.map((date, i) => `Item ${i + 1} scheduled date: ${date}`).join("\n");
-  const user = `Company: ${name}.${nicheLine}\n\nCampaign objective: ${objective}\n\n${scheduleLines}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nCampaign objective: ${objective}\n\n${scheduleLines}`;
 
   return { system, user };
 }
@@ -299,4 +313,53 @@ export function parseCampaignBriefResponse(
   });
 
   return { campaignType: record.campaignType, items, providerName };
+}
+
+// Real website content (Part A2's extension of the website extractor
+// beyond visual Brand Kit assets — src/lib/brand-context.ts) fed to a
+// real LLM to produce a short business description, likely products/
+// services, and a tone-of-voice descriptor. Explicitly told never to
+// invent details the text doesn't support — a website's homepage often
+// doesn't mention every product, and a confident-sounding guess would
+// be exactly the kind of "fake functionality" CLAUDE.md rules out.
+export function buildBusinessContextPrompt(
+  input: SummarizeBusinessContextInput,
+): { system: string; user: string } {
+  const { companyName, metaDescription, ogDescription, visibleText } = input;
+
+  const system = [
+    "You analyze a real business's own website content and extract three things:",
+    "1) description: a short (1-2 sentence) summary of what this business does, written in a tone that matches",
+    "how the site itself talks about the company — not generic marketing-speak.",
+    "2) products: likely products or services actually mentioned in the text (a short list, empty array if none",
+    "are clearly mentioned — never invent one).",
+    "3) tone: a brief tone-of-voice descriptor (e.g. \"formal, professional\" or \"casual, playful, direct\") based",
+    "on the actual word choice and sentence style in the text.",
+    "Never invent facts, products, or claims not supported by the given text.",
+    'Respond with ONLY a JSON object: {"description": "...", "products": ["..."], "tone": "..."}',
+  ].join(" ");
+
+  const description = ogDescription ?? metaDescription ?? "(none found)";
+  const user = `Company name: ${companyName}\n\nPage description: ${description}\n\nVisible homepage text:\n${visibleText.slice(0, 2500)}`;
+
+  return { system, user };
+}
+
+export function parseBusinessContextResponse(
+  parsed: unknown,
+  providerName: string,
+): Omit<SummarizeBusinessContextOutput, "providerName"> {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.description !== "string" || !record.description.trim()) {
+    throw new ProviderError(providerName, 'Response is missing a non-empty "description".');
+  }
+  const products = Array.isArray(record.products)
+    ? record.products.filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+    : [];
+  const tone = typeof record.tone === "string" && record.tone.trim() ? record.tone.trim() : "clear, genuine, professional";
+
+  return { description: record.description.trim(), products, tone };
 }

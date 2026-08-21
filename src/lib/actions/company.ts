@@ -106,3 +106,93 @@ export async function updateCompanyNiches(
   revalidatePath("/brand-kit");
   return { success: true };
 }
+
+export type ApplyBusinessContextState = { error: string } | { success: true } | undefined;
+
+const ApplyBusinessContextSchema = z.object({
+  businessDescription: z
+    .string()
+    .trim()
+    .max(1000)
+    .nullish()
+    .transform((value) => (value ? value : undefined)),
+  tone: z
+    .string()
+    .trim()
+    .max(300)
+    .nullish()
+    .transform((value) => (value ? value : undefined)),
+  additionalNiches: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((value) =>
+      value
+        ? value
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+        : [],
+    ),
+});
+
+// Part A2's website-extraction-derived business context (description,
+// tone, likely products/services — src/lib/brand-context.ts) applied to
+// real Company/CreativeDna data, distinct from updateBrandKit because
+// these are genuinely different models (company profile / Creative
+// DNA, not the visual Brand Kit). Same safety rule as everywhere else
+// in this feature: only fields actually present in the submission are
+// touched — an unreviewed/unedited field is never silently applied.
+// Products merge into secondaryNiches (deduped) rather than replacing
+// it outright — the user may already have manually-curated niches
+// unrelated to this website extraction.
+export async function applyExtractedBusinessContext(
+  _prevState: ApplyBusinessContextState,
+  formData: FormData,
+): Promise<ApplyBusinessContextState> {
+  const { company } = await requireCompany();
+
+  const parsed = ApplyBusinessContextSchema.safeParse({
+    businessDescription: formData.get("businessDescription"),
+    tone: formData.get("tone"),
+    additionalNiches: formData.get("additionalNiches"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { businessDescription, tone, additionalNiches } = parsed.data;
+
+  if (businessDescription === undefined && tone === undefined && additionalNiches.length === 0) {
+    return { error: "Nothing to apply — review at least one field first." };
+  }
+
+  await db.$transaction(async (tx) => {
+    if (businessDescription !== undefined) {
+      await tx.company.update({ where: { id: company.id }, data: { businessDescription } });
+    }
+
+    if (additionalNiches.length > 0) {
+      const existing = await tx.company.findUniqueOrThrow({
+        where: { id: company.id },
+        select: { secondaryNiches: true },
+      });
+      const merged = [...new Set([...existing.secondaryNiches, ...additionalNiches])];
+      await tx.company.update({ where: { id: company.id }, data: { secondaryNiches: merged } });
+    }
+
+    if (tone !== undefined) {
+      const toneDescriptors = tone
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await tx.creativeDna.upsert({
+        where: { companyId: company.id },
+        create: { companyId: company.id, toneDescriptors },
+        update: { toneDescriptors },
+      });
+    }
+  });
+
+  revalidatePath("/brand-kit");
+  return { success: true };
+}

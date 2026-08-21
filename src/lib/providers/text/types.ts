@@ -136,12 +136,35 @@ export interface ExpandBackgroundPromptOutput {
   providerName: string;
 }
 
+// Real business-context derivation from a website extraction (see
+// src/lib/brand-context.ts) — a short description, likely products/
+// services, and a tone-of-voice descriptor, grounded in the site's
+// actual text rather than invented. BYOK providers use a real LLM call;
+// the free template tier (template-provider.ts) uses a simple, honest
+// heuristic instead of skipping this capability entirely — never
+// invents products it can't find, unlike a real LLM which is at least
+// asked to.
+export interface SummarizeBusinessContextInput {
+  companyName: string;
+  metaDescription: string | null;
+  ogDescription: string | null;
+  visibleText: string;
+}
+
+export interface SummarizeBusinessContextOutput {
+  description: string;
+  products: string[];
+  tone: string;
+  providerName: string;
+}
+
 export interface TextProvider {
   readonly name: string;
   generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput>;
   generateScript(input: GenerateScriptInput): Promise<GenerateScriptOutput>;
   generateCampaignBrief(input: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput>;
   expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput>;
+  summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

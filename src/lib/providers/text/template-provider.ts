@@ -11,6 +11,8 @@ import type {
   CampaignBriefItem,
   ExpandBackgroundPromptInput,
   ExpandBackgroundPromptOutput,
+  SummarizeBusinessContextInput,
+  SummarizeBusinessContextOutput,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
@@ -44,9 +46,14 @@ function hasCompanyToken(template: string): boolean {
   return template.includes("{{company}}");
 }
 
+function hasTopicToken(template: string): boolean {
+  return template.includes("{{topic}}");
+}
+
 interface PickResult {
   text: string;
   usedCompany: boolean;
+  usedTopic: boolean;
 }
 
 // Real bug found by reading the actual industry-pack content: CTA
@@ -56,22 +63,42 @@ interface PickResult {
 // original behavior) regularly repeated the real company name twice —
 // sometimes three times — in one short assembled caption/script/
 // campaign item, which reads exactly like the kind of robotic AI
-// output CLAUDE.md's quality bar rules out. companyAlreadyUsed lets
-// each caller avoid a company-referencing template once an earlier
-// slot in the same output already used one, falling back to the full
-// pool only if a pack genuinely has zero non-company options left
-// (rather than ever throwing).
+// output CLAUDE.md's quality bar rules out. avoidCompany/avoidTopic let
+// each caller steer away from a template that repeats a token an
+// earlier slot in the same output already used, falling back to the
+// unfiltered pool only if a pack genuinely has zero alternative options
+// left (rather than ever throwing).
+//
+// {{topic}} got the exact same treatment after a real regenerated
+// caption for RentSmart Cars showed it twice in one sentence: valueProps
+// almost always reference {{topic}} (that's their whole purpose) and
+// several industries' ctas ALSO reference it ("Let {{company}} take
+// {{topic}} off your plate.") — with no guard, both slots fire whenever
+// a pack pairs them, most jarring when topic is a short quotable phrase
+// (e.g. an auto-generated shortHeadline) rather than a plain noun.
 function pick(
   seed: string,
   tag: string,
   options: string[],
   vars: Record<string, string>,
-  companyAlreadyUsed = false,
+  avoidCompany = false,
+  avoidTopic = false,
 ): PickResult {
-  const withoutCompany = options.filter((o) => !hasCompanyToken(o));
-  const pool = companyAlreadyUsed && withoutCompany.length > 0 ? withoutCompany : options;
+  let pool = options;
+  if (avoidCompany) {
+    const withoutCompany = pool.filter((o) => !hasCompanyToken(o));
+    if (withoutCompany.length > 0) pool = withoutCompany;
+  }
+  if (avoidTopic) {
+    const withoutTopic = pool.filter((o) => !hasTopicToken(o));
+    if (withoutTopic.length > 0) pool = withoutTopic;
+  }
   const chosen = pool[pickIndex(`${seed}:${tag}`, pool.length)];
-  return { text: capitalizeSentences(fillTemplate(chosen, vars)), usedCompany: hasCompanyToken(chosen) };
+  return {
+    text: capitalizeSentences(fillTemplate(chosen, vars)),
+    usedCompany: hasCompanyToken(chosen),
+    usedTopic: hasTopicToken(chosen),
+  };
 }
 
 // A fixed marketing arc, not itemCount unrelated topics — this is what
@@ -113,17 +140,34 @@ export class TemplateTextProvider implements TextProvider {
   readonly name = "Free (template)";
 
   async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
-    const { pack, name, secondaryNiches, companyId } = context;
+    const { pack, name, tone, secondaryNiches, companyId } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
     // Same topic + same companyId is otherwise fully deterministic (see
     // GenerateCaptionInput.variantIndex's doc comment) — folding the
     // index into the seed is what makes a real "generate 3 variants"
     // caller (repurpose.ts) get 3 different picks instead of 3 copies.
-    const seed = `${companyId}:${topic}${variantIndex !== undefined ? `:${variantIndex}` : ""}`;
+    // tone is folded in too — real gap found during Part A2 testing:
+    // CreativeDna.toneDescriptors (via context.tone) was computed and
+    // passed through but never actually consulted by this deterministic
+    // picker, so applying an extracted tone had zero visible effect on
+    // free-tier output, failing CLAUDE.md's own "genuinely changes
+    // generated output" bar. A fully free/local template system can't
+    // do real tone-conditioned prose, but it CAN make tone a genuine
+    // causal input to which hand-written, industry-appropriate phrase
+    // gets selected — a real, reproducible, inspectable effect, not a
+    // deep rewrite of the copy's register (that would need an LLM).
+    const seed = `${companyId}:${tone}:${topic}${variantIndex !== undefined ? `:${variantIndex}` : ""}`;
 
     const hook = pick(seed, "h", pack.hooks, vars);
-    const valueProp = pick(seed, "v", pack.valueProps, vars, hook.usedCompany);
-    const cta = pick(seed, "c", pack.ctas, vars, hook.usedCompany || valueProp.usedCompany);
+    const valueProp = pick(seed, "v", pack.valueProps, vars, hook.usedCompany, hook.usedTopic);
+    const cta = pick(
+      seed,
+      "c",
+      pack.ctas,
+      vars,
+      hook.usedCompany || valueProp.usedCompany,
+      hook.usedTopic || valueProp.usedTopic,
+    );
     const nicheLine = secondaryNiches.length
       ? ` Specializing in ${secondaryNiches.join(", ")}.`
       : "";
@@ -134,22 +178,30 @@ export class TemplateTextProvider implements TextProvider {
   }
 
   async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
-    const { pack, name, secondaryNiches, companyId } = context;
+    const { pack, name, tone, secondaryNiches, companyId } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
-    const seed = `${companyId}:${topic}:script`;
+    const seed = `${companyId}:${tone}:${topic}:script`;
 
     // Sequential — each section only avoids repeating the company name
     // if an earlier section (in hook -> context -> value -> message ->
     // cta order) already used it, same as generateCaption above.
     const hook = pick(seed, "h", pack.hooks, vars);
-    const scriptContext = pick(seed, "sc", pack.scriptContexts, vars, hook.usedCompany);
-    const value = pick(seed, "v", pack.valueProps, vars, hook.usedCompany || scriptContext.usedCompany);
+    const scriptContext = pick(seed, "sc", pack.scriptContexts, vars, hook.usedCompany, hook.usedTopic);
+    const value = pick(
+      seed,
+      "v",
+      pack.valueProps,
+      vars,
+      hook.usedCompany || scriptContext.usedCompany,
+      hook.usedTopic || scriptContext.usedTopic,
+    );
     const message = pick(
       seed,
       "sm",
       pack.scriptMessages,
       vars,
       hook.usedCompany || scriptContext.usedCompany || value.usedCompany,
+      hook.usedTopic || scriptContext.usedTopic || value.usedTopic,
     );
     const cta = pick(
       seed,
@@ -157,6 +209,7 @@ export class TemplateTextProvider implements TextProvider {
       pack.ctas,
       vars,
       hook.usedCompany || scriptContext.usedCompany || value.usedCompany || message.usedCompany,
+      hook.usedTopic || scriptContext.usedTopic || value.usedTopic || message.usedTopic,
     );
 
     return {
@@ -184,7 +237,7 @@ export class TemplateTextProvider implements TextProvider {
     scheduledDates,
     connectedPlatforms,
   }: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
-    const { pack, name, secondaryNiches, companyId } = context;
+    const { pack, name, tone, secondaryNiches, companyId } = context;
     const vars = { company: name, objective, niches: secondaryNiches.join(", ") };
     const campaignType = inferCampaignType(objective);
 
@@ -194,7 +247,7 @@ export class TemplateTextProvider implements TextProvider {
       const variant = stage[Math.floor(i / CAMPAIGN_ARC.length) % stage.length];
       const angle = capitalizeSentences(fillTemplate(variant, vars));
 
-      const seed = `${companyId}:${objective}:${i}`;
+      const seed = `${companyId}:${tone}:${objective}:${i}`;
       // {{topic}} here is the raw objective, not `angle` — `angle` is
       // already a full sentence (CAMPAIGN_ARC wrapped it), and these
       // hook/valueProp/cta templates ALSO wrap {{topic}} into a
@@ -207,8 +260,15 @@ export class TemplateTextProvider implements TextProvider {
       // second wrapping layer.
       const topicVars = { ...vars, topic: objective };
       const hook = pick(seed, "h", pack.hooks, topicVars);
-      const valueProp = pick(seed, "v", pack.valueProps, topicVars, hook.usedCompany);
-      const cta = pick(seed, "c", pack.ctas, topicVars, hook.usedCompany || valueProp.usedCompany);
+      const valueProp = pick(seed, "v", pack.valueProps, topicVars, hook.usedCompany, hook.usedTopic);
+      const cta = pick(
+        seed,
+        "c",
+        pack.ctas,
+        topicVars,
+        hook.usedCompany || valueProp.usedCompany,
+        hook.usedTopic || valueProp.usedTopic,
+      );
       const captionText = `${hook.text} ${valueProp.text} ${cta.text}`.replace(/\s+/g, " ").trim();
 
       // A multi-day campaign opens with a video (a stronger first
@@ -292,4 +352,42 @@ export class TemplateTextProvider implements TextProvider {
       providerName: this.name,
     };
   }
+
+  // Real, honest heuristic — not an LLM call (per CLAUDE.md's free-first
+  // rule, this capability can't require a paid key). Description is the
+  // real extracted text itself, not a generated summary — the free tier
+  // doesn't paraphrase, it just picks the most informative real string
+  // already available (an explicit description beats raw body text,
+  // which is noisier). products stays honestly empty: identifying
+  // "likely products/services" from raw prose needs real language
+  // understanding this heuristic doesn't have — surfacing a guessed
+  // list here would be exactly the kind of fabricated-looking output
+  // CLAUDE.md rules out. tone is a real measurement (contraction/
+  // exclamation frequency, average sentence length), not invented.
+  async summarizeBusinessContext({
+    ogDescription,
+    metaDescription,
+    visibleText,
+  }: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
+    const description = (ogDescription ?? metaDescription ?? visibleText.slice(0, 220)).trim();
+    const tone = detectToneHeuristic(visibleText || description);
+    return { description, products: [], tone, providerName: this.name };
+  }
+}
+
+// A real, measurable signal (contraction density, exclamation marks,
+// average sentence length) rather than a coin flip — genuinely
+// different real sites (see brand-context.ts's verification) land on
+// opposite sides of this. Not claimed as more than a heuristic: BYOK
+// providers derive tone from actual language understanding instead.
+function detectToneHeuristic(text: string): string {
+  if (!text.trim()) return "clear, genuine, professional";
+  const contractionCount = (text.match(/\b\w+'(?:re|ve|ll|d|s|t)\b/gi) ?? []).length;
+  const exclamationCount = (text.match(/!/g) ?? []).length;
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const avgSentenceLength = sentences.length ? text.length / sentences.length : 0;
+  const casualSignal = contractionCount + exclamationCount * 2;
+  return casualSignal >= 3 || avgSentenceLength < 60
+    ? "casual, approachable, direct"
+    : "formal, professional, polished";
 }

@@ -14,6 +14,11 @@ export interface CompanyContext {
   tone: string;
   pack: IndustryPack;
   locale: "EN" | "AR";
+  // Free-text company summary (manual entry or website extraction —
+  // see Company.businessDescription in schema.prisma). Threaded into
+  // BYOK prompts for real grounding; the free template tier doesn't
+  // consume raw prose so this has no direct effect there.
+  businessDescription: string | null;
 }
 
 const KNOWN_INDUSTRIES = new Set(Object.keys(INDUSTRY_PACKS));
@@ -44,5 +49,6 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
     tone,
     pack,
     locale: company.locale,
+    businessDescription: company.businessDescription,
   };
 }

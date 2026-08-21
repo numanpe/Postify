@@ -5,6 +5,7 @@ import Image from "next/image";
 
 import { updateBrandKit } from "@/lib/actions/brand-kit";
 import { extractBrandFromWebsite } from "@/lib/actions/brand-extract";
+import { applyExtractedBusinessContext } from "@/lib/actions/company";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 
@@ -286,8 +287,97 @@ function WebsiteImportPanel({
               <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.importNoFonts}</p>
             )}
           </div>
+
+          <BusinessContextReview businessContext={state.businessContext} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Part A2: business context (description/tone/likely products), shown
+// in the same review pass as the visual assets above, but saved via its
+// own action (applyExtractedBusinessContext) since it writes to
+// Company/CreativeDna, not BrandKit — genuinely different models.
+// Nothing here is applied until this section's own Apply button is
+// clicked, same review-before-apply rule as the rest of this panel.
+function BusinessContextReview({
+  businessContext,
+}: {
+  businessContext: { description: string; products: string[]; tone: string; providerName: string } | null;
+}) {
+  const dict = useDict().brandKit;
+  const [state, action, pending] = useActionState(applyExtractedBusinessContext, undefined);
+  const [description, setDescription] = useState(businessContext?.description ?? "");
+  const [tone, setTone] = useState(businessContext?.tone ?? "");
+  const [addedNiches, setAddedNiches] = useState<string[]>([]);
+
+  if (!businessContext) {
+    return (
+      <div className="flex flex-col gap-1 border-t border-paper-border dark:border-night-border pt-3">
+        <span className="text-xs font-medium">{dict.importContextFound}</span>
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.importNoContext}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 border-t border-paper-border dark:border-night-border pt-3">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="importDescription" className="text-xs font-medium">
+          {dict.importDescriptionFound}
+        </label>
+        <textarea
+          id="importDescription"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className={`${fieldClass} text-sm`}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="importTone" className="text-xs font-medium">
+          {dict.importToneFound}
+        </label>
+        <input id="importTone" value={tone} onChange={(e) => setTone(e.target.value)} className={fieldClass} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium">{dict.importProductsFound}</span>
+        {businessContext.products.length > 0 ? (
+          <ul className="flex flex-wrap gap-1.5">
+            {businessContext.products.map((product) => {
+              const added = addedNiches.includes(product);
+              return (
+                <li key={product}>
+                  <button
+                    type="button"
+                    disabled={added}
+                    onClick={() => setAddedNiches((prev) => [...prev, product])}
+                    className={`${chipButtonClass} disabled:cursor-default disabled:opacity-60`}
+                  >
+                    {added ? `${product} ✓` : `+ ${product}`}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.importNoProducts}</p>
+        )}
+      </div>
+
+      <form action={action} className="flex flex-col gap-2">
+        <input type="hidden" name="businessDescription" value={description} />
+        <input type="hidden" name="tone" value={tone} />
+        <input type="hidden" name="additionalNiches" value={addedNiches.join(",")} />
+        {state && "error" in state && <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>}
+        {state && "success" in state && <p className="text-xs text-green-700 dark:text-green-400">{dict.importApplied}</p>}
+        <Button type="submit" size="sm" pending={pending} pendingLabel={dict.saving}>
+          {dict.importApplyContext}
+        </Button>
+      </form>
     </div>
   );
 }

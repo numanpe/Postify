@@ -11,6 +11,8 @@ import type {
   GenerateCampaignBriefOutput,
   ExpandBackgroundPromptInput,
   ExpandBackgroundPromptOutput,
+  SummarizeBusinessContextInput,
+  SummarizeBusinessContextOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -20,6 +22,8 @@ import {
   parseCampaignBriefResponse,
   buildBackgroundExpansionPrompt,
   parseExpandedPromptResponse,
+  buildBusinessContextPrompt,
+  parseBusinessContextResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -166,5 +170,20 @@ export class AnthropicTextProvider implements TextProvider {
     }
 
     return parseExpandedPromptResponse(parsed, this.name);
+  }
+
+  async summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
+    const { system, user } = buildBusinessContextPrompt(input);
+    const { content } = await this.messagesRequest(system, user, 400);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed business-context JSON.", error);
+    }
+
+    const result = parseBusinessContextResponse(parsed, this.name);
+    return { ...result, providerName: this.name };
   }
 }
