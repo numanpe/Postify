@@ -10,6 +10,7 @@ import { runPosterQualityGate } from "./quality-gate";
 import { POSTER_DIMENSIONS } from "./dimensions";
 import { POSTER_TEMPLATES } from "./templates";
 import { buildPosterBackgroundContext } from "./background-context";
+import { smartCropToAspect } from "./smart-crop";
 import { getBrandGradientProvider, getAiImageProviderForPoster } from "@/lib/providers/image/resolver";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
@@ -103,7 +104,20 @@ export async function generatePosterCore(
     if (!asset || !asset.mimeType.startsWith("image/")) {
       throw new PosterGenerationError("That photo could not be found.");
     }
-    backgroundBuffer = await storage.get(asset.storageKey);
+    const rawPhotoBuffer = await storage.get(asset.storageKey);
+    // Smart, subject-aware framing instead of a dead-center crop — real
+    // product/vehicle photos are rarely composed with the subject
+    // exactly centered, and a plain object-fit: cover crop regularly cut
+    // off cars, logos, or faces near the edges. Falls back to a
+    // safe center-cover resize (never a thrown error) if the source
+    // image's dimensions can't be read.
+    try {
+      backgroundBuffer = await smartCropToAspect(rawPhotoBuffer, width, height);
+    } catch {
+      backgroundBuffer = rawPhotoBuffer;
+    }
+    // sharp preserves the source format by default (no .png()/.jpeg()
+    // call in smart-crop.ts), so the original mimeType is still accurate.
     backgroundMimeType = asset.mimeType;
     resolvedBackgroundAssetId = asset.id;
   } else {
