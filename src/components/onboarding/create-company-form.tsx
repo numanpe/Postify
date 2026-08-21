@@ -28,8 +28,14 @@ export function CreateCompanyForm() {
   // genuine hard navigation is required here, not a lint-rule violation.
   useEffect(() => {
     if (submittedRef.current && !pending && state && "success" in state) {
+      // Part B3.1: land directly in the guided wizard, not a generic
+      // dashboard — same redirect target as the website-extracted path
+      // (website-first-onboarding.tsx). No firstTopic query param here
+      // since the manual path has no extracted description to derive
+      // one from — an empty Step 1 topic field is the honest default,
+      // not a fabricated suggestion.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = "/media";
+      window.location.href = "/studio";
     }
   }, [pending, state]);
 

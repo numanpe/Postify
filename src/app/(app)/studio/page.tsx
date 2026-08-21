@@ -9,12 +9,17 @@ import { WizardStep1Form } from "@/components/studio/wizard-step1-form";
 // /studio/poster and /studio/video (the [mode] dynamic route) stay
 // directly reachable for returning users who want to skip the wizard —
 // this page doesn't redirect or gate them in any way.
-export default async function StudioWizardStep1Page() {
+export default async function StudioWizardStep1Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ firstTopic?: string }>;
+}) {
   const { company } = await requireCompany();
+  const { firstTopic } = await searchParams;
 
   return (
     <div className="flex flex-col gap-6">
-      <WizardStep1Form companyName={company.name} />
+      <WizardStep1Form companyName={company.name} defaultTopic={firstTopic} />
     </div>
   );
 }

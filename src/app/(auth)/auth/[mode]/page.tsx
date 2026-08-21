@@ -15,8 +15,12 @@ import { SignupForm } from "@/components/auth/signup-form";
 // (unlike the Meta OAuth callback URL, which can never move).
 export default async function AuthPage({ params }: { params: Promise<{ mode: string }> }) {
   const { mode } = await params;
+  // Same conditional-registration check as auth.ts — only show the
+  // Google button once real OAuth credentials exist, never a button
+  // that would fail with a confusing provider error.
+  const googleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
-  if (mode === "login") return <LoginForm />;
-  if (mode === "signup") return <SignupForm />;
+  if (mode === "login") return <LoginForm googleConfigured={googleConfigured} />;
+  if (mode === "signup") return <SignupForm googleConfigured={googleConfigured} />;
   notFound();
 }

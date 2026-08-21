@@ -16,6 +16,15 @@ export async function signOutAction(): Promise<void> {
   await signOut({ redirectTo: "/auth/login" });
 }
 
+// Real OAuth redirect, not a stub — auth.ts's signIn callback does the
+// account-linking-by-email/creation work; this just triggers the real
+// flow. redirectTo "/" mirrors the credentials login/signup flows
+// above, which route to /create-company or /media depending on
+// membership (see src/app/page.tsx).
+export async function signInWithGoogle(): Promise<void> {
+  await signIn("google", { redirectTo: "/" });
+}
+
 const SignUpSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120),
   email: z.string().trim().toLowerCase().email("Enter a valid email."),

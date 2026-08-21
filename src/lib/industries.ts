@@ -11,3 +11,5 @@ export const INDUSTRIES = [
   "Professional Services",
   "Other",
 ] as const;
+
+export type Industry = (typeof INDUSTRIES)[number];
