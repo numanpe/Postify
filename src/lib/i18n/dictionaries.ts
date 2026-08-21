@@ -91,6 +91,12 @@ export interface Dictionary {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
     secondary: string; accent: string; headingFont: string; bodyFont: string; save: string;
     saving: string;
+    importTitle: string; importSubtitle: string; importPlaceholder: string; importButton: string;
+    importExtracting: string; importLogoFound: string; importUseLogo: string; importLogoApplied: string;
+    importColorsFound: string; importUseAsPrimary: string; importUseAsSecondary: string; importUseAsAccent: string;
+    importFontsFound: string; importUseAsHeading: string; importUseAsBody: string;
+    importNoLogo: string; importNoColors: string; importNoFonts: string; importReviewHint: string;
+    importApplied: string;
   };
   settings: {
     title: string; subtitle: string; provider: string; apiKey: string; saveKey: string;
@@ -336,6 +342,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       bodyFont: "Body font",
       save: "Save Brand Kit",
       saving: "Saving…",
+      importTitle: "Import from a website",
+      importSubtitle: "Paste your website URL and we'll pull your logo, colors, and fonts for you to review below — nothing is saved until you click Save Brand Kit.",
+      importPlaceholder: "https://yourcompany.com",
+      importButton: "Extract",
+      importExtracting: "Extracting…",
+      importLogoFound: "Logo found",
+      importUseLogo: "Use this logo",
+      importLogoApplied: "Will be imported as your logo",
+      importColorsFound: "Colors found",
+      importUseAsPrimary: "Use as Primary",
+      importUseAsSecondary: "Use as Secondary",
+      importUseAsAccent: "Use as Accent",
+      importFontsFound: "Fonts found",
+      importUseAsHeading: "Use as Heading",
+      importUseAsBody: "Use as Body",
+      importNoLogo: "No logo detected on this page.",
+      importNoColors: "No brand colors detected on this page.",
+      importNoFonts: "No custom fonts detected on this page.",
+      importReviewHint: "Review the extracted values below, then click Save Brand Kit to apply them.",
+      importApplied: "Applied",
     },
     settings: {
       title: "AI Providers",
@@ -651,6 +677,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       bodyFont: "خط النص",
       save: "حفظ هوية العلامة",
       saving: "جارٍ الحفظ…",
+      importTitle: "استيراد من موقع إلكتروني",
+      importSubtitle: "الصق رابط موقعك وسنستخرج الشعار والألوان والخطوط لمراجعتها أدناه — لن يُحفظ شيء حتى تضغط على حفظ هوية العلامة.",
+      importPlaceholder: "https://yourcompany.com",
+      importButton: "استخراج",
+      importExtracting: "جارٍ الاستخراج…",
+      importLogoFound: "تم العثور على شعار",
+      importUseLogo: "استخدام هذا الشعار",
+      importLogoApplied: "سيتم استيراده كشعارك",
+      importColorsFound: "الألوان المكتشفة",
+      importUseAsPrimary: "استخدام كلون أساسي",
+      importUseAsSecondary: "استخدام كلون ثانوي",
+      importUseAsAccent: "استخدام كلون مميز",
+      importFontsFound: "الخطوط المكتشفة",
+      importUseAsHeading: "استخدام لخط العناوين",
+      importUseAsBody: "استخدام لخط النص",
+      importNoLogo: "لم يتم العثور على شعار في هذه الصفحة.",
+      importNoColors: "لم يتم اكتشاف ألوان للعلامة في هذه الصفحة.",
+      importNoFonts: "لم يتم اكتشاف خطوط مخصصة في هذه الصفحة.",
+      importReviewHint: "راجع القيم المستخرجة أدناه، ثم اضغط على حفظ هوية العلامة لتطبيقها.",
+      importApplied: "تم التطبيق",
     },
     settings: {
       title: "مزوّدو الذكاء الاصطناعي",
