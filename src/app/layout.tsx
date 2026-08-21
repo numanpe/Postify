@@ -42,6 +42,10 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#C1272D" },
     { media: "(prefers-color-scheme: dark)", color: "#E14B4B" },
   ],
+  // Without this, env(safe-area-inset-*) always evaluates to 0 on iOS —
+  // required for the fixed bottom nav's safe-area padding to do
+  // anything on notched/home-indicator devices.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({

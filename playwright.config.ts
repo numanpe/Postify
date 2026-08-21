@@ -24,6 +24,23 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup"],
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /mobile-responsiveness\.spec\.ts/,
+    },
+    // Real device emulation (viewport, touch, UA) — mobile-responsiveness.spec.ts
+    // only, so the desktop-oriented specs above aren't redundantly
+    // re-run at a mobile viewport where their selectors weren't
+    // written to account for it.
+    {
+      name: "mobile-iphone",
+      use: { ...devices["iPhone 13"] },
+      dependencies: ["setup"],
+      testMatch: /mobile-responsiveness\.spec\.ts/,
+    },
+    {
+      name: "mobile-pixel",
+      use: { ...devices["Pixel 6"] },
+      dependencies: ["setup"],
+      testMatch: /mobile-responsiveness\.spec\.ts/,
     },
   ],
 });

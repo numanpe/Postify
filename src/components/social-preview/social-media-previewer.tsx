@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Image from "next/image";
 
 import { useDict } from "@/components/i18n/locale-provider";
 import { SocialPreviewIcons } from "@/components/icons";
@@ -29,8 +30,26 @@ const TAB_ACCENT: Record<PreviewPlatform, string> = {
 
 function Avatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
   if (logoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element -- fixed small avatar, not a Next/Image-worthy asset
-    return <img src={logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />;
+    // unoptimized: logoUrl is the same-origin, session-authenticated
+    // /api/storage/[...key] route (or a not-yet-imported external URL
+    // in the Brand Kit importer's preview case) — Next's image
+    // optimizer makes its own anonymous server-side fetch with no
+    // browser cookies attached, so it can't pass the storage route's
+    // auth check. Every other next/image usage in this app against
+    // that same route has the identical constraint (see
+    // calendar-item-card.tsx, media/page.tsx, etc.). Still real value
+    // over a plain <img>: native lazy-loading and explicit dimensions
+    // that prevent layout shift.
+    return (
+      <Image
+        src={logoUrl}
+        alt=""
+        width={32}
+        height={32}
+        unoptimized
+        className="h-8 w-8 shrink-0 rounded-full object-cover"
+      />
+    );
   }
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   return (
@@ -64,8 +83,21 @@ function Media({
       />
     );
   }
-  // eslint-disable-next-line @next/next/no-img-element -- arbitrary source dims, rendered inside a fixed mockup frame
-  return <img src={mediaUrl} alt="" className={`h-full w-full ${fitClass} ${className ?? ""}`} />;
+  // fill (not width/height) since the real poster/video's own aspect
+  // ratio varies per asset — the parent frame (VerticalFrame/FeedCard's
+  // media wrapper) is always given an explicit size/aspect-ratio and
+  // position:relative for this to anchor to. unoptimized for the same
+  // auth-cookie reason as Avatar above.
+  return (
+    <Image
+      src={mediaUrl}
+      alt=""
+      fill
+      unoptimized
+      sizes="(max-width: 768px) 100vw, 420px"
+      className={`${fitClass} ${className ?? ""}`}
+    />
+  );
 }
 
 function CaptionText({
@@ -127,7 +159,16 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <nav role="tablist" className="flex gap-4 border-b border-paper-border text-sm font-medium dark:border-night-border">
+      {/* overflow-x-auto + snap-x/snap-mandatory, no hardcoded
+          translateX anywhere — CSS Scroll Snap's snap-start is a
+          logical (inline-start-relative) keyword per spec, so this
+          flips correctly under dir="rtl" natively, without a separate
+          rtl: branch. Guards against 4 tab labels not fitting a narrow
+          (~360px) phone screen inside the bottom-sheet's padding. */}
+      <nav
+        role="tablist"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto border-b border-paper-border text-sm font-medium dark:border-night-border"
+      >
         {TAB_ORDER.map((platform) => (
           <button
             key={platform}
@@ -138,7 +179,7 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
             aria-controls={panelId}
             tabIndex={tab === platform ? 0 : -1}
             onClick={() => setTab(platform)}
-            className={`-mb-px pb-2 ${tab === platform ? TAB_ACCENT[platform] : "text-ink-soft dark:text-ink-soft-dark"}`}
+            className={`-mb-px flex min-h-[48px] shrink-0 snap-start items-center pb-2 ${tab === platform ? TAB_ACCENT[platform] : "text-ink-soft dark:text-ink-soft-dark"}`}
           >
             {tabLabel[platform]}
           </button>
@@ -357,7 +398,7 @@ function FeedCard({
         </div>
       )}
 
-      <div className="w-full bg-paper-card dark:bg-night" style={{ aspectRatio: cappedRatio }}>
+      <div className="relative w-full overflow-hidden bg-paper-card dark:bg-night" style={{ aspectRatio: cappedRatio }}>
         <Media mediaUrl={mediaUrl} mediaType={mediaType} fit="contain" />
       </div>
 

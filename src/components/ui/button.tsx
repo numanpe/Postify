@@ -28,7 +28,10 @@ export function Button({
   // py-2 (not py-1.5) keeps "sm" visually compact while landing closer
   // to a real tappable height on touch screens — a mobile audit measured
   // the old py-1.5 at 32px, under the ~40-44px tap-target guideline.
-  const sizeClasses = size === "sm" ? "px-3 py-2 text-sm" : "px-4 py-2 text-base";
+  // min-h-[48px] is a direct guarantee on top of that padding math
+  // rather than trusting text/line-height alone to clear the real
+  // 48px touch-target floor.
+  const sizeClasses = size === "sm" ? "min-h-[48px] px-3 py-2 text-sm" : "min-h-[48px] px-4 py-2 text-base";
 
   return (
     <button

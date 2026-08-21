@@ -62,7 +62,7 @@ function AggregatorCredentialForm({
           type="password"
           autoComplete="off"
           required
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-sm"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-base"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -74,7 +74,7 @@ function AggregatorCredentialForm({
           name="accountMapRaw"
           type="text"
           placeholder={dict.accountMapPlaceholder}
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-sm"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-base"
         />
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.accountMapHint}</p>
       </div>

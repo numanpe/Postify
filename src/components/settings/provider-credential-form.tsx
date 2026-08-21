@@ -39,7 +39,7 @@ export function ProviderCredentialForm() {
           type="password"
           autoComplete="off"
           required
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-sm"
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-base"
         />
       </div>
 

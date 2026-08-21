@@ -22,3 +22,13 @@
     font-family: var(--font-tajawal), system-ui, sans-serif;
   }
 }
+
+@layer utilities {
+  /* Bottom nav / bottom-sheet safe-area clearance — max() so it never
+     collapses below a comfortable minimum on devices with no inset
+     (env() resolves to 0 there, not an error, so max() is safe
+     everywhere, not iOS-only). */
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}

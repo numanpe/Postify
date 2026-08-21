@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Image from "next/image";
 
 import { updateBrandKit } from "@/lib/actions/brand-kit";
 import { extractBrandFromWebsite } from "@/lib/actions/brand-extract";
@@ -71,8 +72,20 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
           />
           {importedLogoUrl && (
             <div className="mt-1 flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- remote, not-yet-imported preview; not a MediaAsset yet */}
-              <img src={importedLogoUrl} alt="" className="h-10 w-10 rounded border border-paper-border object-contain dark:border-night-border" />
+              {/* unoptimized — arbitrary external domain (the company's
+                  own website), not yet imported into this app's
+                  storage, so it can't be added to next.config.ts's
+                  remotePatterns allowlist in advance. Still gets
+                  next/image's explicit-dimension layout-shift
+                  prevention over a plain <img>. */}
+              <Image
+                src={importedLogoUrl}
+                alt=""
+                width={40}
+                height={40}
+                unoptimized
+                className="h-10 w-10 rounded border border-paper-border object-contain dark:border-night-border"
+              />
               <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.importLogoApplied}</p>
             </div>
           )}
@@ -90,7 +103,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
               placeholder="#1A2B3C"
               value={primaryColor}
               onChange={(e) => setPrimaryColor(e.target.value)}
-              className={`${fieldClass} px-2 py-1 text-sm`}
+              className={`${fieldClass} px-2 py-1`}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -103,7 +116,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
               placeholder="#1A2B3C"
               value={secondaryColor}
               onChange={(e) => setSecondaryColor(e.target.value)}
-              className={`${fieldClass} px-2 py-1 text-sm`}
+              className={`${fieldClass} px-2 py-1`}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -116,7 +129,7 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
               placeholder="#1A2B3C"
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
-              className={`${fieldClass} px-2 py-1 text-sm`}
+              className={`${fieldClass} px-2 py-1`}
             />
           </div>
         </div>
@@ -184,7 +197,7 @@ function WebsiteImportPanel({
           type="text"
           placeholder={dict.importPlaceholder}
           required
-          className={`${fieldClass} flex-1 text-sm`}
+          className={`${fieldClass} flex-1`}
         />
         <Button type="submit" size="sm" pending={pending} pendingLabel={dict.importExtracting}>
           {dict.importButton}
@@ -201,10 +214,14 @@ function WebsiteImportPanel({
             <span className="text-xs font-medium">{dict.importLogoFound}</span>
             {state.assets.logoUrl ? (
               <div className="flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element -- remote preview, not yet imported */}
-                <img
+                {/* unoptimized — same external-domain reason as the
+                    other logo preview above. */}
+                <Image
                   src={state.assets.logoUrl}
                   alt=""
+                  width={40}
+                  height={40}
+                  unoptimized
                   className="h-10 w-10 rounded border border-paper-border object-contain dark:border-night-border"
                 />
                 <button

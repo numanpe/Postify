@@ -65,7 +65,7 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
             <select
               name="sourceId"
               required
-              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-sm"
+              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
             >
               <option value="" disabled>
                 {dict.choosePoster}
@@ -94,7 +94,7 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
             <select
               name="sourceId"
               required
-              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-sm"
+              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
             >
               <option value="" disabled>
                 {dict.chooseVideo}
@@ -123,7 +123,7 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
               name="manualText"
               rows={2}
               placeholder={dict.describePlaceholder}
-              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-sm"
+              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
             />
           )}
         </div>

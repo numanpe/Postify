@@ -1,5 +1,6 @@
 import { requireCompany } from "@/lib/session";
 import { AppNav } from "@/components/app-nav";
+import { BottomNav } from "@/components/bottom-nav";
 
 export default async function AppLayout({
   children,
@@ -17,7 +18,11 @@ export default async function AppLayout({
         </div>
         <AppNav />
       </header>
-      <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
+      {/* pb-24 clears BottomNav's fixed height + its own safe-area
+          padding below md:; md:pb-6 restores the normal desktop value
+          since BottomNav doesn't render there at all. */}
+      <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-6">{children}</main>
+      <BottomNav />
     </div>
   );
 }
