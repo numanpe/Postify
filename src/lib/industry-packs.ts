@@ -43,12 +43,12 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     toneDefault: "warm, plainspoken, rooted in the land and the seasons",
     hooks: [
       "Fresh from the field to your table.",
-      "The season's best is ready at {{company}}.",
+      "The season's best is ready right now.",
       "Straight from our farm to your family.",
     ],
     valueProps: [
       "{{topic}} — grown with care, harvested at the right time, no shortcuts.",
-      "At {{company}}, {{topic}} means quality you can taste and trust.",
+      "{{topic}} means quality you can taste and trust.",
       "We put the same care into {{topic}} that we put into every harvest.",
     ],
     ctas: [
@@ -59,12 +59,12 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     scriptContexts: [
       "Every season brings its own challenges — and its own chance to do right by the land.",
       "Good food starts long before it reaches your table.",
-      "Farming rewards patience, and {{company}} has never taken shortcuts.",
+      "Farming rewards patience, and shortcuts have never been part of the plan.",
     ],
     scriptMessages: [
       "{{topic}} is grown using methods refined over years on this land, not rushed for a season.",
-      "When {{company}} puts its name on {{topic}}, that's a promise about how it was grown.",
-      "{{topic}} reflects what {{company}} has always believed: real food takes real care.",
+      "Putting our name on {{topic}} is a promise about how it was grown.",
+      "{{topic}} reflects what we've always believed: real food takes real care.",
     ],
     visualTone: "Warm natural sunlight, organic textures, wide open fields, golden-hour lighting",
     forbiddenStyles: ["neon cyberpunk", "futuristic sci-fi", "dark dystopian tones", "urban concrete backdrops"],
@@ -75,13 +75,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     toneDefault: "confident, precise, safety-and-craftsmanship focused",
     hooks: [
       "Built right. Built to last.",
-      "Another project, another standard met at {{company}}.",
-      "From blueprint to build, {{company}} delivers.",
+      "Another project, another standard met.",
+      "From blueprint to build, the standard never slips.",
     ],
     valueProps: [
       "{{topic}} — engineered with precision and delivered on schedule, every time.",
-      "At {{company}}, {{topic}} means rigorous standards from day one to handover.",
-      "Safety, craftsmanship, and deadlines — that's how {{company}} approaches {{topic}}.",
+      "{{topic}} means rigorous standards from day one to handover.",
+      "Safety, craftsmanship, and deadlines — that's how we approach {{topic}}.",
     ],
     ctas: [
       "Talk to {{company}} about your next project.",
@@ -94,9 +94,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Deadlines and standards don't have to be a trade-off.",
     ],
     scriptMessages: [
-      "{{topic}} was planned, engineered, and inspected the same way {{company}} handles every job — thoroughly.",
-      "From the first blueprint to the final walkthrough, {{topic}} carries {{company}}'s standard.",
-      "{{topic}} is proof that {{company}} builds the way it promises to.",
+      "{{topic}} was planned, engineered, and inspected the same thorough way every job gets handled.",
+      "From the first blueprint to the final walkthrough, {{topic}} carries that same standard.",
+      "{{topic}} is proof that a promise made gets built the way it was promised.",
     ],
     visualTone: "Clean industrial lines, steel and concrete textures, dramatic directional light, structured geometry",
     forbiddenStyles: ["whimsical cartoon style", "pastel soft-focus", "organic wilderness", "cluttered chaotic composition"],
@@ -108,11 +108,11 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hooks: [
       "Every learner has a spark — we help it grow.",
       "Learning that meets every student where they are.",
-      "{{company}} believes in what your child can become.",
+      "Believing in what your child can become — that's where it starts.",
     ],
     valueProps: [
       "{{topic}} — personalized, supportive, and built around real progress.",
-      "At {{company}}, {{topic}} is about building confidence, not just covering material.",
+      "{{topic}} is about building confidence, not just covering material.",
       "Our approach to {{topic}} puts every student's potential first.",
     ],
     ctas: [
@@ -126,9 +126,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Confidence is built one real win at a time.",
     ],
     scriptMessages: [
-      "{{topic}} at {{company}} is designed around how each student actually learns, not a one-size lesson plan.",
-      "{{company}} built {{topic}} to turn small wins into lasting confidence.",
-      "{{topic}} gives students the support to grow at their own pace, with {{company}} alongside them.",
+      "{{topic}} is designed around how each student actually learns, not a one-size lesson plan.",
+      "{{topic}} was built to turn small wins into lasting confidence.",
+      "{{topic}} gives students the support to grow at their own pace, every step of the way.",
     ],
     visualTone: "Bright even lighting, clean modern spaces, optimistic open composition",
     forbiddenStyles: ["dark moody tones", "neon cyberpunk", "cluttered chaotic composition", "unsettling imagery"],
@@ -140,11 +140,11 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hooks: [
       "Your next chapter starts here.",
       "Find the space that fits your life.",
-      "{{company}} makes finding home simple.",
+      "Finding home doesn't have to be complicated.",
     ],
     valueProps: [
       "{{topic}} — handled with local expertise and total transparency.",
-      "At {{company}}, {{topic}} means no surprises, just results.",
+      "{{topic}} means no surprises, just results.",
       "We guide you through {{topic}} from first showing to closing day.",
     ],
     ctas: [
@@ -158,9 +158,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "A home should fit the life you're actually living.",
     ],
     scriptMessages: [
-      "{{topic}} is where {{company}}'s local knowledge turns a search into a decision you feel good about.",
-      "With {{topic}}, {{company}} handles the details so you can focus on what matters.",
-      "{{topic}} reflects what {{company}} does best: matching people with the right place, honestly.",
+      "{{topic}} is where local knowledge turns a search into a decision you feel good about.",
+      "With {{topic}}, the details are handled so you can focus on what matters.",
+      "{{topic}} reflects what matters most: matching people with the right place, honestly.",
     ],
     visualTone: "Polished architectural lines, natural window light, aspirational interiors and exteriors",
     forbiddenStyles: ["cluttered rooms", "cartoon style", "neon cyberpunk", "harsh overexposed lighting"],
@@ -172,11 +172,11 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hooks: [
       "Your health, in trusted hands.",
       "Care that listens first.",
-      "{{company}} is here for every step of your care.",
+      "Here for every step of your care.",
     ],
     valueProps: [
       "{{topic}} — delivered with the attention and expertise you deserve.",
-      "At {{company}}, {{topic}} starts with really listening to you.",
+      "{{topic}} starts with really listening to you.",
       "We take {{topic}} seriously, so you can feel confident in your care.",
     ],
     ctas: [
@@ -190,9 +190,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Prevention and attention go further than most people expect.",
     ],
     scriptMessages: [
-      "{{topic}} at {{company}} means real time and real attention, not a rushed appointment.",
-      "{{company}} approaches {{topic}} the way every patient deserves: carefully, and without guesswork.",
-      "{{topic}} is part of how {{company}} earns your trust, one visit at a time.",
+      "{{topic}} means real time and real attention, not a rushed appointment.",
+      "{{topic}} gets the same approach every patient deserves: carefully, and without guesswork.",
+      "{{topic}} is part of how trust gets earned, one visit at a time.",
     ],
     visualTone: "Soft even clinical-clean lighting, calm neutral tones, gentle depth of field",
     forbiddenStyles: ["dark horror tones", "neon cyberpunk", "chaotic cluttered scenes", "graphic medical imagery"],
@@ -203,12 +203,12 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     toneDefault: "energetic, direct, deal-forward",
     hooks: [
       "New in, and it won't last.",
-      "{{company}} just dropped something you'll love.",
-      "Shop smarter with {{company}}.",
+      "Something new just dropped — you'll love this one.",
+      "Shop smarter, starting today.",
     ],
     valueProps: [
       "{{topic}} — now available, made for how you actually shop.",
-      "At {{company}}, {{topic}} means quality without the wait.",
+      "{{topic}} means quality without the wait.",
       "We picked {{topic}} because our customers deserve better.",
     ],
     ctas: [
@@ -222,9 +222,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Shopping should feel easy, not like a chore.",
     ],
     scriptMessages: [
-      "{{topic}} just landed at {{company}}, and it's exactly the kind of pick our customers ask for.",
-      "{{company}} chose {{topic}} because it's the real deal, not just another item on a shelf.",
-      "{{topic}} is what happens when {{company}} actually listens to what you want.",
+      "{{topic}} just landed, and it's exactly the kind of pick customers ask for.",
+      "{{topic}} made the cut because it's the real deal, not just another item on a shelf.",
+      "{{topic}} is what happens when you actually listen to what people want.",
     ],
     visualTone: "Bright punchy studio lighting, bold product-forward composition, vibrant color accents",
     forbiddenStyles: ["dark moody tones", "cluttered chaotic composition", "rustic vintage textures", "flat low-contrast lighting"],
@@ -234,14 +234,14 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
   "Hospitality & Food": {
     toneDefault: "warm, sensory, inviting",
     hooks: [
-      "Pull up a seat — {{company}} has been waiting for you.",
+      "Pull up a seat — this one's been worth the wait.",
       "Some things are better shared.",
-      "{{company}}: made fresh, served with care.",
+      "Made fresh, served with care.",
     ],
     valueProps: [
       "{{topic}} — made from scratch, the way it should be.",
-      "At {{company}}, {{topic}} is about the whole experience, not just the plate.",
-      "Every {{topic}} at {{company}} starts with real ingredients and real care.",
+      "{{topic}} is about the whole experience, not just the plate.",
+      "{{topic}} — real ingredients, real care, every time.",
     ],
     ctas: [
       "Reserve your table at {{company}} today.",
@@ -254,9 +254,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Some places just feel like they were made for gathering.",
     ],
     scriptMessages: [
-      "{{topic}} at {{company}} is made the way it should be — fresh, unhurried, and worth the seat.",
-      "{{company}} built {{topic}} around real ingredients, not shortcuts.",
-      "{{topic}} is {{company}}'s way of making an ordinary meal feel like an occasion.",
+      "{{topic}} is made the way it should be — fresh, unhurried, and worth the seat.",
+      "{{topic}} is built around real ingredients, not shortcuts.",
+      "{{topic}} is proof an ordinary meal can feel like an occasion.",
     ],
     visualTone: "Warm ambient lighting, rich food and table textures, inviting shallow depth of field",
     forbiddenStyles: ["cold clinical lighting", "neon cyberpunk", "cartoon style", "artificial plastic textures"],
@@ -267,12 +267,12 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     toneDefault: "clear, competent, no-nonsense",
     hooks: [
       "Expertise you can rely on.",
-      "{{company}} handles the details so you don't have to.",
+      "Handling the details so you don't have to.",
       "Straightforward advice, real results.",
     ],
     valueProps: [
       "{{topic}} — clear guidance, no jargon, no wasted time.",
-      "At {{company}}, {{topic}} means answers you can actually act on.",
+      "{{topic}} means answers you can actually act on.",
       "We bring real expertise to {{topic}}, so you can make confident decisions.",
     ],
     ctas: [
@@ -286,9 +286,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "You shouldn't need a translator for your own decisions.",
     ],
     scriptMessages: [
-      "{{topic}} is where {{company}} turns a complicated problem into a clear next step.",
-      "{{company}} approaches {{topic}} the same way with every client: straight answers, real expertise.",
-      "{{topic}} exists because {{company}} believes good advice shouldn't be complicated.",
+      "{{topic}} is where a complicated problem turns into a clear next step.",
+      "{{topic}} gets the same approach with every client: straight answers, real expertise.",
+      "{{topic}} exists because good advice shouldn't be complicated.",
     ],
     visualTone: "Clean minimal studio lighting, sharp geometric composition, muted confident palette",
     forbiddenStyles: ["cluttered chaotic composition", "neon cyberpunk", "whimsical cartoon style", "rustic vintage textures"],
@@ -298,14 +298,14 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
   Other: {
     toneDefault: "clear, genuine, professional",
     hooks: [
-      "Here's what's new at {{company}}.",
-      "{{company}} has something worth sharing.",
-      "A quick update from {{company}}.",
+      "Here's what's new.",
+      "There's something worth sharing today.",
+      "A quick update, straight from the team.",
     ],
     valueProps: [
-      "{{topic}} — made with care by the team at {{company}}.",
-      "At {{company}}, {{topic}} is something we're proud of.",
-      "We think you'll love what {{company}} has done with {{topic}}.",
+      "{{topic}} — made with care by the whole team.",
+      "{{topic}} is something we're proud of.",
+      "We think you'll love what's been done with {{topic}}.",
     ],
     ctas: [
       "Learn more at {{company}} today.",
@@ -318,9 +318,9 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
       "Good work deserves a proper introduction.",
     ],
     scriptMessages: [
-      "{{topic}} is the kind of thing {{company}} puts real thought into.",
-      "{{company}} built {{topic}} to actually be useful, not just new.",
-      "{{topic}} says a lot about how {{company}} does things.",
+      "{{topic}} is the kind of thing we put real thought into.",
+      "{{topic}} was built to actually be useful, not just new.",
+      "{{topic}} says a lot about how we do things.",
     ],
     visualTone: "Clean natural lighting, genuine real-world setting, balanced composition",
     forbiddenStyles: ["neon cyberpunk", "dark dystopian tones", "cartoon style", "cluttered chaotic composition"],

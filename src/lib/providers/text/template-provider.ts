@@ -40,8 +40,38 @@ function pickIndex(seed: string, length: number): number {
   return hash % length;
 }
 
-function pick(seed: string, tag: string, options: string[], vars: Record<string, string>): string {
-  return capitalizeSentences(fillTemplate(options[pickIndex(`${seed}:${tag}`, options.length)], vars));
+function hasCompanyToken(template: string): boolean {
+  return template.includes("{{company}}");
+}
+
+interface PickResult {
+  text: string;
+  usedCompany: boolean;
+}
+
+// Real bug found by reading the actual industry-pack content: CTA
+// pools are almost always 100% {{company}}-referencing ("Visit
+// {{company}} this week..."), and hook/valueProp pools reference it
+// 30-70% of the time too. Picking independently from each pool (the
+// original behavior) regularly repeated the real company name twice —
+// sometimes three times — in one short assembled caption/script/
+// campaign item, which reads exactly like the kind of robotic AI
+// output CLAUDE.md's quality bar rules out. companyAlreadyUsed lets
+// each caller avoid a company-referencing template once an earlier
+// slot in the same output already used one, falling back to the full
+// pool only if a pack genuinely has zero non-company options left
+// (rather than ever throwing).
+function pick(
+  seed: string,
+  tag: string,
+  options: string[],
+  vars: Record<string, string>,
+  companyAlreadyUsed = false,
+): PickResult {
+  const withoutCompany = options.filter((o) => !hasCompanyToken(o));
+  const pool = companyAlreadyUsed && withoutCompany.length > 0 ? withoutCompany : options;
+  const chosen = pool[pickIndex(`${seed}:${tag}`, pool.length)];
+  return { text: capitalizeSentences(fillTemplate(chosen, vars)), usedCompany: hasCompanyToken(chosen) };
 }
 
 // A fixed marketing arc, not itemCount unrelated topics — this is what
@@ -92,13 +122,13 @@ export class TemplateTextProvider implements TextProvider {
     const seed = `${companyId}:${topic}${variantIndex !== undefined ? `:${variantIndex}` : ""}`;
 
     const hook = pick(seed, "h", pack.hooks, vars);
-    const valueProp = pick(seed, "v", pack.valueProps, vars);
-    const cta = pick(seed, "c", pack.ctas, vars);
+    const valueProp = pick(seed, "v", pack.valueProps, vars, hook.usedCompany);
+    const cta = pick(seed, "c", pack.ctas, vars, hook.usedCompany || valueProp.usedCompany);
     const nicheLine = secondaryNiches.length
       ? ` Specializing in ${secondaryNiches.join(", ")}.`
       : "";
 
-    const text = `${hook} ${valueProp}${nicheLine} ${cta}`.replace(/\s+/g, " ").trim();
+    const text = `${hook.text} ${valueProp.text}${nicheLine} ${cta.text}`.replace(/\s+/g, " ").trim();
 
     return { text, providerName: this.name };
   }
@@ -108,13 +138,34 @@ export class TemplateTextProvider implements TextProvider {
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
     const seed = `${companyId}:${topic}:script`;
 
+    // Sequential — each section only avoids repeating the company name
+    // if an earlier section (in hook -> context -> value -> message ->
+    // cta order) already used it, same as generateCaption above.
+    const hook = pick(seed, "h", pack.hooks, vars);
+    const scriptContext = pick(seed, "sc", pack.scriptContexts, vars, hook.usedCompany);
+    const value = pick(seed, "v", pack.valueProps, vars, hook.usedCompany || scriptContext.usedCompany);
+    const message = pick(
+      seed,
+      "sm",
+      pack.scriptMessages,
+      vars,
+      hook.usedCompany || scriptContext.usedCompany || value.usedCompany,
+    );
+    const cta = pick(
+      seed,
+      "c",
+      pack.ctas,
+      vars,
+      hook.usedCompany || scriptContext.usedCompany || value.usedCompany || message.usedCompany,
+    );
+
     return {
       script: {
-        hook: pick(seed, "h", pack.hooks, vars),
-        context: pick(seed, "sc", pack.scriptContexts, vars),
-        value: pick(seed, "v", pack.valueProps, vars),
-        message: pick(seed, "sm", pack.scriptMessages, vars),
-        cta: pick(seed, "c", pack.ctas, vars),
+        hook: hook.text,
+        context: scriptContext.text,
+        value: value.text,
+        message: message.text,
+        cta: cta.text,
       },
       providerName: this.name,
     };
@@ -156,9 +207,9 @@ export class TemplateTextProvider implements TextProvider {
       // second wrapping layer.
       const topicVars = { ...vars, topic: objective };
       const hook = pick(seed, "h", pack.hooks, topicVars);
-      const valueProp = pick(seed, "v", pack.valueProps, topicVars);
-      const cta = pick(seed, "c", pack.ctas, topicVars);
-      const captionText = `${hook} ${valueProp} ${cta}`.replace(/\s+/g, " ").trim();
+      const valueProp = pick(seed, "v", pack.valueProps, topicVars, hook.usedCompany);
+      const cta = pick(seed, "c", pack.ctas, topicVars, hook.usedCompany || valueProp.usedCompany);
+      const captionText = `${hook.text} ${valueProp.text} ${cta.text}`.replace(/\s+/g, " ").trim();
 
       // A multi-day campaign opens with a video (a stronger first
       // impression) and fills the rest with posters (cheaper, faster,
@@ -175,7 +226,7 @@ export class TemplateTextProvider implements TextProvider {
         assetType,
         angle,
         ...(assetType === "POSTER"
-          ? { headline: shortHeadline(`${seed}:headline`, pack.shortHeadlines), subhead: valueProp, cta }
+          ? { headline: shortHeadline(`${seed}:headline`, pack.shortHeadlines), subhead: valueProp.text, cta: cta.text }
           : { videoTopic: angle }),
         captionText,
         hashtags: pack.hashtags,
