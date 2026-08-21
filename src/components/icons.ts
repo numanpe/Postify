@@ -29,6 +29,14 @@ import {
   Scissors,
   Upload,
   Zap,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  ThumbsUp,
+  Repeat2,
+  Music2,
+  Eye,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,4 +64,21 @@ export const ActionIcons = {
   publishDirect: Upload,
   publishProvider: Send,
   generate: Zap,
+} satisfies Record<string, LucideIcon>;
+
+// lucide-react no longer ships per-brand logo marks (Instagram/
+// Facebook/Linkedin were removed over trademark concerns) — the social
+// previewer (SocialMediaPreviewer) uses these generic engagement icons
+// for its mockup chrome instead, styled per-platform via color/layout
+// rather than a brand glyph.
+export const SocialPreviewIcons = {
+  like: Heart,
+  thumbsUp: ThumbsUp,
+  comment: MessageCircle,
+  share: Share2,
+  repost: Repeat2,
+  save: Bookmark,
+  send: Send,
+  sound: Music2,
+  views: Eye,
 } satisfies Record<string, LucideIcon>;

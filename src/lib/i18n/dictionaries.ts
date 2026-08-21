@@ -125,6 +125,12 @@ export interface Dictionary {
     resultTitle: string; resultPoster: string; resultVideo: string; resultCaptions: string;
     copyButton: string; copiedToast: string;
   };
+  socialPreview: {
+    trigger: string; title: string; close: string; disclaimer: string;
+    tabInstagram: string; tabFacebook: string; tabLinkedin: string; tabTiktok: string;
+    cropWarning: string; captionPlaceholder: string; justNow: string; originalAudio: string;
+    companyPage: string;
+  };
   publishing: {
     settingsTitle: string; settingsSubtitle: string;
     modeManualTitle: string; modeManualDescription: string;
@@ -443,6 +449,21 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       resultCaptions: "Caption variants",
       copyButton: "Copy",
       copiedToast: "Copied.",
+    },
+    socialPreview: {
+      trigger: "Preview",
+      title: "Preview on Social Media",
+      close: "Close",
+      disclaimer: "A visual preview only — publishing only actually happens for your connected accounts.",
+      tabInstagram: "Instagram",
+      tabFacebook: "Facebook",
+      tabLinkedin: "LinkedIn",
+      tabTiktok: "TikTok",
+      cropWarning: "This layout crops to a vertical frame — anything outside it won't be shown.",
+      captionPlaceholder: "Your caption will appear here.",
+      justNow: "Just now",
+      originalAudio: "original audio",
+      companyPage: "Company",
     },
     publishing: {
       settingsTitle: "Publishing",
@@ -784,6 +805,21 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       resultCaptions: "نسخ التسمية التوضيحية",
       copyButton: "نسخ",
       copiedToast: "تم النسخ.",
+    },
+    socialPreview: {
+      trigger: "معاينة",
+      title: "معاينة على وسائل التواصل الاجتماعي",
+      close: "إغلاق",
+      disclaimer: "معاينة بصرية فقط — النشر الفعلي يتم فقط عبر الحسابات المتصلة.",
+      tabInstagram: "إنستغرام",
+      tabFacebook: "فيسبوك",
+      tabLinkedin: "لينكدإن",
+      tabTiktok: "تيك توك",
+      cropWarning: "يقتصّ هذا التنسيق الصورة إلى إطار عمودي — أي جزء خارجه لن يظهر.",
+      captionPlaceholder: "سيظهر نص التسمية التوضيحية هنا.",
+      justNow: "الآن",
+      originalAudio: "صوت أصلي",
+      companyPage: "صفحة شركة",
     },
     publishing: {
       settingsTitle: "النشر",

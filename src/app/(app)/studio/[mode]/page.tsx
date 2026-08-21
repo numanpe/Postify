@@ -10,6 +10,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { GenerateCaptionForm } from "@/components/studio/generate-caption-form";
 import { PosterForm } from "@/components/poster/poster-form";
 import { VideoForm } from "@/components/video/video-form";
+import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { NavIcons } from "@/components/icons";
 
 const MODES = ["captions", "poster", "video"] as const;
@@ -80,7 +81,7 @@ async function CaptionsMode({ companyName }: { companyName: string }) {
 async function PosterMode({ companyId, companyName }: { companyId: string; companyName: string }) {
   const dict = getDictionary(await getLocale());
 
-  const [photoAssets, posters] = await Promise.all([
+  const [photoAssets, posters, brandKit] = await Promise.all([
     // Excludes posterOutput and brandKitLogo assets — a generated
     // poster or the brand logo are both real MediaAssets, but offering
     // either back as a "photo" background would let a poster get
@@ -103,7 +104,9 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
       include: { asset: true },
       orderBy: { createdAt: "desc" },
     }),
+    db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
   ]);
+  const companyLogoUrl = brandKit?.logoAsset ? storage.url(brandKit.logoAsset.storageKey) : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -137,6 +140,17 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
                 <p className="truncate text-xs font-medium" title={poster.headline}>
                   {poster.headline}
                 </p>
+                {poster.asset.width && poster.asset.height && (
+                  <SocialPreviewModal
+                    mediaUrl={storage.url(poster.asset.storageKey)}
+                    mediaType="image"
+                    mediaWidth={poster.asset.width}
+                    mediaHeight={poster.asset.height}
+                    companyName={companyName}
+                    logoUrl={companyLogoUrl}
+                    captionText={poster.headline}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -157,7 +171,7 @@ async function VideoMode({
 }) {
   const dict = getDictionary(await getLocale());
 
-  const [assets, videos, voiceCredential] = await Promise.all([
+  const [assets, videos, voiceCredential, brandKit] = await Promise.all([
     // Excludes brand logos and previously-generated posters/videos —
     // none of those are real B-roll footage (see Phase 3's photo-picker
     // fix for the same category of bug with poster backgrounds).
@@ -180,7 +194,9 @@ async function VideoMode({
     db.providerCredential.findFirst({
       where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS"] } },
     }),
+    db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
   ]);
+  const companyLogoUrl = brandKit?.logoAsset ? storage.url(brandKit.logoAsset.storageKey) : null;
 
   // FREE (the default) always works — no key needed. BYOK only works
   // once a matching credential is saved. Mirrors the exact contract
@@ -209,6 +225,17 @@ async function VideoMode({
                 <p className="truncate text-xs font-medium" title={video.topic}>
                   {video.topic}
                 </p>
+                {video.asset.width && video.asset.height && (
+                  <SocialPreviewModal
+                    mediaUrl={storage.url(video.asset.storageKey)}
+                    mediaType="video"
+                    mediaWidth={video.asset.width}
+                    mediaHeight={video.asset.height}
+                    companyName={companyName}
+                    logoUrl={companyLogoUrl}
+                    captionText={video.topic}
+                  />
+                )}
               </li>
             ))}
           </ul>

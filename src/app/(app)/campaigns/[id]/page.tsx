@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
+import { storage } from "@/lib/storage";
 import { buildCalendarWeeks, dateKey, formatDayNumber } from "@/lib/campaign-calendar";
 import { processCampaignNow } from "@/lib/actions/campaign";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -26,7 +27,7 @@ export default async function CampaignDetailPage({
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [campaign, connectedAccounts, aggregatorCredential] = await Promise.all([
+  const [campaign, connectedAccounts, aggregatorCredential, brandKit] = await Promise.all([
     db.campaign.findFirst({
       where: { id, companyId: company.id },
       include: {
@@ -49,10 +50,15 @@ export default async function CampaignDetailPage({
           where: { companyId_provider: { companyId: company.id, provider: company.selectedAggregator } },
         })
       : null,
+    db.brandKit.findUnique({ where: { companyId: company.id }, include: { logoAsset: true } }),
   ]);
   if (!campaign) {
     notFound();
   }
+
+  // Real logo when set, so the social previewer's mockup avatar matches
+  // the company's actual Brand Kit instead of a generic placeholder.
+  const companyLogoUrl = brandKit?.logoAsset ? storage.url(brandKit.logoAsset.storageKey) : null;
 
   const retentionDays = Number.parseInt(process.env.MEDIA_RETENTION_DAYS ?? "", 10) || 30;
   const aggregatorProviderName = aggregatorCredential
@@ -115,6 +121,8 @@ export default async function CampaignDetailPage({
                     aggregatorConfigured={!!aggregatorCredential}
                     aggregatorProviderName={aggregatorProviderName}
                     retentionDays={retentionDays}
+                    companyName={company.name}
+                    companyLogoUrl={companyLogoUrl}
                   />
                 ))}
               </div>

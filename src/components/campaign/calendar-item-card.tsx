@@ -11,6 +11,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { DownloadCopyButton } from "./download-copy-button";
 import { VideoEditModal } from "./video-edit-modal";
+import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { ActionIcons, NavIcons } from "@/components/icons";
 import type { CampaignAssetType, CampaignItemStatus, SocialPlatform } from "@prisma/client";
 
@@ -50,6 +51,8 @@ interface CalendarItemCardProps {
   aggregatorConfigured: boolean;
   aggregatorProviderName: string | null;
   retentionDays: number;
+  companyName: string;
+  companyLogoUrl: string | null;
 }
 
 // Server component — the "Manage" disclosure is a native <details>
@@ -65,6 +68,8 @@ export async function CalendarItemCard({
   aggregatorConfigured,
   aggregatorProviderName,
   retentionDays,
+  companyName,
+  companyLogoUrl,
 }: CalendarItemCardProps) {
   const dict = getDictionary(await getLocale());
   const pubDict = dict.publishing;
@@ -171,6 +176,19 @@ export async function CalendarItemCard({
 
           {fileAvailable && (
             <DownloadCopyButton itemId={item.id} captionText={item.captionText} hashtags={item.hashtags} />
+          )}
+
+          {fileAvailable && mediaAsset && mediaAsset.width && mediaAsset.height && (
+            <SocialPreviewModal
+              mediaUrl={storage.url(mediaAsset.storageKey)}
+              mediaType={item.assetType === "VIDEO" ? "video" : "image"}
+              mediaWidth={mediaAsset.width}
+              mediaHeight={mediaAsset.height}
+              companyName={companyName}
+              logoUrl={companyLogoUrl}
+              captionText={item.captionText}
+              hashtags={item.hashtags}
+            />
           )}
 
           {fileAvailable && item.assetType === "VIDEO" && item.video?.asset && (
