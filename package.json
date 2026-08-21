@@ -57,5 +57,10 @@
     "prisma@6.19.3": true,
     "unrs-resolver@1.12.2": true,
     "sharp@0.35.3": true
+  },
+  "overrides": {
+    "smartcrop-sharp": {
+      "sharp": "$sharp"
+    }
   }
 }
