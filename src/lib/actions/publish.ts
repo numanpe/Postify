@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
 import { triggerPublishProcessing } from "@/lib/jobs/trigger";
+import { suggestPeakPublishTime, formatForDatetimeLocalInput } from "@/lib/scheduling/smart-scheduler";
 
 export type CreatePublishJobState = { error: string } | undefined;
 
@@ -130,4 +131,27 @@ export async function processPublishJobsNow(): Promise<void> {
   await requireCompany();
   await processPublishJobs(20);
   revalidatePath("/publish");
+}
+
+export interface SuggestedScheduleResult {
+  value: string; // ready to assign straight to a datetime-local input
+  source: "learned" | "default";
+  sampleSize?: number;
+}
+
+// Called directly from CreatePublishJobForm's "Auto-Schedule Peak
+// Time" button (a plain async server function, not a form action —
+// valid to call straight from a client component's onClick). Task 5's
+// smart scheduler: the company's own real measured peak engagement
+// hour once there's enough evidence for it, otherwise the UAE/GCC
+// default (12-2pm / 7-9pm GST) — see smart-scheduler.ts for the real
+// statistical-caution threshold.
+export async function suggestPublishTime(): Promise<SuggestedScheduleResult> {
+  const { company } = await requireCompany();
+  const suggestion = await suggestPeakPublishTime(company.id);
+  return {
+    value: formatForDatetimeLocalInput(suggestion.scheduledFor),
+    source: suggestion.source,
+    sampleSize: suggestion.sampleSize,
+  };
 }

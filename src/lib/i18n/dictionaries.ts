@@ -83,6 +83,8 @@ export interface Dictionary {
     connectedAccounts: string; connectButton: string; noAccounts: string;
     reconnectNeeded: string; disconnect: string; publishTo: string; poster: string;
     caption: string; when: string; whenHint: string; queuePost: string; queuing: string;
+    autoSchedule: string; autoScheduling: string;
+    autoScheduleAppliedDefault: string; autoScheduleAppliedLearned: (sampleSize: number) => string;
     history: string; posterRemoved: string; scheduledFor: string; attempted: string;
     viewPost: string; platformFacebook: string; platformInstagram: string;
   };
@@ -327,6 +329,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       caption: "Caption",
       when: "When",
       whenHint: "(leave blank to publish now)",
+      autoSchedule: "Auto-Schedule Peak Time",
+      autoScheduling: "Finding the best time…",
+      autoScheduleAppliedDefault: "Set to a typical GCC peak-engagement hour — you don't have enough measured posts yet for a personalized time.",
+      autoScheduleAppliedLearned: (sampleSize: number) =>
+        `Set to your company's own real peak engagement hour, based on ${sampleSize} measured posts.`,
       queuePost: "Queue post",
       queuing: "Queuing…",
       history: "Publish history",
@@ -684,6 +691,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       caption: "التسمية التوضيحية",
       when: "الموعد",
       whenHint: "(اتركه فارغًا للنشر الآن)",
+      autoSchedule: "جدولة تلقائية لوقت الذروة",
+      autoScheduling: "جارٍ إيجاد أفضل وقت…",
+      autoScheduleAppliedDefault: "تم الضبط على ساعة ذروة تفاعل نموذجية لمنطقة الخليج — لا تملك بعد عددًا كافيًا من المنشورات المقاسة لوقت مخصص.",
+      autoScheduleAppliedLearned: (sampleSize: number) =>
+        `تم الضبط على ساعة الذروة الحقيقية لشركتك، بناءً على ${sampleSize} منشورًا تم قياسه.`,
       queuePost: "جدولة المنشور",
       queuing: "جارٍ الجدولة…",
       history: "سجل النشر",

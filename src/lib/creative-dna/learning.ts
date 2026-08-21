@@ -19,8 +19,19 @@ export interface TopicScore {
   updatedAt: string;
 }
 
+// peakPublishHours is written by smart-scheduler.ts (src/lib/scheduling/),
+// not this file — declared here anyway since both share the one
+// confidenceScores JSON column and need to agree on its shape.
+export interface PeakPublishHour {
+  hourGst: number; // 0-23, Gulf Standard Time (UTC+4)
+  sampleSize: number;
+  confidenceTier: "low" | "medium" | "high";
+  updatedAt: string;
+}
+
 export interface CreativeDnaConfidenceScores {
   topics: Record<string, TopicScore>;
+  peakPublishHours?: PeakPublishHour;
 }
 
 function confidenceTierFor(sampleSize: number): "low" | "medium" | "high" {
@@ -82,7 +93,13 @@ export async function updateCreativeDnaLearning(companyId: string): Promise<void
     };
   }
 
-  const scores: CreativeDnaConfidenceScores = { topics };
+  // confidenceScores is one JSON column shared with smart-scheduler.ts's
+  // peakPublishHours key — read-merge-write, not a blind overwrite, or
+  // whichever of the two writers runs second would silently erase the
+  // other's real learned data on every cron pass.
+  const existing = await db.creativeDna.findUnique({ where: { companyId }, select: { confidenceScores: true } });
+  const existingScores = (existing?.confidenceScores ?? {}) as Partial<CreativeDnaConfidenceScores>;
+  const scores: CreativeDnaConfidenceScores = { ...existingScores, topics };
   // Prisma's Json input type needs a plain indexable object — the named
   // interface is for callers reading this back (creative-dna-insights.tsx),
   // not for what Prisma accepts on write.

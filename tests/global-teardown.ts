@@ -8,8 +8,11 @@ const STORAGE_ROOT = path.join(process.cwd(), "storage", "local");
 
 async function cleanCompany(companyId: string, userId: string) {
   const db = new PrismaClient();
+  await db.publishJob.deleteMany({ where: { companyId } });
+  await db.creativeDna.deleteMany({ where: { companyId } });
   await db.poster.deleteMany({ where: { companyId } });
   await db.mediaAsset.deleteMany({ where: { companyId } });
+  await db.socialAccount.deleteMany({ where: { companyId } });
   await db.companyMember.deleteMany({ where: { companyId } });
   await db.company.delete({ where: { id: companyId } }).catch(() => {});
   await db.user.delete({ where: { id: userId } }).catch(() => {});

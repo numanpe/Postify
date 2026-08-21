@@ -39,8 +39,11 @@ async function seedCompany(email: string, password: string, locale: "EN" | "AR")
   const stale = await db.user.findUnique({ where: { email }, include: { memberships: true } });
   if (stale) {
     for (const membership of stale.memberships) {
+      await db.publishJob.deleteMany({ where: { companyId: membership.companyId } });
+      await db.creativeDna.deleteMany({ where: { companyId: membership.companyId } });
       await db.poster.deleteMany({ where: { companyId: membership.companyId } });
       await db.mediaAsset.deleteMany({ where: { companyId: membership.companyId } });
+      await db.socialAccount.deleteMany({ where: { companyId: membership.companyId } });
       await db.companyMember.deleteMany({ where: { companyId: membership.companyId } });
       await db.company.delete({ where: { id: membership.companyId } }).catch(() => {});
       await fs.rm(path.join(STORAGE_ROOT, membership.companyId), { recursive: true, force: true });
@@ -81,6 +84,20 @@ async function seedCompany(email: string, password: string, locale: "EN" | "AR")
       headline: locale === "AR" ? "تسوق مجموعتنا الجديدة اليوم." : "Shop our new collection today.",
       aspectRatio: "STORY",
       backgroundSource: "BRAND",
+    },
+  });
+
+  // So /publish actually renders CreatePublishJobForm (it needs both a
+  // poster and a connected account — see publish/page.tsx) instead of
+  // the "connect an account first" empty state.
+  await db.socialAccount.create({
+    data: {
+      companyId: company.id,
+      platform: "FACEBOOK",
+      externalAccountId: "e2e-test-page",
+      displayName: "E2E Test Page",
+      encryptedToken: "e2e-not-a-real-token",
+      tokenExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 60),
     },
   });
 

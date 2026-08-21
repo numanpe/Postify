@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
-import { createPublishJob } from "@/lib/actions/publish";
+import { createPublishJob, suggestPublishTime } from "@/lib/actions/publish";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 
@@ -28,6 +28,9 @@ export function CreatePublishJobForm({
 }) {
   const [state, action, pending] = useActionState(createPublishJob, undefined);
   const [selectedPosterId, setSelectedPosterId] = useState(posters[0]?.id ?? "");
+  const [autoScheduling, setAutoScheduling] = useState(false);
+  const [autoScheduleNote, setAutoScheduleNote] = useState<string | null>(null);
+  const scheduledForRef = useRef<HTMLInputElement>(null);
   const dict = useDict().publish;
   const platformLabels: Record<string, string> = {
     FACEBOOK: dict.platformFacebook,
@@ -99,12 +102,38 @@ export function CreatePublishJobForm({
         <label htmlFor="scheduledFor" className="text-sm font-medium">
           {dict.when} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{dict.whenHint}</span>
         </label>
-        <input
-          id="scheduledFor"
-          name="scheduledFor"
-          type="datetime-local"
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
-        />
+        <div className="flex gap-2">
+          <input
+            ref={scheduledForRef}
+            id="scheduledFor"
+            name="scheduledFor"
+            type="datetime-local"
+            className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+          />
+          <button
+            type="button"
+            disabled={autoScheduling}
+            onClick={async () => {
+              setAutoScheduling(true);
+              setAutoScheduleNote(null);
+              try {
+                const suggestion = await suggestPublishTime();
+                if (scheduledForRef.current) scheduledForRef.current.value = suggestion.value;
+                setAutoScheduleNote(
+                  suggestion.source === "learned" && suggestion.sampleSize
+                    ? dict.autoScheduleAppliedLearned(suggestion.sampleSize)
+                    : dict.autoScheduleAppliedDefault,
+                );
+              } finally {
+                setAutoScheduling(false);
+              }
+            }}
+            className="shrink-0 rounded-md border border-paper-border dark:border-night-border px-3 py-2 text-sm font-medium hover:bg-paper-card dark:hover:bg-night-card disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {autoScheduling ? dict.autoScheduling : dict.autoSchedule}
+          </button>
+        </div>
+        {autoScheduleNote && <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{autoScheduleNote}</p>}
       </div>
 
       {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}

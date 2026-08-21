@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getSocialProvider } from "@/lib/providers/social/resolver";
 import { updateCreativeDnaLearning } from "@/lib/creative-dna/learning";
+import { computePeakPublishHour } from "@/lib/scheduling/smart-scheduler";
 
 export interface PullEngagementResult {
   pulledCount: number;
@@ -60,6 +61,7 @@ export async function pullEngagementData(): Promise<PullEngagementResult> {
   const companyIds = [...new Set(jobs.map((job) => job.companyId))];
   for (const companyId of companyIds) {
     await updateCreativeDnaLearning(companyId);
+    await computePeakPublishHour(companyId);
   }
 
   return { pulledCount, skippedCount };
