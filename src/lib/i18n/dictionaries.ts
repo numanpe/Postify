@@ -60,6 +60,9 @@ export interface Dictionary {
     formatLandscape: string; narration: string; narrationHint: string; footage: string;
     footageHint: string; noFootage: string; kindVideo: string; kindPhoto: string;
     generatedSuccess: string; generate: string; generating: string;
+    motionTemplate: string; motionTemplateStandard: string; motionTemplateStandardHint: string;
+    motionTemplateLowerThird: string; motionTemplateLowerThirdHint: string;
+    motionTemplateWaveform: string; motionTemplateWaveformHint: string;
     editVideo: string; editVideoTrimStart: string; editVideoTrimEnd: string;
     editVideoOverlayText: string; editVideoOverlayPlaceholder: string;
     editVideoSave: string; editVideoSaving: string; editVideoSaved: string; editVideoCancel: string;
@@ -258,6 +261,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "Video generated — see it below.",
       generate: "Generate video",
       generating: "Generating… this can take a minute",
+      motionTemplate: "Motion style",
+      motionTemplateStandard: "Standard",
+      motionTemplateStandardHint: "Scenes, captions, and your logo — no extra motion graphics.",
+      motionTemplateLowerThird: "Lower-Third Promo",
+      motionTemplateLowerThirdHint: "An animated banner slides in during the opening hook and the call to action.",
+      motionTemplateWaveform: "Audio Waveform",
+      motionTemplateWaveformHint: "A live waveform band reacts to the narration and music above the captions.",
       editVideo: "Edit Video",
       editVideoTrimStart: "Trim start",
       editVideoTrimEnd: "Trim end",
@@ -593,6 +603,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "تم إنشاء الفيديو — شاهده أدناه.",
       generate: "إنشاء الفيديو",
       generating: "جارٍ الإنشاء… قد يستغرق ذلك دقيقة",
+      motionTemplate: "أسلوب الحركة",
+      motionTemplateStandard: "قياسي",
+      motionTemplateStandardHint: "مشاهد وترجمة وشعارك — دون رسوميات حركية إضافية.",
+      motionTemplateLowerThird: "شريط ترويجي سفلي",
+      motionTemplateLowerThirdHint: "شريط متحرك ينزلق خلال الافتتاحية ودعوة اتخاذ الإجراء.",
+      motionTemplateWaveform: "موجة صوتية",
+      motionTemplateWaveformHint: "شريط موجة صوتية حي يتفاعل مع التعليق الصوتي والموسيقى فوق الترجمة.",
       editVideo: "تعديل الفيديو",
       editVideoTrimStart: "بداية القص",
       editVideoTrimEnd: "نهاية القص",

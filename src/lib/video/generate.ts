@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AspectRatio } from "@prisma/client";
+import type { AspectRatio, VideoTemplate } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getCompanyContext } from "@/lib/company-context";
@@ -34,6 +34,10 @@ export interface GenerateVideoCoreInput {
   // instead, the same "real media first" default the Poster Studio
   // already uses. This function doesn't pick defaults itself.
   assetIds?: string[];
+  // Defaults to STANDARD (the plain scenes+captions+logo pipeline) —
+  // the campaign job processor doesn't pass one, so a batch-generated
+  // week of content isn't unexpectedly opinionated about motion style.
+  template?: VideoTemplate;
 }
 
 export interface GenerateVideoCoreResult {
@@ -60,6 +64,7 @@ interface SceneProvenance {
 export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<GenerateVideoCoreResult> {
   const { companyId, userId, topic, aspectRatio, useNarration } = input;
   const assetIds = input.assetIds ?? [];
+  const template: VideoTemplate = input.template ?? "STANDARD";
 
   const context = await getCompanyContext(companyId);
 
@@ -201,6 +206,9 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     totalDurationSec,
     script,
     companyLocale: context.locale,
+    template,
+    companyName: context.name,
+    brandAccentColor: brandKit?.accentColor,
   });
 
   if (!rendered.qualityGate.passed) {
@@ -245,6 +253,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       topic,
       script: { ...script },
       aspectRatio,
+      template,
       hasNarration,
       scenes: {
         create: sceneProvenance.map((scene) => ({

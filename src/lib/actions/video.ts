@@ -15,6 +15,14 @@ const VideoSchema = z.object({
   aspectRatio: z.enum(["SQUARE", "STORY", "LANDSCAPE"]),
   useNarration: z.preprocess((value) => value === "on" || value === "true", z.boolean()),
   assetIds: z.array(z.string()).default([]),
+  // nullish, not just an unset-default — FormData.get() returns null
+  // (not undefined) for a field that isn't submitted at all, which
+  // z's plain .default() doesn't catch (see brand-kit.ts's identical
+  // fix for the same FormData/zod gotcha).
+  template: z
+    .enum(["STANDARD", "LOWER_THIRD_PROMO", "WAVEFORM_CAPTIONS"])
+    .nullish()
+    .transform((value) => value ?? "STANDARD"),
 });
 
 export async function generateVideo(
@@ -28,6 +36,7 @@ export async function generateVideo(
     aspectRatio: formData.get("aspectRatio"),
     useNarration: formData.get("useNarration"),
     assetIds: formData.getAll("assetIds"),
+    template: formData.get("template"),
   });
   if (!parsed.success) {
     return { status: "error", error: parsed.error.issues[0]?.message ?? "Invalid input." };

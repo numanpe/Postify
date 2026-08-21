@@ -363,6 +363,18 @@ enum SceneKind {
   // not built here.
 }
 
+// Motion presets for the FFmpeg render pipeline (src/lib/video/render.ts)
+// — real keyframed ffmpeg overlay filters, evaluated against Remotion
+// first and rejected on licensing grounds (see the Task 2 evaluation:
+// Remotion's free tier requires a ≤3-employee for-profit org, which
+// isn't verifiable for this company). STANDARD is the existing
+// scenes+captions+logo pipeline, unchanged.
+enum VideoTemplate {
+  STANDARD
+  LOWER_THIRD_PROMO // slide-in/out banner during the hook and CTA sections
+  WAVEFORM_CAPTIONS // real audio-reactive waveform band (ffmpeg showwaves) above the captions
+}
+
 // A rendered video. Like Poster, the actual output (`asset`) is a real
 // MP4 produced by src/lib/video/ — no placeholder is ever saved here.
 // `script` is the structured hook/context/value/message/CTA sections
@@ -379,6 +391,7 @@ model Video {
   topic        String
   script       Json
   aspectRatio  AspectRatio
+  template     VideoTemplate @default(STANDARD)
   // BYOK only (OpenAI TTS + Whisper word timestamps) — the free tier
   // ships without spoken narration. See README.md for why.
   hasNarration Boolean

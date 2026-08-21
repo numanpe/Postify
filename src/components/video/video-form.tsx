@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { generateVideo } from "@/lib/actions/video";
@@ -24,6 +24,13 @@ export function VideoForm({
   const [state, action, pending] = useActionState(generateVideo, undefined);
   const dict = useDict().video;
   const router = useRouter();
+  const [template, setTemplate] = useState<"STANDARD" | "LOWER_THIRD_PROMO" | "WAVEFORM_CAPTIONS">("STANDARD");
+  const templateHint =
+    template === "LOWER_THIRD_PROMO"
+      ? dict.motionTemplateLowerThirdHint
+      : template === "WAVEFORM_CAPTIONS"
+        ? dict.motionTemplateWaveformHint
+        : dict.motionTemplateStandardHint;
 
   // See poster-form.tsx's identical effect — client-side refresh
   // instead of the server calling revalidatePath.
@@ -69,6 +76,24 @@ export function VideoForm({
         {dict.narration}
         {!narrationAvailable && <span className="text-ink-soft dark:text-ink-soft-dark">{dict.narrationHint}</span>}
       </label>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="template" className="text-sm font-medium">
+          {dict.motionTemplate}
+        </label>
+        <select
+          id="template"
+          name="template"
+          value={template}
+          onChange={(e) => setTemplate(e.target.value as typeof template)}
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+        >
+          <option value="STANDARD">{dict.motionTemplateStandard}</option>
+          <option value="LOWER_THIRD_PROMO">{dict.motionTemplateLowerThird}</option>
+          <option value="WAVEFORM_CAPTIONS">{dict.motionTemplateWaveform}</option>
+        </select>
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{templateHint}</p>
+      </div>
 
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">
