@@ -17,9 +17,16 @@ interface MediaAssetOption {
 export function VideoForm({
   assets,
   narrationAvailable,
+  defaultTopic,
+  onSuccess,
 }: {
   assets: MediaAssetOption[];
   narrationAvailable: boolean;
+  // Carried over from the Step 1 wizard's chosen caption (studio/page.tsx).
+  defaultTopic?: string;
+  // Wizard Step 2 (wizard-step2.tsx) needs the new video's id to
+  // advance to Step 3 — see poster-form.tsx's identical addition.
+  onSuccess?: (videoId: string) => void;
 }) {
   const [state, action, pending] = useActionState(generateVideo, undefined);
   const dict = useDict().video;
@@ -37,7 +44,9 @@ export function VideoForm({
   useEffect(() => {
     if (state?.status === "success") {
       router.refresh();
+      onSuccess?.(state.videoId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSuccess is a fresh closure each render; only re-run when state/router actually change
   }, [state, router]);
 
   return (
@@ -50,6 +59,7 @@ export function VideoForm({
           id="topic"
           name="topic"
           required
+          defaultValue={defaultTopic}
           placeholder={dict.topicPlaceholder}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />

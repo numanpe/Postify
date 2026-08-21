@@ -12,27 +12,25 @@ import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-shee
 
 // Replaces AppNav's old hamburger+dropdown below md: (768px) — a real
 // fixed bottom nav instead of a top-corner menu toggle, since that's
-// the reachable-by-thumb pattern real mobile apps use. Only the 4 most
-// central destinations get a permanent slot (5 items is the practical
-// ceiling for a thumb-width row before targets get too cramped); the
-// rest live behind "More", which reuses the same BottomSheet primitive
-// the two content modals use rather than a second, different overflow
-// pattern.
+// the reachable-by-thumb pattern real mobile apps use. Same primary/
+// overflow split as AppNav's desktop row (app-nav.tsx) — one nav
+// model across breakpoints, not two different curations of what's
+// "primary."
 export function BottomNav() {
   const dict = useDict();
   const pathname = usePathname();
   const moreSheetRef = useRef<BottomSheetHandle>(null);
 
   const primary = [
-    { href: "/studio/captions", label: dict.nav.studio, icon: NavIcons.studio },
+    { href: "/studio", label: dict.nav.createContent, icon: NavIcons.studio },
     { href: "/campaigns", label: dict.nav.campaigns, icon: NavIcons.campaigns },
-    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
-    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
-  ];
-  const overflow = [
-    { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
     { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
     { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
+  ];
+  const overflow = [
+    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
+    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
+    { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
   ];
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);

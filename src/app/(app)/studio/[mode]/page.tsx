@@ -124,7 +124,7 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
         <div className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.poster.previousPosters}</h2>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {posters.map((poster) => (
+            {posters.map((poster, index) => (
               <li
                 key={poster.id}
                 className="flex flex-col gap-1 rounded-lg border border-paper-border dark:border-night-border p-2"
@@ -136,6 +136,11 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
                   height={poster.asset.height ?? 400}
                   className="w-full rounded-md object-cover"
                   unoptimized
+                  // Only the first (most recent) poster is realistically
+                  // above the fold — a real dev warning caught this grid
+                  // otherwise having no priority image at all, which
+                  // left Next guessing at the LCP candidate.
+                  priority={index === 0}
                 />
                 <p className="truncate text-xs font-medium" title={poster.headline}>
                   {poster.headline}

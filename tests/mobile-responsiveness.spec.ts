@@ -20,7 +20,7 @@ test.describe("EN / LTR", () => {
     // AppNav's desktop row is `hidden md:flex` — genuinely not in the
     // accessibility tree as visible at a mobile viewport, not just
     // visually hidden.
-    const desktopNav = page.locator("header nav").filter({ hasText: "Studio" });
+    const desktopNav = page.locator("header nav").filter({ hasText: "Create Content" });
     await expect(desktopNav).toBeHidden();
 
     const navLinks = bottomNav.locator("a, button");

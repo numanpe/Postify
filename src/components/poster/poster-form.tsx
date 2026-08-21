@@ -26,6 +26,8 @@ const TEMPLATE_IDS = [
 export function PosterForm({
   photoAssets,
   defaultBackgroundSource,
+  defaultHeadline,
+  onSuccess,
 }: {
   photoAssets: PhotoAsset[];
   // Computed server-side (see poster/page.tsx): PHOTO with the most
@@ -34,6 +36,15 @@ export function PosterForm({
   // photos beat a generic gradient by default, without removing the
   // choice to use the gradient or AI instead.
   defaultBackgroundSource: "BRAND" | "PHOTO";
+  // Carried over from the Step 1 wizard's chosen caption (studio/page.tsx)
+  // when arriving via "Next: Create Asset" — still just a starting
+  // point in a real, editable field, not a locked-in value.
+  defaultHeadline?: string;
+  // Wizard Step 2 (wizard-step2.tsx) needs the new poster's id to
+  // advance to Step 3 — this form still owns generation/success state
+  // internally, so it's a callback rather than the parent trying to
+  // reach into this component's state.
+  onSuccess?: (posterId: string) => void;
 }) {
   const [state, action, pending] = useActionState(generatePoster, undefined);
   const dict = useDict().poster;
@@ -47,7 +58,9 @@ export function PosterForm({
   useEffect(() => {
     if (state?.status === "success") {
       router.refresh();
+      onSuccess?.(state.posterId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSuccess is a fresh closure each render; only re-run when state/router actually change
   }, [state, router]);
 
   const templateNames: Record<(typeof TEMPLATE_IDS)[number], string> = {
@@ -80,6 +93,7 @@ export function PosterForm({
           name="headline"
           required
           maxLength={70}
+          defaultValue={defaultHeadline?.slice(0, 70)}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>

@@ -20,6 +20,7 @@ export interface Dictionary {
   nav: {
     studio: string; poster: string; video: string; campaigns: string; publish: string;
     media: string; brandKit: string; settings: string; signOut: string; repurpose: string; menu: string;
+    createContent: string;
   };
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
@@ -38,6 +39,19 @@ export interface Dictionary {
   studio: {
     title: string; subtitle: (name: string) => string; topicPlaceholder: string;
     generate: string; generating: string;
+  };
+  wizard: {
+    stepOf: (step: number) => string;
+    step1Title: string; step1Subtitle: (name: string) => string;
+    topicLabel: string; topicPlaceholder: string; autoGenerate: string;
+    generate: string; generating: string;
+    chooseHint: string; hashtagsLabel: string; nextCreateAsset: string;
+    step2Title: string; toggleStaticPoster: string; toggleMotionVideo: string; nextPreviewPublish: string;
+    step3Title: string; step3Subtitle: string;
+    autoScheduledLabel: string; autoScheduledLearned: (n: number) => string; autoScheduledDefault: string;
+    publishNow: string; scheduleCampaign: string; backToEdit: string;
+    startOver: string;
+    videoPublishUnavailable: string; downloadVideo: string;
   };
   poster: {
     title: string; subtitle: (name: string) => string; previousPosters: string;
@@ -164,6 +178,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       signOut: "Sign out",
       repurpose: "Repurpose",
       menu: "Menu",
+      createContent: "Create Content",
     },
     common: {
       save: "Save",
@@ -209,6 +224,35 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicPlaceholder: "What's this post about? e.g. our new spring menu",
       generate: "Generate",
       generating: "Generating…",
+    },
+    wizard: {
+      stepOf: (step: number) => `Step ${step} of 3`,
+      step1Title: "What are we posting about?",
+      step1Subtitle: (name: string) => `Start with a topic for ${name} — or let us suggest one.`,
+      topicLabel: "Topic",
+      topicPlaceholder: "What's this post about? e.g. our new spring menu",
+      autoGenerate: "Auto-Generate Daily Idea",
+      generate: "Generate",
+      generating: "Generating…",
+      chooseHint: "Pick the caption you like best — you can still edit it in the next step.",
+      hashtagsLabel: "Suggested hashtags",
+      nextCreateAsset: "Next: Create Asset",
+      step2Title: "Turn it into a poster or video",
+      toggleStaticPoster: "Static Poster",
+      toggleMotionVideo: "Motion Video",
+      nextPreviewPublish: "Next: Preview & Publish",
+      step3Title: "Preview & publish",
+      step3Subtitle: "See how this looks across platforms, then publish or schedule it.",
+      autoScheduledLabel: "Suggested time",
+      autoScheduledLearned: (n: number) => `Your own real peak engagement hour, based on ${n} measured posts.`,
+      autoScheduledDefault: "A typical GCC peak-engagement hour — not enough measured posts yet for a personalized time.",
+      publishNow: "Publish Now",
+      scheduleCampaign: "Schedule Campaign",
+      backToEdit: "Back to edit",
+      startOver: "Start over",
+      videoPublishUnavailable:
+        "Direct video publishing isn't available yet — only posters can be published or scheduled directly. Download the video below, or add it to a Campaign to publish it through the campaign pipeline.",
+      downloadVideo: "Download video",
     },
     poster: {
       title: "Poster Studio",
@@ -527,6 +571,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       signOut: "تسجيل الخروج",
       repurpose: "إعادة التوظيف",
       menu: "القائمة",
+      createContent: "إنشاء محتوى",
     },
     common: {
       save: "حفظ",
@@ -571,6 +616,35 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicPlaceholder: "عن ماذا هذا المنشور؟ مثال: قائمة طعامنا الجديدة لفصل الربيع",
       generate: "إنشاء",
       generating: "جارٍ الإنشاء…",
+    },
+    wizard: {
+      stepOf: (step: number) => `الخطوة ${step} من 3`,
+      step1Title: "عمّ سننشر؟",
+      step1Subtitle: (name: string) => `ابدأ بموضوع لـ${name} — أو دعنا نقترح واحدًا.`,
+      topicLabel: "الموضوع",
+      topicPlaceholder: "عن ماذا هذا المنشور؟ مثال: قائمة طعامنا الجديدة لفصل الربيع",
+      autoGenerate: "اقترح فكرة اليوم تلقائيًا",
+      generate: "إنشاء",
+      generating: "جارٍ الإنشاء…",
+      chooseHint: "اختر التسمية التوضيحية التي تفضلها — يمكنك تعديلها في الخطوة التالية.",
+      hashtagsLabel: "وسوم مقترحة",
+      nextCreateAsset: "التالي: إنشاء المحتوى",
+      step2Title: "حوّله إلى ملصق أو فيديو",
+      toggleStaticPoster: "ملصق ثابت",
+      toggleMotionVideo: "فيديو متحرك",
+      nextPreviewPublish: "التالي: معاينة ونشر",
+      step3Title: "معاينة ونشر",
+      step3Subtitle: "شاهد كيف يبدو هذا عبر المنصات، ثم انشره أو جدوله.",
+      autoScheduledLabel: "الوقت المقترح",
+      autoScheduledLearned: (n: number) => `ساعة ذروة تفاعلك الحقيقية، بناءً على ${n} منشورًا تم قياسه.`,
+      autoScheduledDefault: "ساعة ذروة تفاعل نموذجية لمنطقة الخليج — لا يوجد بعد عدد كافٍ من المنشورات المقاسة لوقت مخصص.",
+      publishNow: "انشر الآن",
+      scheduleCampaign: "جدولة الحملة",
+      backToEdit: "العودة للتعديل",
+      startOver: "البدء من جديد",
+      videoPublishUnavailable:
+        "النشر المباشر للفيديو غير متاح بعد — يمكن نشر أو جدولة الملصقات فقط بشكل مباشر. نزّل الفيديو أدناه، أو أضفه إلى حملة لنشره عبر مسار الحملات.",
+      downloadVideo: "تنزيل الفيديو",
     },
     poster: {
       title: "استوديو الملصقات",
