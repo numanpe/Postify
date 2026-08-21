@@ -11,6 +11,7 @@ interface JobRow {
   externalPostUrl: string | null;
   socialAccount: { platform: string; displayName: string };
   poster: { headline: string } | null;
+  video: { topic: string } | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -29,6 +30,8 @@ export async function PublishJobList({ jobs }: { jobs: JobRow[] }) {
   const platformLabels: Record<string, string> = {
     FACEBOOK: dict.publish.platformFacebook,
     INSTAGRAM: dict.publish.platformInstagram,
+    LINKEDIN: dict.publish.platformLinkedIn,
+    TIKTOK: dict.publish.platformTikTok,
   };
   const statusLabels: Record<string, string> = dict.status;
 
@@ -51,7 +54,7 @@ export async function PublishJobList({ jobs }: { jobs: JobRow[] }) {
               </span>
             </div>
             <p className="truncate text-ink-soft dark:text-ink-soft-dark" title={job.caption}>
-              {job.poster?.headline ?? dict.publish.posterRemoved} — {job.caption}
+              {job.poster?.headline ?? job.video?.topic ?? dict.publish.posterRemoved} — {job.caption}
             </p>
             {job.scheduledFor && (
               <p className="text-xs text-ink-soft dark:text-ink-soft-dark">

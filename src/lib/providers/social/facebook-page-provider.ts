@@ -18,6 +18,10 @@ export class FacebookPageProvider implements SocialProvider {
   ) {}
 
   async publishPost(input: PublishPostInput): Promise<PublishPostOutput> {
+    if (!input.imageBuffer || !input.imageMimeType) {
+      throw new SocialProviderError("facebook", "Facebook publishing requires an image, which was not provided.");
+    }
+
     const form = new FormData();
     form.set("caption", input.caption);
     form.set("access_token", this.pageAccessToken);

@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 
 import { createPublishJob, suggestPublishTime } from "@/lib/actions/publish";
+import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 
@@ -19,15 +20,24 @@ interface PosterOption {
   cta: string | null;
 }
 
+interface VideoOption {
+  id: string;
+  topic: string;
+}
+
 export function CreatePublishJobForm({
   accounts,
   posters,
+  videos = [],
 }: {
   accounts: SocialAccountOption[];
   posters: PosterOption[];
+  videos?: VideoOption[];
 }) {
   const [state, action, pending] = useActionState(createPublishJob, undefined);
+  const [selectedAccountId, setSelectedAccountId] = useState(accounts[0]?.id ?? "");
   const [selectedPosterId, setSelectedPosterId] = useState(posters[0]?.id ?? "");
+  const [selectedVideoId, setSelectedVideoId] = useState(videos[0]?.id ?? "");
   const [autoScheduling, setAutoScheduling] = useState(false);
   const [autoScheduleNote, setAutoScheduleNote] = useState<string | null>(null);
   const scheduledForRef = useRef<HTMLInputElement>(null);
@@ -35,12 +45,20 @@ export function CreatePublishJobForm({
   const platformLabels: Record<string, string> = {
     FACEBOOK: dict.platformFacebook,
     INSTAGRAM: dict.platformInstagram,
+    LINKEDIN: dict.platformLinkedIn,
+    TIKTOK: dict.platformTikTok,
   };
 
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
+  const needsVideo = selectedAccount ? isVideoOnlyPlatform(selectedAccount.platform) : false;
+
   const selectedPoster = posters.find((poster) => poster.id === selectedPosterId);
-  const suggestedCaption = selectedPoster
-    ? [selectedPoster.headline, selectedPoster.subhead, selectedPoster.cta].filter(Boolean).join("\n\n")
-    : "";
+  const selectedVideo = videos.find((video) => video.id === selectedVideoId);
+  const suggestedCaption = needsVideo
+    ? (selectedVideo?.topic ?? "")
+    : selectedPoster
+      ? [selectedPoster.headline, selectedPoster.subhead, selectedPoster.cta].filter(Boolean).join("\n\n")
+      : "";
 
   return (
     <form action={action} className="flex w-full max-w-md flex-col gap-4">
@@ -52,6 +70,8 @@ export function CreatePublishJobForm({
           id="socialAccountId"
           name="socialAccountId"
           required
+          value={selectedAccountId}
+          onChange={(event) => setSelectedAccountId(event.target.value)}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         >
           {accounts.map((account) => (
@@ -62,25 +82,50 @@ export function CreatePublishJobForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="posterId" className="text-sm font-medium">
-          {dict.poster}
-        </label>
-        <select
-          id="posterId"
-          name="posterId"
-          required
-          value={selectedPosterId}
-          onChange={(event) => setSelectedPosterId(event.target.value)}
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
-        >
-          {posters.map((poster) => (
-            <option key={poster.id} value={poster.id}>
-              {poster.headline}
-            </option>
-          ))}
-        </select>
-      </div>
+      {needsVideo ? (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="videoId" className="text-sm font-medium">
+            {dict.video}
+          </label>
+          <select
+            id="videoId"
+            name="videoId"
+            required
+            value={selectedVideoId}
+            onChange={(event) => setSelectedVideoId(event.target.value)}
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+          >
+            {videos.map((video) => (
+              <option key={video.id} value={video.id}>
+                {video.topic}
+              </option>
+            ))}
+          </select>
+          {videos.length === 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">{dict.noVideosYet}</p>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="posterId" className="text-sm font-medium">
+            {dict.poster}
+          </label>
+          <select
+            id="posterId"
+            name="posterId"
+            required
+            value={selectedPosterId}
+            onChange={(event) => setSelectedPosterId(event.target.value)}
+            className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+          >
+            {posters.map((poster) => (
+              <option key={poster.id} value={poster.id}>
+                {poster.headline}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label htmlFor="caption" className="text-sm font-medium">
@@ -89,7 +134,7 @@ export function CreatePublishJobForm({
         <textarea
           id="caption"
           name="caption"
-          key={selectedPosterId}
+          key={needsVideo ? selectedVideoId : selectedPosterId}
           required
           rows={4}
           maxLength={2200}

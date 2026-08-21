@@ -7,18 +7,18 @@ import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { suggestPeakPublishTime } from "@/lib/scheduling/smart-scheduler";
+import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
 import { SocialMediaPreviewer } from "@/components/social-preview/social-media-previewer";
 import { CreatePublishJobForm } from "@/components/publish/create-publish-job-form";
 
 // Step 3 of the guided wizard. Real preview (the same SocialMediaPreviewer
 // used everywhere else), a real suggested time from Task 5's smart
-// scheduler, and a real publish path for posters — reusing
-// CreatePublishJobForm exactly as /publish does, not a second
-// duplicate publish implementation. Videos honestly don't have a
-// direct-publish path in this app yet (PublishJob only has a
-// posterId field — videos currently only publish through the Campaign
-// pipeline), so that case gets a real, disclosed limitation instead of
-// a button that would silently do nothing.
+// scheduler, and a real publish path — reusing CreatePublishJobForm
+// exactly as /publish does, not a second duplicate publish
+// implementation. Video publishing only works through a connected
+// video-only account (TikTok's real Content Posting API — see
+// platform-status.ts); if the company hasn't connected one, that's a
+// real, disclosed limitation rather than a button that silently fails.
 export default async function StudioWizardStep3Page({
   searchParams,
 }: {
@@ -48,6 +48,11 @@ export default async function StudioWizardStep3Page({
     const poster = await db.poster.findFirst({ where: { id, companyId: company.id }, include: { asset: true } });
     if (!poster) notFound();
 
+    // TikTok is video-only (see platform-status.ts) — offering it here
+    // would just fail the publish attempt, so it's filtered out of the
+    // account list for a poster.
+    const posterAccounts = connectedAccounts.filter((account) => !isVideoOnlyPlatform(account.platform));
+
     return (
       <div className="flex w-full max-w-lg flex-col gap-6">
         <StepHeader title={dict.wizard.step3Title} backLabel={dict.wizard.backToEdit} />
@@ -68,9 +73,9 @@ export default async function StudioWizardStep3Page({
           {suggestionLabel}
         </div>
 
-        {connectedAccounts.length > 0 ? (
+        {posterAccounts.length > 0 ? (
           <CreatePublishJobForm
-            accounts={connectedAccounts}
+            accounts={posterAccounts}
             posters={[{ id: poster.id, headline: poster.headline, subhead: poster.subhead, cta: poster.cta }]}
           />
         ) : (
@@ -88,6 +93,11 @@ export default async function StudioWizardStep3Page({
   const video = await db.video.findFirst({ where: { id, companyId: company.id }, include: { asset: true } });
   if (!video) notFound();
 
+  // Only a video-only-capable connected account (TikTok's real Content
+  // Posting API) can actually take this video — Facebook/Instagram/
+  // LinkedIn's adapters here have no video path.
+  const videoAccounts = connectedAccounts.filter((account) => isVideoOnlyPlatform(account.platform));
+
   return (
     <div className="flex w-full max-w-lg flex-col gap-6">
       <StepHeader title={dict.wizard.step3Title} backLabel={dict.wizard.backToEdit} />
@@ -103,9 +113,22 @@ export default async function StudioWizardStep3Page({
         />
       )}
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-        {dict.wizard.videoPublishUnavailable}
+      <div className="rounded-md border border-paper-border p-3 text-xs text-ink-soft dark:border-night-border dark:text-ink-soft-dark">
+        <span className="font-medium text-ink dark:text-ink-dark">{dict.wizard.autoScheduledLabel}: </span>
+        {suggestionLabel}
       </div>
+
+      {videoAccounts.length > 0 ? (
+        <CreatePublishJobForm
+          accounts={videoAccounts}
+          posters={[]}
+          videos={[{ id: video.id, topic: video.topic }]}
+        />
+      ) : (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          {dict.wizard.videoPublishUnavailable}
+        </div>
+      )}
       <a
         href={storage.url(video.asset.storageKey)}
         download

@@ -8,19 +8,27 @@ import { requireCompany } from "@/lib/session";
 import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
 import { triggerPublishProcessing } from "@/lib/jobs/trigger";
 import { suggestPeakPublishTime, formatForDatetimeLocalInput } from "@/lib/scheduling/smart-scheduler";
+import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
 
 export type CreatePublishJobState = { error: string } | undefined;
 
-const CreatePublishJobSchema = z.object({
-  socialAccountId: z.string().min(1, "Choose an account to publish to."),
-  posterId: z.string().min(1, "Choose a poster to publish."),
-  caption: z.string().trim().min(1, "Write a caption.").max(2200, "Keep the caption under 2200 characters."),
-  // Empty string means "publish now" — <input type="datetime-local">
-  // submits local wall-clock time with no timezone, so this is parsed
-  // as local time deliberately (unlike the UTC-safe date-only math in
-  // campaign scheduling, which has no time-of-day component to lose).
-  scheduledFor: z.string().optional(),
-});
+const CreatePublishJobSchema = z
+  .object({
+    socialAccountId: z.string().min(1, "Choose an account to publish to."),
+    // Prisma's schema can't express "exactly one of posterId/videoId" —
+    // validated below via .refine() instead.
+    posterId: z.string().min(1).nullish(),
+    videoId: z.string().min(1).nullish(),
+    caption: z.string().trim().min(1, "Write a caption.").max(2200, "Keep the caption under 2200 characters."),
+    // Empty string means "publish now" — <input type="datetime-local">
+    // submits local wall-clock time with no timezone, so this is parsed
+    // as local time deliberately (unlike the UTC-safe date-only math in
+    // campaign scheduling, which has no time-of-day component to lose).
+    scheduledFor: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.posterId) !== Boolean(data.videoId), {
+    message: "Choose exactly one poster or video to publish.",
+  });
 
 export async function createPublishJob(
   _prevState: CreatePublishJobState,
@@ -30,26 +38,40 @@ export async function createPublishJob(
 
   const parsed = CreatePublishJobSchema.safeParse({
     socialAccountId: formData.get("socialAccountId"),
-    posterId: formData.get("posterId"),
+    posterId: formData.get("posterId") || undefined,
+    videoId: formData.get("videoId") || undefined,
     caption: formData.get("caption"),
     scheduledFor: formData.get("scheduledFor") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { socialAccountId, posterId, caption, scheduledFor } = parsed.data;
+  const { socialAccountId, posterId, videoId, caption, scheduledFor } = parsed.data;
 
-  // Ownership checks: never trust the client-supplied IDs — both the
-  // account and the poster must actually belong to the caller's company.
-  const [account, poster] = await Promise.all([
+  // Ownership checks: never trust the client-supplied IDs — the
+  // account and the poster/video must actually belong to the caller's
+  // company.
+  const [account, poster, video] = await Promise.all([
     db.socialAccount.findFirst({ where: { id: socialAccountId, companyId: company.id } }),
-    db.poster.findFirst({ where: { id: posterId, companyId: company.id } }),
+    posterId ? db.poster.findFirst({ where: { id: posterId, companyId: company.id } }) : null,
+    videoId ? db.video.findFirst({ where: { id: videoId, companyId: company.id } }) : null,
   ]);
   if (!account) {
     return { error: "That connected account no longer exists." };
   }
-  if (!poster) {
+  if (posterId && !poster) {
     return { error: "That poster no longer exists." };
+  }
+  if (videoId && !video) {
+    return { error: "That video no longer exists." };
+  }
+
+  const videoOnly = isVideoOnlyPlatform(account.platform);
+  if (videoOnly && !video) {
+    return { error: `${account.platform} only supports publishing a video, not a poster.` };
+  }
+  if (!videoOnly && video) {
+    return { error: `${account.platform} doesn't support publishing a video yet — choose a poster instead.` };
   }
 
   let scheduledDate = new Date();
@@ -65,7 +87,8 @@ export async function createPublishJob(
     data: {
       companyId: company.id,
       socialAccountId: account.id,
-      posterId: poster.id,
+      posterId: poster?.id,
+      videoId: video?.id,
       caption,
       status: "SCHEDULED",
       scheduledFor: scheduledDate,

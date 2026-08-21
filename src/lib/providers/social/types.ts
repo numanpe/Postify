@@ -1,13 +1,21 @@
 import type { SocialPlatform } from "@prisma/client";
 
 export interface PublishPostInput {
-  imageBuffer: Buffer;
-  imageMimeType: string;
+  // Image-posting providers (Facebook, Instagram, LinkedIn) read
+  // imageBuffer/imageMimeType; TikTok (video-only, per its real
+  // Content Posting API) reads videoBuffer/videoMimeType instead —
+  // exactly one pair is populated per call, enforced by
+  // process-publish-jobs.ts building the input from whichever of
+  // job.poster/job.video is actually set.
+  imageBuffer?: Buffer;
+  imageMimeType?: string;
+  videoBuffer?: Buffer;
+  videoMimeType?: string;
   caption: string;
   // Only used by providers whose publish call requires a public URL
   // rather than a direct binary upload (Instagram) — see
   // src/lib/public-asset-links.ts. Providers that upload the binary
-  // directly (Facebook) ignore this.
+  // directly (Facebook, LinkedIn, TikTok) ignore this.
   publicImageUrl?: string;
 }
 

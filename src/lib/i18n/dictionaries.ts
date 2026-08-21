@@ -35,6 +35,12 @@ export interface Dictionary {
     selectIndustry: string; secondaryNiches: string; secondaryNichesHint: string;
     secondaryNichesPlaceholder: string; language: string; languageHint: string;
     submit: string; submitPending: string;
+    websiteFirstTitle: string; websiteFirstSubtitle: string; websiteUrlPlaceholder: string;
+    extractButton: string; extracting: string; skipManual: string; backToWebsite: string;
+    reviewTitle: string; reviewSubtitle: string; reviewLogo: string; reviewNoLogo: string;
+    reviewColors: string; reviewNoColors: string; reviewFonts: string; reviewNoFonts: string;
+    reviewDescription: string; reviewTone: string; industrySuggestedHint: string;
+    createAndContinue: string; creating: string;
   };
   studio: {
     title: string; subtitle: (name: string) => string; topicPlaceholder: string;
@@ -101,6 +107,8 @@ export interface Dictionary {
     autoScheduleAppliedDefault: string; autoScheduleAppliedLearned: (sampleSize: number) => string;
     history: string; posterRemoved: string; scheduledFor: string; attempted: string;
     viewPost: string; platformFacebook: string; platformInstagram: string;
+    platformLinkedIn: string; platformTikTok: string; video: string; noVideosYet: string;
+    connectLinkedIn: string; connectTikTok: string; pendingAppReview: string;
   };
   media: {
     title: string; subtitle: (name: string) => string; noMedia: string; noMediaHint: string; uploadHint: string;
@@ -116,6 +124,8 @@ export interface Dictionary {
     importFontsFound: string; importUseAsHeading: string; importUseAsBody: string;
     importNoLogo: string; importNoColors: string; importNoFonts: string; importReviewHint: string;
     importApplied: string;
+    importContextFound: string; importNoContext: string; importDescriptionFound: string;
+    importToneFound: string; importProductsFound: string; importNoProducts: string; importApplyContext: string;
   };
   settings: {
     title: string; subtitle: string; provider: string; apiKey: string; saveKey: string;
@@ -216,6 +226,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       languageHint: "You can change this later.",
       submit: "Create company",
       submitPending: "Creating…",
+      websiteFirstTitle: "Have a website?",
+      websiteFirstSubtitle: "Paste the URL and we'll set most of this up for you.",
+      websiteUrlPlaceholder: "yourcompany.com",
+      extractButton: "Extract",
+      extracting: "Analyzing your site…",
+      skipManual: "I'll set this up manually",
+      backToWebsite: "Have a website instead?",
+      reviewTitle: "Here's what we found",
+      reviewSubtitle: "Review and edit anything below, then continue.",
+      reviewLogo: "Logo",
+      reviewNoLogo: "We couldn't find a logo — you can add one later from Brand Kit settings.",
+      reviewColors: "Brand colors",
+      reviewNoColors: "We couldn't find explicit brand colors on this page — you can set them later.",
+      reviewFonts: "Fonts",
+      reviewNoFonts: "We couldn't find explicit font names on this page — you can set them later.",
+      reviewDescription: "Business description",
+      reviewTone: "Tone of voice",
+      industrySuggestedHint: "(suggested from your website — change if needed)",
+      createAndContinue: "Create company",
+      creating: "Creating…",
     },
     studio: {
       title: "Content Studio",
@@ -251,7 +281,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       backToEdit: "Back to edit",
       startOver: "Start over",
       videoPublishUnavailable:
-        "Direct video publishing isn't available yet — only posters can be published or scheduled directly. Download the video below, or add it to a Campaign to publish it through the campaign pipeline.",
+        "Direct video publishing needs a connected TikTok account — Facebook, Instagram, and LinkedIn don't support video here yet. Connect TikTok on the Publish page, or download the video below.",
       downloadVideo: "Download video",
     },
     poster: {
@@ -354,12 +384,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     },
     publish: {
       title: "Publish",
-      subtitle: "Post an existing poster directly to a connected Facebook Page or Instagram account.",
+      subtitle: "Post an existing poster or video directly to a connected Facebook, Instagram, LinkedIn, or TikTok account.",
       connectedSuccess: "Connected successfully.",
       connectedError: (detail: string) => `Couldn't connect: ${detail}`,
       noPostersYetPrefix: "No posters yet — generate one in the",
       noPostersYetSuffix: "first.",
-      connectFirst: "Connect a Facebook Page or Instagram account above before you can publish.",
+      connectFirst: "Connect a Facebook, Instagram, LinkedIn, or TikTok account above before you can publish.",
       processingHint: (n: number) =>
         `${n} job${n === 1 ? " is" : "s are"} queued — this app doesn't have a real scheduler wired up in this environment, so click to process the queue yourself (production would run this automatically; see README).`,
       connectedAccounts: "Connected accounts",
@@ -387,6 +417,14 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       viewPost: "View post",
       platformFacebook: "Facebook Page",
       platformInstagram: "Instagram",
+      platformLinkedIn: "LinkedIn Page",
+      platformTikTok: "TikTok",
+      video: "Video",
+      noVideosYet: "No videos yet — generate one in the video studio first.",
+      connectLinkedIn: "Connect LinkedIn",
+      connectTikTok: "Connect TikTok",
+      pendingAppReview:
+        "Pending platform app review — publishing works, but posts stay private until the developer app is approved.",
     },
     media: {
       title: "Media Library",
@@ -424,11 +462,20 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       importFontsFound: "Fonts found",
       importUseAsHeading: "Use as Heading",
       importUseAsBody: "Use as Body",
-      importNoLogo: "No logo detected on this page.",
-      importNoColors: "No brand colors detected on this page.",
-      importNoFonts: "No custom fonts detected on this page.",
+      importNoLogo: "We couldn't find a logo or icon on this page — you can upload one manually below.",
+      importNoColors:
+        "We couldn't find explicit brand colors on this page — some sites render their styling entirely in JavaScript, which this lightweight scan can't see. You can set colors manually below.",
+      importNoFonts:
+        "We couldn't find explicit font names on this page — some sites render their styling entirely in JavaScript, which this lightweight scan can't see. You can set fonts manually below.",
       importReviewHint: "Review the extracted values below, then click Save Brand Kit to apply them.",
       importApplied: "Applied",
+      importContextFound: "Business context",
+      importNoContext: "We couldn't derive business context from this page.",
+      importDescriptionFound: "Business description",
+      importToneFound: "Tone of voice",
+      importProductsFound: "Products or services mentioned",
+      importNoProducts: "No specific products or services were clearly mentioned on this page.",
+      importApplyContext: "Apply to Company Profile",
     },
     settings: {
       title: "AI Providers",
@@ -609,6 +656,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       languageHint: "يمكنك تغيير هذا لاحقًا.",
       submit: "إنشاء الشركة",
       submitPending: "جارٍ الإنشاء…",
+      websiteFirstTitle: "هل لديك موقع إلكتروني؟",
+      websiteFirstSubtitle: "الصق الرابط وسنقوم بإعداد معظم هذا نيابة عنك.",
+      websiteUrlPlaceholder: "yourcompany.com",
+      extractButton: "استخراج",
+      extracting: "جارٍ تحليل موقعك…",
+      skipManual: "سأقوم بإعداد هذا يدويًا",
+      backToWebsite: "لديك موقع إلكتروني بدلًا من ذلك؟",
+      reviewTitle: "إليك ما وجدناه",
+      reviewSubtitle: "راجع وعدّل أي شيء أدناه، ثم تابع.",
+      reviewLogo: "الشعار",
+      reviewNoLogo: "لم نتمكن من العثور على شعار — يمكنك إضافة واحد لاحقًا من إعدادات هوية العلامة.",
+      reviewColors: "ألوان العلامة",
+      reviewNoColors: "لم نتمكن من العثور على ألوان علامة واضحة في هذه الصفحة — يمكنك ضبطها لاحقًا.",
+      reviewFonts: "الخطوط",
+      reviewNoFonts: "لم نتمكن من العثور على أسماء خطوط واضحة في هذه الصفحة — يمكنك ضبطها لاحقًا.",
+      reviewDescription: "وصف العمل",
+      reviewTone: "نبرة الصوت",
+      industrySuggestedHint: "(مقترح من موقعك — غيّره إذا لزم الأمر)",
+      createAndContinue: "إنشاء الشركة",
+      creating: "جارٍ الإنشاء…",
     },
     studio: {
       title: "استوديو المحتوى",
@@ -643,7 +710,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       backToEdit: "العودة للتعديل",
       startOver: "البدء من جديد",
       videoPublishUnavailable:
-        "النشر المباشر للفيديو غير متاح بعد — يمكن نشر أو جدولة الملصقات فقط بشكل مباشر. نزّل الفيديو أدناه، أو أضفه إلى حملة لنشره عبر مسار الحملات.",
+        "يتطلب النشر المباشر للفيديو ربط حساب تيك توك — فيسبوك وإنستغرام ولينكدإن لا تدعم الفيديو هنا بعد. اربط تيك توك من صفحة النشر، أو نزّل الفيديو أدناه.",
       downloadVideo: "تنزيل الفيديو",
     },
     poster: {
@@ -746,12 +813,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     },
     publish: {
       title: "النشر",
-      subtitle: "انشر ملصقًا جاهزًا مباشرة إلى صفحة فيسبوك أو حساب إنستغرام متصل.",
+      subtitle: "انشر ملصقًا أو فيديو جاهزًا مباشرة إلى حساب فيسبوك أو إنستغرام أو لينكدإن أو تيك توك متصل.",
       connectedSuccess: "تم الربط بنجاح.",
       connectedError: (detail: string) => `تعذّر الربط: ${detail}`,
       noPostersYetPrefix: "لا توجد ملصقات بعد — أنشئ واحدًا في",
       noPostersYetSuffix: "أولًا.",
-      connectFirst: "اربط صفحة فيسبوك أو حساب إنستغرام أعلاه قبل أن تتمكن من النشر.",
+      connectFirst: "اربط حساب فيسبوك أو إنستغرام أو لينكدإن أو تيك توك أعلاه قبل أن تتمكن من النشر.",
       processingHint: (n: number) =>
         `${n} ${n === 1 ? "مهمة" : "مهام"} قيد الانتظار — لا يوجد مجدول تلقائي حقيقي في هذه البيئة، لذا اضغط للمعالجة يدويًا (في الإنتاج ستتم هذه العملية تلقائيًا).`,
       connectedAccounts: "الحسابات المتصلة",
@@ -779,6 +846,14 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       viewPost: "عرض المنشور",
       platformFacebook: "صفحة فيسبوك",
       platformInstagram: "إنستغرام",
+      platformLinkedIn: "صفحة لينكدإن",
+      platformTikTok: "تيك توك",
+      video: "الفيديو",
+      noVideosYet: "لا توجد فيديوهات بعد — أنشئ واحدًا في استوديو الفيديو أولًا.",
+      connectLinkedIn: "ربط لينكدإن",
+      connectTikTok: "ربط تيك توك",
+      pendingAppReview:
+        "بانتظار مراجعة المنصة للتطبيق — النشر يعمل فعليًا، لكن المنشورات تبقى خاصة حتى تتم الموافقة على تطبيق المطوّر.",
     },
     media: {
       title: "مكتبة الوسائط",
@@ -816,11 +891,20 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       importFontsFound: "الخطوط المكتشفة",
       importUseAsHeading: "استخدام لخط العناوين",
       importUseAsBody: "استخدام لخط النص",
-      importNoLogo: "لم يتم العثور على شعار في هذه الصفحة.",
-      importNoColors: "لم يتم اكتشاف ألوان للعلامة في هذه الصفحة.",
-      importNoFonts: "لم يتم اكتشاف خطوط مخصصة في هذه الصفحة.",
+      importNoLogo: "لم نتمكن من العثور على شعار أو أيقونة في هذه الصفحة — يمكنك رفع واحد يدويًا أدناه.",
+      importNoColors:
+        "لم نتمكن من العثور على ألوان علامة تجارية واضحة في هذه الصفحة — بعض المواقع تعرض تنسيقها بالكامل عبر جافاسكريبت، وهو ما لا يستطيع هذا الفحص الخفيف رؤيته. يمكنك ضبط الألوان يدويًا أدناه.",
+      importNoFonts:
+        "لم نتمكن من العثور على أسماء خطوط واضحة في هذه الصفحة — بعض المواقع تعرض تنسيقها بالكامل عبر جافاسكريبت، وهو ما لا يستطيع هذا الفحص الخفيف رؤيته. يمكنك ضبط الخطوط يدويًا أدناه.",
       importReviewHint: "راجع القيم المستخرجة أدناه، ثم اضغط على حفظ هوية العلامة لتطبيقها.",
       importApplied: "تم التطبيق",
+      importContextFound: "سياق العمل",
+      importNoContext: "لم نتمكن من استخلاص سياق العمل من هذه الصفحة.",
+      importDescriptionFound: "وصف العمل",
+      importToneFound: "نبرة الصوت",
+      importProductsFound: "المنتجات أو الخدمات المذكورة",
+      importNoProducts: "لم يُذكر أي منتج أو خدمة محددة بوضوح في هذه الصفحة.",
+      importApplyContext: "تطبيق على ملف الشركة",
     },
     settings: {
       title: "مزوّدو الذكاء الاصطناعي",

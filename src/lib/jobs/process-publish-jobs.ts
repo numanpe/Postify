@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Poster, PublishJob, SocialAccount, MediaAsset } from "@prisma/client";
+import type { Poster, PublishJob, SocialAccount, MediaAsset, Video } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
@@ -20,7 +20,11 @@ export interface ProcessResult {
   failedCount: number;
 }
 
-type DueJob = PublishJob & { socialAccount: SocialAccount; poster: (Poster & { asset: MediaAsset }) | null };
+type DueJob = PublishJob & {
+  socialAccount: SocialAccount;
+  poster: (Poster & { asset: MediaAsset }) | null;
+  video: (Video & { asset: MediaAsset }) | null;
+};
 
 // Retry/backoff bookkeeping mirrors process-campaign-items.ts. DRAFT jobs
 // are never picked up here — only SCHEDULED (queued, due) ones — a job
@@ -38,7 +42,11 @@ export async function processPublishJobs(batchSize = 3): Promise<ProcessResult> 
         { status: "PUBLISHING", updatedAt: { lt: staleThreshold } },
       ],
     },
-    include: { socialAccount: true, poster: { include: { asset: true } } },
+    include: {
+      socialAccount: true,
+      poster: { include: { asset: true } },
+      video: { include: { asset: true } },
+    },
     orderBy: { nextAttemptAt: "asc" },
     take: batchSize,
   });
@@ -66,25 +74,32 @@ export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
   await db.publishJob.update({ where: { id: job.id }, data: { status: "PUBLISHING" } });
 
   try {
-    if (!job.poster) {
-      throw new Error("This job's poster no longer exists — it may have been deleted.");
+    if (!job.poster && !job.video) {
+      throw new Error("This job's poster/video no longer exists — it may have been deleted.");
     }
 
     const provider = getSocialProvider(job.socialAccount);
-    const imageBuffer = await storage.get(job.poster.asset.storageKey);
+
+    // Exactly one of poster/video is set per job (enforced in
+    // createPublishJob's XOR validation) — build whichever buffer pair
+    // PublishPostInput needs, leaving the other pair undefined.
+    const imageBuffer = job.poster ? await storage.get(job.poster.asset.storageKey) : undefined;
+    const videoBuffer = job.video ? await storage.get(job.video.asset.storageKey) : undefined;
 
     // Only Instagram needs a public URL (see instagram-provider.ts) —
     // minted right before the attempt and revoked right after, win or
     // lose, so the exposure window is as small as possible.
     const publicImageUrl =
-      job.socialAccount.platform === "INSTAGRAM"
+      job.socialAccount.platform === "INSTAGRAM" && job.poster
         ? await createPublicAssetLink(job.poster.asset.id)
         : undefined;
 
     try {
       const result = await provider.publishPost({
         imageBuffer,
-        imageMimeType: job.poster.asset.mimeType,
+        imageMimeType: job.poster?.asset.mimeType,
+        videoBuffer,
+        videoMimeType: job.video?.asset.mimeType,
         caption: job.caption,
         publicImageUrl,
       });
@@ -100,7 +115,7 @@ export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
       });
       return true;
     } finally {
-      if (publicImageUrl) {
+      if (publicImageUrl && job.poster) {
         await revokePublicAssetLinksForAsset(job.poster.asset.id);
       }
     }

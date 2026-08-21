@@ -155,7 +155,7 @@ export async function publishCampaignItemDirect(itemId: string, formData: FormDa
       scheduledFor: new Date(),
       nextAttemptAt: new Date(),
     },
-    include: { socialAccount: true, poster: { include: { asset: true } } },
+    include: { socialAccount: true, poster: { include: { asset: true } }, video: { include: { asset: true } } },
   });
 
   const succeeded = await processSinglePublishJob(job);

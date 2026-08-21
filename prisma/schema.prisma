@@ -19,9 +19,14 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
+  id    String @id @default(cuid())
+  email String @unique
+  // Nullable: a Google-only user (Part B1's OAuth sign-in) genuinely has
+  // no password — faking one just to satisfy a NOT NULL constraint would
+  // be exactly the kind of fabricated data CLAUDE.md's "no fake
+  // functionality" rule is against. auth.ts's Credentials authorize()
+  // checks for null before calling verifyPassword.
+  passwordHash String?
   name         String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -52,6 +57,16 @@ model Company {
   name            String
   primaryIndustry String
   secondaryNiches String[] @default([])
+  // Free-text company summary — either typed manually or derived from a
+  // real website extraction (src/lib/brand-extract.ts's
+  // deriveBusinessContext) and reviewed/saved by the user like every
+  // other extracted field. Threaded into BYOK prompt context
+  // (prompt.ts) directly; the free template tier's generation doesn't
+  // consume raw prose, so its real effect there flows through
+  // secondaryNiches/CreativeDna.toneDescriptors instead (both already
+  // proven to change template output) — see brand-context.ts's doc
+  // comment for the full reasoning.
+  businessDescription String?
   locale          Locale   @default(EN)
   voiceEngine     VoiceEngine @default(FREE)
   createdAt       DateTime @default(now())
@@ -401,6 +416,7 @@ model Video {
   createdAt DateTime @default(now())
 
   campaignItem CampaignItem?
+  publishJobs  PublishJob[]
 
   @@index([companyId])
 }
@@ -468,6 +484,21 @@ model ProviderCredential {
 enum SocialPlatform {
   FACEBOOK
   INSTAGRAM
+  // Both real, working OAuth + Content Posting/Posts API integrations
+  // (src/lib/providers/social/linkedin-*.ts, tiktok-*.ts) — but real
+  // publishing to a company's own audience is gated by each platform's
+  // own app-review process, independent of any user's credentials
+  // (unlike BYOK). Verified against LinkedIn's and TikTok's current
+  // developer docs before building anything: an unreviewed app can
+  // authenticate and publish in real API calls today, but TikTok
+  // confirms (its own FAQ) unaudited posts are forced SELF_ONLY
+  // (private), and LinkedIn's Community Management API requires
+  // approval before posting to any organization page. See
+  // REQUIRES_APP_REVIEW in publish/platform-status.ts — surfaced
+  // honestly in the UI, never silently treated as equivalent to
+  // Facebook/Instagram's already-working connection.
+  LINKEDIN
+  TIKTOK
 }
 
 // A connected Facebook Page or Instagram Business account. externalAccountId
@@ -588,6 +619,11 @@ model PublishJob {
   socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
   posterId        String?
   poster          Poster?       @relation(fields: [posterId], references: [id], onDelete: SetNull)
+  // TikTok's Content Posting API is video-only — exactly one of
+  // posterId/videoId is set, enforced in createPublishJob (Prisma
+  // doesn't express an XOR constraint directly), never both.
+  videoId String?
+  video   Video?  @relation(fields: [videoId], references: [id], onDelete: SetNull)
 
   caption      String
   status       PublishStatus @default(DRAFT)
