@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { createMediaAssetFromFile } from "@/lib/media";
+import { fetchPublic, UnsafeUrlError } from "@/lib/net/safe-fetch";
 
 export type BrandKitState = { error: string } | undefined;
 
@@ -74,11 +75,17 @@ export async function updateBrandKit(
     // remote URL until the user explicitly submits this real form; only
     // then is it actually downloaded and saved, same as a normal file
     // upload. A fetch failure here surfaces as a real error, never a
-    // silently-skipped logo.
+    // silently-skipped logo. logoImportUrl came out of a third-party
+    // site's own HTML (og:image/logo/favicon), so it's just as
+    // attacker-influenced as a directly pasted URL — same SSRF guard
+    // as the extraction fetch itself, including re-checking redirects.
     let response: Response;
     try {
-      response = await fetch(logoImportUrl, { signal: AbortSignal.timeout(15_000) });
-    } catch {
+      ({ response } = await fetchPublic(logoImportUrl, { signal: AbortSignal.timeout(15_000) }));
+    } catch (error) {
+      if (error instanceof UnsafeUrlError) {
+        return { error: "That logo URL isn't allowed." };
+      }
       return { error: "Couldn't download the logo from that website." };
     }
     if (!response.ok) {

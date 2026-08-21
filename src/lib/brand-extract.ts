@@ -1,6 +1,8 @@
 import "server-only";
 import * as cheerio from "cheerio";
 
+import { fetchPublic, UnsafeUrlError } from "@/lib/net/safe-fetch";
+
 export interface ExtractedBrandAssets {
   logoUrl: string | null;
   colors: string[]; // hex, most-prominent first, real color/white/black already filtered
@@ -53,13 +55,16 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
   }
 
   let response: Response;
+  let finalUrl: URL;
   try {
-    response = await fetch(base.toString(), {
+    ({ response, finalUrl } = await fetchPublic(base, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; PostifyBrandBot/1.0; +https://postify.app)" },
       signal: AbortSignal.timeout(15_000),
-      redirect: "follow",
-    });
+    }));
   } catch (error) {
+    if (error instanceof UnsafeUrlError) {
+      throw new BrandExtractError("That URL isn't reachable — it points to a local or internal address.");
+    }
     throw new BrandExtractError(
       `Couldn't reach ${base.hostname}: ${error instanceof Error ? error.message : "network error"}.`,
     );
@@ -86,7 +91,7 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
   const favicon = $('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]')
     .first()
     .attr("href");
-  const logoUrl = resolveUrl(ogImage, base) ?? resolveUrl(headerLogo, base) ?? resolveUrl(favicon, base);
+  const logoUrl = resolveUrl(ogImage, finalUrl) ?? resolveUrl(headerLogo, finalUrl) ?? resolveUrl(favicon, finalUrl);
 
   const themeColorRaw = $('meta[name="theme-color"]').attr("content")?.trim() ?? null;
   const themeColor = themeColorRaw && /^#[0-9a-fA-F]{3,6}$/.test(themeColorRaw) ? themeColorRaw.toLowerCase() : null;
@@ -141,5 +146,5 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
     ),
   ].slice(0, 5);
 
-  return { logoUrl, colors, themeColor, fontFamilies, sourceUrl: base.toString() };
+  return { logoUrl, colors, themeColor, fontFamilies, sourceUrl: finalUrl.toString() };
 }
