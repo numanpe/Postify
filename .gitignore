@@ -28,3 +28,9 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Playwright E2E
+/playwright/.auth
+/playwright-report
+/test-results
+/tests/.tmp

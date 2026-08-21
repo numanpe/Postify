@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { useDict } from "@/components/i18n/locale-provider";
 import { SocialPreviewIcons } from "@/components/icons";
@@ -110,6 +110,9 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
   const { mediaUrl, mediaType, mediaWidth, mediaHeight, companyName, logoUrl, captionText, hashtags } = props;
   const dict = useDict().socialPreview;
   const [tab, setTab] = useState<PreviewPlatform>("INSTAGRAM");
+  const uid = useId();
+  const tabId = (platform: PreviewPlatform) => `${uid}-tab-${platform}`;
+  const panelId = `${uid}-panel`;
 
   const sourceRatio = mediaWidth / mediaHeight;
   const isVertical = Math.abs(sourceRatio - 9 / 16) < 0.08;
@@ -124,11 +127,16 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <nav className="flex gap-4 border-b border-paper-border text-sm font-medium dark:border-night-border">
+      <nav role="tablist" className="flex gap-4 border-b border-paper-border text-sm font-medium dark:border-night-border">
         {TAB_ORDER.map((platform) => (
           <button
             key={platform}
             type="button"
+            role="tab"
+            id={tabId(platform)}
+            aria-selected={tab === platform}
+            aria-controls={panelId}
+            tabIndex={tab === platform ? 0 : -1}
             onClick={() => setTab(platform)}
             className={`-mb-px pb-2 ${tab === platform ? TAB_ACCENT[platform] : "text-ink-soft dark:text-ink-soft-dark"}`}
           >
@@ -137,7 +145,7 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
         ))}
       </nav>
 
-      <div className="flex justify-center py-2">
+      <div id={panelId} role="tabpanel" aria-labelledby={tabId(tab)} className="flex justify-center py-2">
         {tab === "INSTAGRAM" &&
           (showInstagramStory ? (
             <VerticalFrame
