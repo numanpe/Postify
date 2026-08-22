@@ -8,6 +8,8 @@ import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
 import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
+import { CreativeDnaPreferencesPanel } from "@/components/settings/creative-dna-preferences";
+import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import { ActionIcons } from "@/components/icons";
 
 // Brand names — not translated regardless of locale.
@@ -31,8 +33,12 @@ export default async function SettingsPage() {
       orderBy: { createdAt: "asc" },
       select: { id: true, provider: true, keyPreview: true },
     }),
-    db.creativeDna.findUnique({ where: { companyId: company.id }, select: { confidenceScores: true } }),
+    db.creativeDna.findUnique({
+      where: { companyId: company.id },
+      select: { confidenceScores: true, lockedTopics: true },
+    }),
   ]);
+  const scores = creativeDna?.confidenceScores as Partial<CreativeDnaConfidenceScores> | undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,6 +82,12 @@ export default async function SettingsPage() {
       <PublishingSettings publishingMode={company.publishingMode} credentials={aggregatorCredentials} />
 
       <CreativeDnaInsights confidenceScores={creativeDna?.confidenceScores} />
+
+      <CreativeDnaPreferencesPanel
+        preferences={scores?.preferences}
+        lockedTopics={creativeDna?.lockedTopics ?? []}
+        dict={dict.settings}
+      />
     </div>
   );
 }

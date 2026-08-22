@@ -141,6 +141,12 @@ export interface Dictionary {
     insightsSentence: (topic: string, relativeScore: number) => string;
     insightsConfidence: (tier: string, sampleSize: number) => string;
     confidenceLow: string; confidenceMedium: string; confidenceHigh: string;
+    preferencesTitle: string; preferencesSubtitle: string; preferencesNoData: string;
+    preferencesPositive: (dimensionLabel: string, value: string) => string;
+    preferencesNegative: (dimensionLabel: string, value: string) => string;
+    dimensionTopic: string; dimensionTemplate: string; dimensionTone: string; dimensionVisualStyle: string;
+    lockButton: string; unlockButton: string; lockedBadge: string;
+    resetButton: string; resetConfirm: string; resetDone: string; resetHint: string;
   };
   repurpose: {
     title: string; subtitle: string;
@@ -525,6 +531,27 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       confidenceLow: "low",
       confidenceMedium: "medium",
       confidenceHigh: "high",
+      preferencesTitle: "What we've noticed from how you use Postify",
+      preferencesSubtitle:
+        "Based on what you delete, publish, edit, and regenerate — not something you have to rate or teach us directly.",
+      preferencesNoData:
+        "Not enough activity yet to notice a real pattern. As you delete, publish, and edit content, what we notice will show up here.",
+      preferencesPositive: (dimensionLabel: string, value: string) =>
+        `You tend to keep and publish ${dimensionLabel} content like "${value}" — we're leaning toward suggesting more of it.`,
+      preferencesNegative: (dimensionLabel: string, value: string) =>
+        `You tend to delete or move away from ${dimensionLabel} content like "${value}" — we're suggesting it less often.`,
+      dimensionTopic: "topic",
+      dimensionTemplate: "template",
+      dimensionTone: "tone",
+      dimensionVisualStyle: "visual style",
+      lockButton: "Lock this",
+      unlockButton: "Unlock",
+      lockedBadge: "Locked — won't change from new activity",
+      resetButton: "Reset what we've learned",
+      resetConfirm:
+        "This clears everything learned from your deletes, publishes, edits, and regenerations, and unlocks any locked topics. It does not affect your real published-post engagement history. Continue?",
+      resetDone: "Reset. We'll start noticing patterns again as you use Postify.",
+      resetHint: "This only resets usage-pattern learning above — not your real measured post-performance history below.",
     },
     repurpose: {
       title: "Repurpose This",
@@ -953,6 +980,25 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       confidenceLow: "منخفض",
       confidenceMedium: "متوسط",
       confidenceHigh: "عالٍ",
+      preferencesTitle: "ما لاحظناه من طريقة استخدامك لـ Postify",
+      preferencesSubtitle: "استنادًا إلى ما تحذفه وتنشره وتعدّله وتعيد توليده — وليس شيئًا عليك تقييمه أو تعليمنا إياه مباشرة.",
+      preferencesNoData: "لا يوجد نشاط كافٍ بعد لملاحظة نمط حقيقي. مع حذفك ونشرك وتعديلك للمحتوى، سيظهر هنا ما نلاحظه.",
+      preferencesPositive: (dimensionLabel: string, value: string) =>
+        `تميل إلى الاحتفاظ بمحتوى ${dimensionLabel} مثل "${value}" ونشره — نميل إلى اقتراح المزيد منه.`,
+      preferencesNegative: (dimensionLabel: string, value: string) =>
+        `تميل إلى حذف محتوى ${dimensionLabel} مثل "${value}" أو الابتعاد عنه — نقترحه بشكل أقل.`,
+      dimensionTopic: "الموضوع",
+      dimensionTemplate: "القالب",
+      dimensionTone: "النبرة",
+      dimensionVisualStyle: "الأسلوب البصري",
+      lockButton: "قفل هذا",
+      unlockButton: "إلغاء القفل",
+      lockedBadge: "مقفل — لن يتغير بنشاط جديد",
+      resetButton: "إعادة تعيين ما تعلمناه",
+      resetConfirm:
+        "سيؤدي هذا إلى مسح كل ما تعلمناه من عمليات الحذف والنشر والتعديل وإعادة التوليد، وإلغاء قفل أي مواضيع مقفلة. لن يؤثر هذا على سجل أداء منشوراتك الفعلي. متابعة؟",
+      resetDone: "تمت إعادة التعيين. سنبدأ في ملاحظة الأنماط مجددًا مع استخدامك لـ Postify.",
+      resetHint: "هذا يعيد تعيين تعلّم أنماط الاستخدام أعلاه فقط — وليس سجل أداء منشوراتك الفعلي أدناه.",
     },
     repurpose: {
       title: "إعادة توظيف المحتوى",
