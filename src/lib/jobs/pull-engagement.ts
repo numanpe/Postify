@@ -2,8 +2,10 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { getSocialProvider } from "@/lib/providers/social/resolver";
-import { updateCreativeDnaLearning } from "@/lib/creative-dna/learning";
+import { updateCreativeDnaLearning, computeCompanyAverageEngagement } from "@/lib/creative-dna/learning";
 import { computePeakPublishHour } from "@/lib/scheduling/smart-scheduler";
+import { recordSignal, engagementSignalStrength } from "@/lib/creative-dna/signals";
+import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 
 export interface PullEngagementResult {
   pulledCount: number;
@@ -21,11 +23,18 @@ export interface PullEngagementResult {
 export async function pullEngagementData(): Promise<PullEngagementResult> {
   const jobs = await db.publishJob.findMany({
     where: { status: "PUBLISHED", externalPostId: { not: null } },
-    include: { socialAccount: true, poster: { include: { campaignItem: true } } },
+    include: { socialAccount: true, poster: { include: { campaignItem: { include: { campaign: true } } } } },
   });
 
   let pulledCount = 0;
   let skippedCount = 0;
+  // Collected during the pull loop below so the ENGAGEMENT signal pass
+  // (after per-company averages are known) doesn't need a second query
+  // — only jobs actually measured in THIS run get a signal, never a
+  // re-recorded one for a post whose engagement was already pulled on
+  // a prior day (that would make the sample-count/decay math treat one
+  // real post as N pieces of evidence).
+  const freshlyMeasured: { job: (typeof jobs)[number]; totalInteractions: number }[] = [];
 
   for (const job of jobs) {
     // Same explicit-vs-implicit exclusion as learning.ts — a post whose
@@ -49,6 +58,7 @@ export async function pullEngagementData(): Promise<PullEngagementResult> {
           reach: engagement.reach,
         },
       });
+      freshlyMeasured.push({ job, totalInteractions: engagement.likes + engagement.comments + engagement.shares });
       pulledCount += 1;
     } catch {
       // A real per-post failure (token expired, post deleted upstream,
@@ -62,6 +72,32 @@ export async function pullEngagementData(): Promise<PullEngagementResult> {
   for (const companyId of companyIds) {
     await updateCreativeDnaLearning(companyId);
     await computePeakPublishHour(companyId);
+
+    // Part 2.3/4.4's real, specific signal — computed against the same
+    // company-average baseline updateCreativeDnaLearning just used,
+    // fetched fresh so it reflects the snapshots created above. Scaled
+    // via engagementSignalStrength (signals.ts) so real above/below-
+    // average performance can meaningfully outweigh (soften or
+    // reinforce) the flat +0.7 PUBLISH signal already recorded for the
+    // same content when aggregate.ts sums them.
+    const companyAverage = await computeCompanyAverageEngagement(companyId);
+    if (companyAverage === null || companyAverage === 0) continue;
+
+    const companyJobs = freshlyMeasured.filter(({ job }) => job.companyId === companyId);
+    for (const { job, totalInteractions } of companyJobs) {
+      const relativeScore = totalInteractions / companyAverage;
+      await recordSignal({
+        companyId,
+        sourceType: "ENGAGEMENT",
+        strength: engagementSignalStrength(relativeScore),
+        topic: job.poster?.campaignItem?.campaign.campaignType,
+        template: job.poster?.template,
+        visualStyle: job.poster?.backgroundSource,
+        posterId: job.posterId,
+        metadata: { relativeScore: Number(relativeScore.toFixed(2)), totalInteractions },
+      });
+    }
+    if (companyJobs.length > 0) await recomputeCreativeDnaPreferences(companyId);
   }
 
   return { pulledCount, skippedCount };

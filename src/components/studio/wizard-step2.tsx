@@ -25,6 +25,7 @@ export function WizardStep2({
   videoAssets,
   defaultBackgroundSource,
   narrationAvailable,
+  preferredTemplateOrder,
 }: {
   defaultHeadline: string;
   defaultTopic: string;
@@ -32,6 +33,9 @@ export function WizardStep2({
   videoAssets: VideoAsset[];
   defaultBackgroundSource: "BRAND" | "PHOTO";
   narrationAvailable: boolean;
+  // Computed server-side (studio/design/page.tsx) — see PosterForm's
+  // own doc comment on this prop.
+  preferredTemplateOrder?: readonly string[];
 }) {
   const [mode, setMode] = useState<"poster" | "video">("poster");
   const dict = useDict().wizard;
@@ -76,6 +80,7 @@ export function WizardStep2({
           photoAssets={photoAssets}
           defaultBackgroundSource={defaultBackgroundSource}
           defaultHeadline={defaultHeadline}
+          preferredTemplateOrder={preferredTemplateOrder}
           onSuccess={(posterId) => router.push(`/studio/publish?assetType=poster&id=${posterId}`)}
         />
       ) : (

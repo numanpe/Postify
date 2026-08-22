@@ -13,7 +13,7 @@ interface PhotoAsset {
   fileName: string;
 }
 
-const TEMPLATE_IDS = [
+export const TEMPLATE_IDS = [
   "MINIMAL",
   "BOLD_HEADLINE",
   "PROMOTIONAL_BANNER",
@@ -28,6 +28,7 @@ export function PosterForm({
   defaultBackgroundSource,
   defaultHeadline,
   onSuccess,
+  preferredTemplateOrder,
 }: {
   photoAssets: PhotoAsset[];
   // Computed server-side (see poster/page.tsx): PHOTO with the most
@@ -45,11 +46,25 @@ export function PosterForm({
   // internally, so it's a callback rather than the parent trying to
   // reach into this component's state.
   onSuccess?: (posterId: string) => void;
+  // Real accumulated delete/publish/regenerate preference (Creative
+  // DNA's template-preference.ts), computed server-side — the
+  // highest-weighted template becomes the default selection, but every
+  // template stays fully visible and selectable regardless of order or
+  // weight (Part 1.3's "never collapse to nothing" floor is enforced
+  // where this was computed, not here). Falls back to TEMPLATE_IDS'
+  // fixed order when there isn't enough evidence yet (a brand-new
+  // company, or fewer than the minimum sample size for every template).
+  preferredTemplateOrder?: readonly string[];
 }) {
   const [state, action, pending] = useActionState(generatePoster, undefined);
   const dict = useDict().poster;
   const common = useDict().common;
   const router = useRouter();
+
+  const orderedTemplateIds =
+    preferredTemplateOrder && preferredTemplateOrder.length === TEMPLATE_IDS.length
+      ? (preferredTemplateOrder as (typeof TEMPLATE_IDS)[number][])
+      : TEMPLATE_IDS;
 
   // Refreshes the previous-posters list client-side instead of the
   // server calling revalidatePath — same "show the new poster without
@@ -142,7 +157,7 @@ export function PosterForm({
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">{dict.template}</label>
         <div className="grid grid-cols-2 gap-2">
-          {TEMPLATE_IDS.map((id, index) => (
+          {orderedTemplateIds.map((id, index) => (
             <label
               key={id}
               className="flex cursor-pointer flex-col gap-0.5 rounded-md border border-paper-border dark:border-night-border bg-paper dark:bg-night-card px-3 py-2 text-sm has-[:checked]:border-ink has-[:checked]:dark:border-ink-dark"

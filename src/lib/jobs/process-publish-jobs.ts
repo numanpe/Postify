@@ -1,11 +1,13 @@
 import "server-only";
 
-import type { Poster, PublishJob, SocialAccount, MediaAsset, Video } from "@prisma/client";
+import type { Poster, PublishJob, SocialAccount, MediaAsset, Video, CampaignItem, Campaign } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { createPublicAssetLink, revokePublicAssetLinksForAsset } from "@/lib/public-asset-links";
 import { getSocialProvider } from "@/lib/providers/social/resolver";
+import { recordSignal, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
+import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 
 const MAX_RETRIES = 3;
 const BASE_BACKOFF_SEC = 60;
@@ -20,10 +22,11 @@ export interface ProcessResult {
   failedCount: number;
 }
 
+type CampaignItemWithCampaign = CampaignItem & { campaign: Campaign };
 type DueJob = PublishJob & {
   socialAccount: SocialAccount;
-  poster: (Poster & { asset: MediaAsset }) | null;
-  video: (Video & { asset: MediaAsset }) | null;
+  poster: (Poster & { asset: MediaAsset; campaignItem: CampaignItemWithCampaign | null }) | null;
+  video: (Video & { asset: MediaAsset; campaignItem: CampaignItemWithCampaign | null }) | null;
 };
 
 // Retry/backoff bookkeeping mirrors process-campaign-items.ts. DRAFT jobs
@@ -44,8 +47,8 @@ export async function processPublishJobs(batchSize = 3): Promise<ProcessResult> 
     },
     include: {
       socialAccount: true,
-      poster: { include: { asset: true } },
-      video: { include: { asset: true } },
+      poster: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
+      video: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
     },
     orderBy: { nextAttemptAt: "asc" },
     take: batchSize,
@@ -113,6 +116,23 @@ export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
           errorMessage: null,
         },
       });
+
+      // Part 2.1's real positive signal — a confirmed publish, not a
+      // download/preview. Not every poster/video belongs to a Campaign
+      // (standalone Studio generations don't), so topic is honestly
+      // null for those rather than guessed.
+      await recordSignal({
+        companyId: job.companyId,
+        sourceType: "PUBLISH",
+        strength: SIGNAL_STRENGTH.PUBLISH,
+        topic: job.poster?.campaignItem?.campaign.campaignType ?? job.video?.campaignItem?.campaign.campaignType,
+        template: job.poster?.template ?? job.video?.template,
+        visualStyle: job.poster?.backgroundSource,
+        posterId: job.posterId,
+        videoId: job.videoId,
+      });
+      await recomputeCreativeDnaPreferences(job.companyId);
+
       return true;
     } finally {
       if (publicImageUrl && job.poster) {

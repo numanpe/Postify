@@ -1,6 +1,8 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { WizardStep2 } from "@/components/studio/wizard-step2";
+import { TEMPLATE_IDS } from "@/components/poster/poster-form";
+import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
 // VideoForm components (and their real generation actions) the
@@ -16,7 +18,7 @@ export default async function StudioWizardStep2Page({
   const { company } = await requireCompany();
   const { topic, caption } = await searchParams;
 
-  const [photoAssets, videoAssets, voiceCredential] = await Promise.all([
+  const [photoAssets, videoAssets, voiceCredential, preferredTemplates] = await Promise.all([
     // Same exclusions as studio/[mode]/page.tsx's PosterMode — no
     // posters/brand-logo assets offered back as a background photo.
     db.mediaAsset.findMany({
@@ -38,6 +40,7 @@ export default async function StudioWizardStep2Page({
     db.providerCredential.findFirst({
       where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS"] } },
     }),
+    getPreferredTemplateOrder(company.id, TEMPLATE_IDS),
   ]);
 
   const narrationAvailable = company.voiceEngine === "FREE" || !!voiceCredential;
@@ -51,6 +54,7 @@ export default async function StudioWizardStep2Page({
         videoAssets={videoAssets}
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
         narrationAvailable={narrationAvailable}
+        preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
       />
     </div>
   );

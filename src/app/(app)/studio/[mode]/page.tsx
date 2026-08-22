@@ -8,8 +8,9 @@ import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { GenerateCaptionForm } from "@/components/studio/generate-caption-form";
-import { PosterForm } from "@/components/poster/poster-form";
+import { PosterForm, TEMPLATE_IDS } from "@/components/poster/poster-form";
 import { VideoForm } from "@/components/video/video-form";
+import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { NavIcons } from "@/components/icons";
 
@@ -81,7 +82,7 @@ async function CaptionsMode({ companyName }: { companyName: string }) {
 async function PosterMode({ companyId, companyName }: { companyId: string; companyName: string }) {
   const dict = getDictionary(await getLocale());
 
-  const [photoAssets, posters, brandKit] = await Promise.all([
+  const [photoAssets, posters, brandKit, preferredTemplates] = await Promise.all([
     // Excludes posterOutput and brandKitLogo assets — a generated
     // poster or the brand logo are both real MediaAssets, but offering
     // either back as a "photo" background would let a poster get
@@ -105,6 +106,7 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
       orderBy: { createdAt: "desc" },
     }),
     db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
+    getPreferredTemplateOrder(companyId, TEMPLATE_IDS),
   ]);
   const companyLogoUrl = brandKit?.logoAsset ? storage.url(brandKit.logoAsset.storageKey) : null;
 
@@ -118,6 +120,7 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
       <PosterForm
         photoAssets={photoAssets}
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
+        preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
       />
 
       {posters.length > 0 && (

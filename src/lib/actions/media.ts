@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { requireCompany } from "@/lib/session";
 import { createMediaAssetFromFile } from "@/lib/media";
+import { recordSignal, fingerprintContent, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
+import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 
 export type UploadMediaState = { error: string } | undefined;
 
@@ -79,11 +81,47 @@ export async function deleteMedia(assetId: string): Promise<void> {
   // caller's company, never trust the id alone.
   const asset = await db.mediaAsset.findFirst({
     where: { id: assetId, companyId: company.id },
+    include: {
+      posterOutput: { include: { campaignItem: { include: { campaign: true } } } },
+      videoOutput: { include: { campaignItem: { include: { campaign: true } } } },
+    },
   });
   if (!asset) return;
 
+  // Deleting a poster/video's own image/video file from the Media
+  // Library is a second real way to delete generated content, besides
+  // removeCampaignItem — MediaAsset -> Poster/Video is onDelete:
+  // Cascade (see PosterOutput/VideoOutput in schema.prisma), so this
+  // delete is about to take the Poster/Video row down with it. Same
+  // real negative signal (Part 1.2) as the campaign-item path, read
+  // before the delete for the same reason.
+  if (asset.posterOutput || asset.videoOutput) {
+    const poster = asset.posterOutput;
+    const video = asset.videoOutput;
+    const campaignItem = poster?.campaignItem ?? video?.campaignItem;
+    const generatedText = poster
+      ? [poster.headline, poster.subhead, poster.cta].filter(Boolean).join(" ")
+      : video?.topic;
+
+    await recordSignal({
+      companyId: company.id,
+      sourceType: "DELETE",
+      strength: SIGNAL_STRENGTH.DELETE,
+      topic: campaignItem?.campaign.campaignType,
+      template: poster?.template ?? video?.template,
+      visualStyle: poster?.backgroundSource,
+      posterId: poster?.id,
+      videoId: video?.id,
+      campaignItemId: campaignItem?.id,
+      contentFingerprint: generatedText ? fingerprintContent(generatedText) : undefined,
+    });
+  }
+
   await db.mediaAsset.delete({ where: { id: asset.id } });
   await storage.delete(asset.storageKey);
+  if (asset.posterOutput || asset.videoOutput) {
+    await recomputeCreativeDnaPreferences(company.id);
+  }
 
   revalidatePath("/media");
 }

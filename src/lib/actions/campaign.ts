@@ -11,6 +11,8 @@ import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import { processCampaignItems, processSingleCampaignItem } from "@/lib/jobs/process-campaign-items";
 import { triggerCampaignProcessing } from "@/lib/jobs/trigger";
+import { recordSignal, fingerprintContent, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
+import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 
 export type CreateCampaignState = { error: string } | undefined;
 
@@ -127,6 +129,30 @@ export async function approveCampaignItem(itemId: string): Promise<void> {
 
   if (item.status === "READY") {
     await db.campaignItem.update({ where: { id: item.id }, data: { status: "APPROVED" } });
+
+    // Part 4.2's positive half: only meaningful when the user actually
+    // regenerated at least once before settling on this final version —
+    // generationAttempt === 0 means there was nothing to choose BETWEEN,
+    // so no REGEN_CHOSEN signal without a real contrast to justify it.
+    if (item.generationAttempt > 0) {
+      const [campaign, poster, video] = await Promise.all([
+        db.campaign.findUnique({ where: { id: item.campaignId }, select: { campaignType: true } }),
+        item.posterId ? db.poster.findUnique({ where: { id: item.posterId } }) : null,
+        item.videoId ? db.video.findUnique({ where: { id: item.videoId } }) : null,
+      ]);
+      await recordSignal({
+        companyId: company.id,
+        sourceType: "REGEN_CHOSEN",
+        strength: SIGNAL_STRENGTH.REGEN_CHOSEN,
+        topic: campaign?.campaignType,
+        template: poster?.template ?? video?.template,
+        visualStyle: poster?.backgroundSource,
+        posterId: item.posterId,
+        videoId: item.videoId,
+        campaignItemId: item.id,
+      });
+      await recomputeCreativeDnaPreferences(company.id);
+    }
   }
 
   revalidatePath(`/campaigns/${item.campaignId}`);
@@ -152,6 +178,33 @@ export async function regenerateCampaignItem(itemId: string, formData: FormData)
   const { company } = await requireCompany();
   const item = await requireOwnedCampaignItem(itemId, company.id);
 
+  // Part 4.2's soft-negative half — recorded against the OUTGOING
+  // content before this function's own update/regenerate overwrites
+  // it. Weaker than a DELETE (SIGNAL_STRENGTH.REGEN_REJECTED, not
+  // .DELETE): regenerating doesn't necessarily mean this content was
+  // bad, only that the user wanted to see another option.
+  if (item.status !== "READY" && item.status !== "APPROVED") {
+    // A regenerate on a PENDING/FAILED item is a retry, not "I saw this
+    // and wanted something else" — nothing was actually rejected.
+  } else {
+    const [campaign, poster, video] = await Promise.all([
+      db.campaign.findUnique({ where: { id: item.campaignId }, select: { campaignType: true } }),
+      item.posterId ? db.poster.findUnique({ where: { id: item.posterId } }) : null,
+      item.videoId ? db.video.findUnique({ where: { id: item.videoId } }) : null,
+    ]);
+    await recordSignal({
+      companyId: company.id,
+      sourceType: "REGEN_REJECTED",
+      strength: SIGNAL_STRENGTH.REGEN_REJECTED,
+      topic: campaign?.campaignType,
+      template: poster?.template ?? video?.template,
+      visualStyle: poster?.backgroundSource,
+      posterId: item.posterId,
+      videoId: item.videoId,
+      campaignItemId: item.id,
+    });
+  }
+
   const newAngle = formData.get("angle");
   const trimmed = typeof newAngle === "string" ? newAngle.trim() : "";
 
@@ -173,6 +226,7 @@ export async function regenerateCampaignItem(itemId: string, formData: FormData)
   });
 
   await processSingleCampaignItem(updated);
+  await recomputeCreativeDnaPreferences(company.id);
   revalidatePath(`/campaigns/${item.campaignId}`);
 }
 
@@ -180,7 +234,45 @@ export async function removeCampaignItem(itemId: string): Promise<void> {
   const { company } = await requireCompany();
   const item = await requireOwnedCampaignItem(itemId, company.id);
 
+  // Real negative signal (Part 1.2) — recorded BEFORE the delete, since
+  // the poster/video row (and the campaignType this item belongs to)
+  // must still exist to read its real attributes. Deleting the
+  // CampaignItem itself doesn't cascade-delete the Poster/Video
+  // (onDelete: SetNull), so this is a real, separate read, not a race.
+  const [campaign, poster, video] = await Promise.all([
+    db.campaign.findUnique({ where: { id: item.campaignId }, select: { campaignType: true } }),
+    item.posterId ? db.poster.findUnique({ where: { id: item.posterId } }) : null,
+    item.videoId ? db.video.findUnique({ where: { id: item.videoId } }) : null,
+  ]);
+
+  const generatedText = [item.headline, item.subhead, item.cta, item.captionText, item.angle]
+    .filter(Boolean)
+    .join(" ");
+
+  await recordSignal({
+    companyId: company.id,
+    sourceType: "DELETE",
+    strength: SIGNAL_STRENGTH.DELETE,
+    topic: campaign?.campaignType,
+    // Poster.template (PosterTemplate) and Video.template (VideoTemplate)
+    // are different enums but both real, stored, per-item template
+    // choices — either one, whichever this item actually is.
+    template: poster?.template ?? video?.template,
+    // backgroundSource (branded gradient vs an uploaded photo vs an AI
+    // background) is the closest thing this app has to a per-item
+    // "visual style" attribute — Poster-only, Video has no equivalent
+    // field, so this stays unset for video items. Posters/videos have
+    // no separate tone field either, so tone stays unset for this
+    // signal type regardless of asset type.
+    visualStyle: poster?.backgroundSource,
+    posterId: item.posterId,
+    videoId: item.videoId,
+    campaignItemId: item.id,
+    contentFingerprint: generatedText ? fingerprintContent(generatedText) : undefined,
+  });
+
   await db.campaignItem.delete({ where: { id: item.id } });
+  await recomputeCreativeDnaPreferences(company.id);
   revalidatePath(`/campaigns/${item.campaignId}`);
 }
 

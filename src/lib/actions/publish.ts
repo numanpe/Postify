@@ -9,6 +9,9 @@ import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
 import { triggerPublishProcessing } from "@/lib/jobs/trigger";
 import { suggestPeakPublishTime, formatForDatetimeLocalInput } from "@/lib/scheduling/smart-scheduler";
 import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
+import { recordSignal, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
+import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
+import { summarizeCaptionEdit } from "@/lib/creative-dna/edit-diff";
 
 export type CreatePublishJobState = { error: string } | undefined;
 
@@ -53,7 +56,12 @@ export async function createPublishJob(
   // company.
   const [account, poster, video] = await Promise.all([
     db.socialAccount.findFirst({ where: { id: socialAccountId, companyId: company.id } }),
-    posterId ? db.poster.findFirst({ where: { id: posterId, companyId: company.id } }) : null,
+    posterId
+      ? db.poster.findFirst({
+          where: { id: posterId, companyId: company.id },
+          include: { campaignItem: { include: { campaign: true } } },
+        })
+      : null,
     videoId ? db.video.findFirst({ where: { id: videoId, companyId: company.id } }) : null,
   ]);
   if (!account) {
@@ -83,6 +91,30 @@ export async function createPublishJob(
     scheduledDate = parsedDate;
   }
 
+  // Part 4.1's real edit-diff signal — only meaningful for posters,
+  // where CreatePublishJobForm pre-fills the caption from the poster's
+  // own real generated headline/subhead/cta (this recomputes that exact
+  // same join server-side, rather than trusting a client-supplied
+  // "was this edited" flag). Videos have no equivalent original text to
+  // diff against here.
+  let recordedEdit = false;
+  if (poster) {
+    const originalCaption = [poster.headline, poster.subhead, poster.cta].filter(Boolean).join("\n\n");
+    const diff = summarizeCaptionEdit(originalCaption, caption);
+    if (diff) {
+      await recordSignal({
+        companyId: company.id,
+        sourceType: "EDIT",
+        strength: SIGNAL_STRENGTH.EDIT,
+        topic: poster.campaignItem?.campaign.campaignType,
+        template: poster.template,
+        posterId: poster.id,
+        metadata: { ...diff },
+      });
+      recordedEdit = true;
+    }
+  }
+
   await db.publishJob.create({
     data: {
       companyId: company.id,
@@ -95,6 +127,10 @@ export async function createPublishJob(
       nextAttemptAt: scheduledDate,
     },
   });
+
+  if (recordedEdit) {
+    await recomputeCreativeDnaPreferences(company.id);
+  }
 
   if (scheduledDate <= new Date()) {
     triggerPublishProcessing();
