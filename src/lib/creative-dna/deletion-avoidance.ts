@@ -6,12 +6,26 @@ import { wasContentDeleted } from "@/lib/creative-dna/signals";
 const MAX_RETRIES = 4;
 
 // Part 1.1's real, immediate rule: never regenerate the exact same
-// output a company has explicitly deleted. Wraps generateCaption only
-// (the primary text output a user directly deletes/regenerates in this
-// app — see removeCampaignItem) rather than every TextProvider method;
-// video scripts are structurally different (5 sections) and would need
-// per-section fingerprinting, a real, disclosed scope limit for this
-// pass, not silently skipped.
+// output a company has explicitly deleted. Overrides generateCaption
+// only (the primary text output a user directly deletes/regenerates in
+// this app — see removeCampaignItem) rather than every TextProvider
+// method; video scripts are structurally different (5 sections) and
+// would need per-section fingerprinting, a real, disclosed scope limit
+// for this pass, not silently skipped.
+//
+// Real bug found while verifying poster generation end-to-end: the
+// original version of this function built its return value as
+// `{ ...provider, generateCaption: ... }`. Object-spreading a class
+// instance only copies its own enumerable properties (here, just the
+// `name` field) — generateScript/generateCampaignBrief/
+// expandBackgroundPrompt/summarizeBusinessContext all live on the
+// class prototype, so the spread silently dropped every one of them.
+// Every caller of getTextProviderForCompany() other than
+// generateCaption was broken by this — confirmed live via a real
+// "AI Background" poster generation throwing
+// "expandBackgroundPrompt is not a function". Explicit per-method
+// delegation below instead of a spread, so nothing this interface ever
+// grows again can silently vanish the same way.
 //
 // Applied at getTextProviderForCompany's resolver level (not inside
 // TemplateTextProvider/OpenAITextProvider/AnthropicTextProvider
@@ -19,7 +33,11 @@ const MAX_RETRIES = 4;
 // needing to know this rule exists.
 export function withDeletionAvoidance(provider: TextProvider, companyId: string): TextProvider {
   return {
-    ...provider,
+    name: provider.name,
+    generateScript: (input) => provider.generateScript(input),
+    generateCampaignBrief: (input) => provider.generateCampaignBrief(input),
+    expandBackgroundPrompt: (input) => provider.expandBackgroundPrompt(input),
+    summarizeBusinessContext: (input) => provider.summarizeBusinessContext(input),
     async generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
       let result = await provider.generateCaption(input);
       let attempt = input.variantIndex ?? 0;
