@@ -7,21 +7,12 @@ import { generatePoster } from "@/lib/actions/poster";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 import { NavIcons } from "@/components/icons";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 
 interface PhotoAsset {
   id: string;
   fileName: string;
 }
-
-export const TEMPLATE_IDS = [
-  "MINIMAL",
-  "BOLD_HEADLINE",
-  "PROMOTIONAL_BANNER",
-  "SPLIT_PRODUCT",
-  "MODERN_BANNER",
-  "BADGE_OFFER",
-  "MINIMALIST_FRAME",
-] as const;
 
 export function PosterForm({
   photoAssets,

@@ -3,17 +3,37 @@
 import { useState, useTransition } from "react";
 
 import { lockCreativeDnaTopic, unlockCreativeDnaTopic, resetCreativeDnaLearning } from "@/lib/actions/creative-dna";
-import type { CreativeDnaPreferences } from "@/lib/creative-dna/types";
-import type { Dictionary } from "@/lib/i18n/dictionaries";
 
-type Dimension = "topics" | "templates" | "tones" | "visualStyles";
+export type Dimension = "topics" | "templates" | "tones" | "visualStyles";
 
-interface PreferenceRow {
+// sentence is pre-rendered server-side (see settings/page.tsx) — it's
+// the output of dict.settings.preferencesPositive/Negative, both of
+// which are functions. Real production bug found here: this component
+// used to receive Dictionary["settings"] directly as a prop from the
+// server SettingsPage and call those functions client-side. Next.js's
+// RSC boundary cannot serialize functions across server -> client
+// props ("Functions cannot be passed directly to Client Components"),
+// so every load of /settings threw. Passing the already-computed
+// string instead keeps the "natural per-locale sentence structure"
+// intent (dictionaries.ts's documented reason these are functions, not
+// templates) while never sending a function over the boundary.
+export interface PreferenceRow {
   dimension: Dimension;
   value: string;
-  score: number;
-  sampleSize: number;
-  confidenceTier: "low" | "medium" | "high";
+  sentence: string;
+}
+
+interface PreferenceLabels {
+  preferencesTitle: string;
+  preferencesSubtitle: string;
+  preferencesNoData: string;
+  lockButton: string;
+  unlockButton: string;
+  lockedBadge: string;
+  resetButton: string;
+  resetConfirm: string;
+  resetDone: string;
+  resetHint: string;
 }
 
 // Part 3's real review UI — the read-only "What's working" section
@@ -24,35 +44,18 @@ interface PreferenceRow {
 // the lock/reset controls CLAUDE.md's Company Brain spec calls for
 // (confirmed by audit: neither existed anywhere before this).
 export function CreativeDnaPreferencesPanel({
-  preferences,
+  rows,
   lockedTopics,
-  dict,
+  labels,
 }: {
-  preferences: CreativeDnaPreferences | undefined;
+  rows: PreferenceRow[];
   lockedTopics: string[];
-  dict: Dictionary["settings"];
+  labels: PreferenceLabels;
 }) {
   const [pending, startTransition] = useTransition();
   const [locked, setLocked] = useState(new Set(lockedTopics));
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-
-  const dimensionLabels: Record<Dimension, string> = {
-    topics: dict.dimensionTopic,
-    templates: dict.dimensionTemplate,
-    tones: dict.dimensionTone,
-    visualStyles: dict.dimensionVisualStyle,
-  };
-
-  const rows: PreferenceRow[] = (["topics", "templates", "tones", "visualStyles"] as const).flatMap((dimension) =>
-    Object.entries(preferences?.[dimension] ?? {}).map(([value, score]) => ({
-      dimension,
-      value,
-      score: score.score,
-      sampleSize: score.sampleSize,
-      confidenceTier: score.confidenceTier,
-    })),
-  );
-  rows.sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+  const dict = labels;
 
   function toggleLock(topic: string, isLocked: boolean) {
     setLocked((prev) => {
@@ -87,10 +90,6 @@ export function CreativeDnaPreferencesPanel({
         <ul className="flex flex-col gap-1.5">
           {rows.map((row) => {
             const isLocked = row.dimension === "topics" && locked.has(row.value);
-            const sentence =
-              row.score >= 0
-                ? dict.preferencesPositive(dimensionLabels[row.dimension], row.value)
-                : dict.preferencesNegative(dimensionLabels[row.dimension], row.value);
 
             return (
               <li
@@ -98,7 +97,7 @@ export function CreativeDnaPreferencesPanel({
                 className="flex flex-col gap-1 rounded-md border border-paper-border dark:border-night-border p-2 text-sm"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p>{sentence}</p>
+                  <p>{row.sentence}</p>
                   {row.dimension === "topics" && (
                     <button
                       type="button"

@@ -8,9 +8,10 @@ import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { GenerateCaptionForm } from "@/components/studio/generate-caption-form";
-import { PosterForm, TEMPLATE_IDS } from "@/components/poster/poster-form";
+import { PosterForm } from "@/components/poster/poster-form";
 import { VideoForm } from "@/components/video/video-form";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { NavIcons } from "@/components/icons";
 

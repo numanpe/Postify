@@ -8,7 +8,7 @@ import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
 import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
-import { CreativeDnaPreferencesPanel } from "@/components/settings/creative-dna-preferences";
+import { CreativeDnaPreferencesPanel, type Dimension, type PreferenceRow } from "@/components/settings/creative-dna-preferences";
 import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import { ActionIcons } from "@/components/icons";
 
@@ -39,6 +39,33 @@ export default async function SettingsPage() {
     }),
   ]);
   const scores = creativeDna?.confidenceScores as Partial<CreativeDnaConfidenceScores> | undefined;
+
+  // Built server-side, not passed as a live dict lookup into the client
+  // panel below — dict.settings.preferencesPositive/Negative are
+  // functions (per-locale natural sentence structure), and functions
+  // can't cross the Server -> Client Component prop boundary. See
+  // creative-dna-preferences.tsx's PreferenceRow doc comment for the
+  // real production bug this replaced.
+  const dimensionLabels: Record<Dimension, string> = {
+    topics: dict.settings.dimensionTopic,
+    templates: dict.settings.dimensionTemplate,
+    tones: dict.settings.dimensionTone,
+    visualStyles: dict.settings.dimensionVisualStyle,
+  };
+  const preferenceRows: (PreferenceRow & { absScore: number })[] = (
+    ["topics", "templates", "tones", "visualStyles"] as const
+  ).flatMap((dimension) =>
+    Object.entries(scores?.preferences?.[dimension] ?? {}).map(([value, score]) => ({
+      dimension,
+      value,
+      sentence:
+        score.score >= 0
+          ? dict.settings.preferencesPositive(dimensionLabels[dimension], value)
+          : dict.settings.preferencesNegative(dimensionLabels[dimension], value),
+      absScore: Math.abs(score.score),
+    })),
+  );
+  preferenceRows.sort((a, b) => b.absScore - a.absScore);
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,9 +111,20 @@ export default async function SettingsPage() {
       <CreativeDnaInsights confidenceScores={creativeDna?.confidenceScores} />
 
       <CreativeDnaPreferencesPanel
-        preferences={scores?.preferences}
+        rows={preferenceRows.map(({ dimension, value, sentence }) => ({ dimension, value, sentence }))}
         lockedTopics={creativeDna?.lockedTopics ?? []}
-        dict={dict.settings}
+        labels={{
+          preferencesTitle: dict.settings.preferencesTitle,
+          preferencesSubtitle: dict.settings.preferencesSubtitle,
+          preferencesNoData: dict.settings.preferencesNoData,
+          lockButton: dict.settings.lockButton,
+          unlockButton: dict.settings.unlockButton,
+          lockedBadge: dict.settings.lockedBadge,
+          resetButton: dict.settings.resetButton,
+          resetConfirm: dict.settings.resetConfirm,
+          resetDone: dict.settings.resetDone,
+          resetHint: dict.settings.resetHint,
+        }}
       />
     </div>
   );

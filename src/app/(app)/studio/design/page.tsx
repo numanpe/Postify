@@ -1,7 +1,7 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { WizardStep2 } from "@/components/studio/wizard-step2";
-import { TEMPLATE_IDS } from "@/components/poster/poster-form";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
