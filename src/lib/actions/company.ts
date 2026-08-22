@@ -6,6 +6,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, requireCompany } from "@/lib/session";
 import { INDUSTRIES } from "@/lib/industries";
+import { storage } from "@/lib/storage";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 
 export type CreateCompanyState = { error: string } | { success: true } | undefined;
 
@@ -194,5 +197,55 @@ export async function applyExtractedBusinessContext(
   });
 
   revalidatePath("/brand-kit");
+  return { success: true };
+}
+
+export type DeleteCompanyState = { error: string } | { success: true } | undefined;
+
+// Real, permanent, self-service deletion — the "eventually be able to
+// delete their own data" gap CLAUDE.md's data-handling stance implies.
+// OWNER-gated: every company currently has exactly one member (no
+// invite-a-teammate flow exists yet), but a future MEMBER role should
+// not be able to take the whole company down. Storage cleanup happens
+// AFTER the DB delete, not before/instead: Company cascades every
+// company-scoped table (schema.prisma's onDelete: Cascade), but
+// cascade only removes rows, not the real files in Vercel
+// Blob/local-disk storage those MediaAsset rows pointed at — leaving
+// those would be a real, if silent, "delete" that isn't actually
+// complete, and a real privacy gap for photos containing sensitive
+// content (a real one was found in this app's data during Phase 3
+// verification). Best-effort (Promise.allSettled): the DB deletion is
+// what makes the company actually gone from the product; one orphaned
+// blob failing to delete shouldn't roll back a real, already-committed
+// deletion the user asked for.
+export async function deleteCompany(
+  _prevState: DeleteCompanyState,
+  formData: FormData,
+): Promise<DeleteCompanyState> {
+  const { company, role } = await requireCompany();
+  const dict = getDictionary(await getLocale()).settings;
+
+  if (role !== "OWNER") {
+    return { error: dict.deleteCompanyNotOwner };
+  }
+
+  const confirmName = formData.get("confirmName");
+  if (typeof confirmName !== "string" || confirmName.trim() !== company.name) {
+    return { error: dict.deleteCompanyMismatch };
+  }
+
+  const assets = await db.mediaAsset.findMany({
+    where: { companyId: company.id },
+    select: { storageKey: true },
+  });
+
+  await db.company.delete({ where: { id: company.id } });
+
+  await Promise.allSettled(assets.map((asset) => storage.delete(asset.storageKey)));
+
+  // No redirect() here — same reasoning as createCompany above: a soft
+  // client-router transition wouldn't re-resolve <html lang/dir> or
+  // LocaleProvider now that the company (and its locale) is gone. The
+  // client form does a hard navigation on success instead.
   return { success: true };
 }

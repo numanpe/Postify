@@ -147,6 +147,15 @@ export interface Dictionary {
     dimensionTopic: string; dimensionTemplate: string; dimensionTone: string; dimensionVisualStyle: string;
     lockButton: string; unlockButton: string; lockedBadge: string;
     resetButton: string; resetConfirm: string; resetDone: string; resetHint: string;
+    dangerZoneTitle: string; dangerZoneSubtitle: string;
+    deleteCompanyButton: string;
+    deleteCompanyConfirmTitle: string;
+    deleteCompanyConfirmBody: (companyName: string) => string;
+    deleteCompanyConfirmLabel: (companyName: string) => string;
+    deleteCompanyConfirmPlaceholder: string;
+    deleteCompanySubmit: string; deleteCompanyDeleting: string; deleteCompanyCancel: string;
+    deleteCompanyMismatch: string;
+    deleteCompanyNotOwner: string;
   };
   repurpose: {
     title: string; subtitle: string;
@@ -552,6 +561,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "This clears everything learned from your deletes, publishes, edits, and regenerations, and unlocks any locked topics. It does not affect your real published-post engagement history. Continue?",
       resetDone: "Reset. We'll start noticing patterns again as you use Postify.",
       resetHint: "This only resets usage-pattern learning above — not your real measured post-performance history below.",
+      dangerZoneTitle: "Danger zone",
+      dangerZoneSubtitle: "Permanently delete this company and everything in it.",
+      deleteCompanyButton: "Delete this company",
+      deleteCompanyConfirmTitle: "Delete company permanently?",
+      deleteCompanyConfirmBody: (companyName: string) =>
+        `This permanently deletes ${companyName} — every poster, video, campaign, uploaded photo, brand kit, connected account, and everything Postify has learned about your brand. This cannot be undone.`,
+      deleteCompanyConfirmLabel: (companyName: string) => `Type "${companyName}" to confirm`,
+      deleteCompanyConfirmPlaceholder: "Company name",
+      deleteCompanySubmit: "Permanently delete",
+      deleteCompanyDeleting: "Deleting…",
+      deleteCompanyCancel: "Cancel",
+      deleteCompanyMismatch: "That doesn't match the company name.",
+      deleteCompanyNotOwner: "Only the account that created this company can delete it.",
     },
     repurpose: {
       title: "Repurpose This",
@@ -999,6 +1021,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "سيؤدي هذا إلى مسح كل ما تعلمناه من عمليات الحذف والنشر والتعديل وإعادة التوليد، وإلغاء قفل أي مواضيع مقفلة. لن يؤثر هذا على سجل أداء منشوراتك الفعلي. متابعة؟",
       resetDone: "تمت إعادة التعيين. سنبدأ في ملاحظة الأنماط مجددًا مع استخدامك لـ Postify.",
       resetHint: "هذا يعيد تعيين تعلّم أنماط الاستخدام أعلاه فقط — وليس سجل أداء منشوراتك الفعلي أدناه.",
+      dangerZoneTitle: "منطقة الخطر",
+      dangerZoneSubtitle: "احذف هذه الشركة وكل ما فيها نهائيًا.",
+      deleteCompanyButton: "حذف هذه الشركة",
+      deleteCompanyConfirmTitle: "هل تريد حذف الشركة نهائيًا؟",
+      deleteCompanyConfirmBody: (companyName: string) =>
+        `سيؤدي هذا إلى حذف ${companyName} نهائيًا — كل ملصق وفيديو وحملة وصورة مرفوعة وهوية بصرية وحساب متصل وكل ما تعلّمه Postify عن علامتك التجارية. لا يمكن التراجع عن هذا.`,
+      deleteCompanyConfirmLabel: (companyName: string) => `اكتب "${companyName}" للتأكيد`,
+      deleteCompanyConfirmPlaceholder: "اسم الشركة",
+      deleteCompanySubmit: "حذف نهائي",
+      deleteCompanyDeleting: "جارٍ الحذف…",
+      deleteCompanyCancel: "إلغاء",
+      deleteCompanyMismatch: "هذا لا يطابق اسم الشركة.",
+      deleteCompanyNotOwner: "فقط الحساب الذي أنشأ هذه الشركة يمكنه حذفها.",
     },
     repurpose: {
       title: "إعادة توظيف المحتوى",

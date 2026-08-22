@@ -9,6 +9,7 @@ import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
 import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
 import { CreativeDnaPreferencesPanel, type Dimension, type PreferenceRow } from "@/components/settings/creative-dna-preferences";
+import { DeleteCompanySection } from "@/components/settings/delete-company-section";
 import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import { ActionIcons } from "@/components/icons";
 
@@ -20,7 +21,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 export default async function SettingsPage() {
-  const { company } = await requireCompany();
+  const { company, role } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
   const [credentials, aggregatorCredentials, creativeDna] = await Promise.all([
@@ -126,6 +127,8 @@ export default async function SettingsPage() {
           resetHint: dict.settings.resetHint,
         }}
       />
+
+      {role === "OWNER" && <DeleteCompanySection companyName={company.name} />}
     </div>
   );
 }
