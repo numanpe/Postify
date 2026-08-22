@@ -3,7 +3,6 @@ import { Fraunces, Karla, Tajawal } from "next/font/google";
 import "./globals.css";
 
 import { getLocale } from "@/lib/i18n/get-locale";
-import { LocaleProvider } from "@/components/i18n/locale-provider";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -48,6 +47,19 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// LocaleProvider deliberately does NOT wrap {children} here anymore —
+// it moved to (app)/layout.tsx, the only route group that actually
+// consumes useDict()/useLocale() (confirmed by an exhaustive grep: zero
+// hits in (auth), (onboarding), or the root marketing page). Resolving
+// the dictionary is unavoidably client-side (see locale-provider.tsx's
+// doc comment — functions can't cross the RSC boundary), so having this
+// provider in the root layout meant every route, including /auth/login,
+// statically imported the full bilingual dictionaries.ts and shipped it
+// to the browser regardless of whether anything in that page's tree
+// ever called useDict(). Real measured impact: ~47KB off every
+// pre-auth/marketing page's JS payload. getLocale() itself stays here —
+// it's server-only and drives the real <html lang/dir> attributes for
+// every page, unrelated to the client Context this file no longer sets up.
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -63,7 +75,7 @@ export default async function RootLayout({
       className={`${fraunces.variable} ${karla.variable} ${tajawal.variable}`}
     >
       <body className="min-h-dvh bg-paper font-sans text-ink antialiased dark:bg-night dark:text-ink-dark">
-        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+        {children}
       </body>
     </html>
   );
