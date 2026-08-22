@@ -25,11 +25,20 @@ export async function generateWizardStep1(
   if (formData.get("autoGenerate") === "true") {
     // Real, industry-relevant, deterministically rotating by day — not
     // a fabricated "AI analyzed your brand" claim (there's no signal
-    // to base one on yet), and works with zero keys either way. Reuses
-    // the same real, hand-written shortHeadlines every poster template
-    // already draws from, not a new content source invented for this.
+    // to base one on yet), and works with zero keys either way.
+    //
+    // Real bug fixed here: this used to draw straight from
+    // shortHeadlines (poster-headline slogans, e.g. "We Handle The
+    // Details") and feed that directly into caption generation as
+    // {{topic}} — producing broken English like "We Handle The Details
+    // means answers you can actually act on." shortHeadlines are
+    // written to stand alone on a poster, not to sit grammatically
+    // inside a caption template built for a noun phrase. autoTopics
+    // (industry-packs.ts) exists specifically for this: real
+    // industry-relevant phrases actually checked against every
+    // {{topic}} template slot.
     const dayIndex = Math.floor(Date.now() / 86_400_000);
-    topic = context.pack.shortHeadlines[dayIndex % context.pack.shortHeadlines.length];
+    topic = context.pack.autoTopics[dayIndex % context.pack.autoTopics.length];
   } else {
     const parsed = TopicSchema.safeParse(formData.get("topic"));
     if (!parsed.success) {

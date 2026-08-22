@@ -36,6 +36,21 @@ export interface IndustryPack {
   // above, which are full sentences meant for captions/scripts. A
   // poster headline needs to read at a glance, not like a caption.
   shortHeadlines: string[];
+  // Real bug found from a real generated caption: "We Handle The
+  // Details means answers you can actually act on." studio-wizard.ts's
+  // "Auto-Generate Daily Idea" used to draw its {{topic}} straight from
+  // shortHeadlines above — but those are standalone marketing slogans
+  // written to stand alone on a poster, not noun phrases shaped to sit
+  // grammatically inside "{{topic}} means...", "we bring expertise to
+  // {{topic}}...", "let {{company}} take {{topic}} off your plate."
+  // Splicing a slogan into a sentence built for a noun phrase produces
+  // exactly this kind of broken English. autoTopics exists specifically
+  // to be grammatical there: every entry here was checked against every
+  // {{topic}} template slot in this industry's own valueProps/ctas/
+  // scriptMessages, and deliberately kept singular/mass/gerund-shaped
+  // (never plural) since several templates use a singular verb
+  // ("means", "is", "gets", "exists") directly after {{topic}}.
+  autoTopics: string[];
 }
 
 export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
@@ -70,6 +85,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["neon cyberpunk", "futuristic sci-fi", "dark dystopian tones", "urban concrete backdrops"],
     hashtags: ["#Agriculture", "#FarmFresh", "#LocalFarm", "#Harvest", "#SupportLocal"],
     shortHeadlines: ["Fresh From Our Fields", "Harvested With Care", "Grown Right, Every Time"],
+    autoTopics: ["this week's harvest", "our seasonal produce", "our farm-fresh selection"],
   },
   "Construction & Engineering": {
     toneDefault: "confident, precise, safety-and-craftsmanship focused",
@@ -102,6 +118,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["whimsical cartoon style", "pastel soft-focus", "organic wilderness", "cluttered chaotic composition"],
     hashtags: ["#Construction", "#Engineering", "#BuiltToLast", "#ProjectManagement", "#Craftsmanship"],
     shortHeadlines: ["Built To Last", "Precision You Can Trust", "Another Standard Met"],
+    autoTopics: ["our latest build", "your next project", "this current build"],
   },
   Education: {
     toneDefault: "encouraging, professional, focused on growth",
@@ -134,6 +151,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["dark moody tones", "neon cyberpunk", "cluttered chaotic composition", "unsettling imagery"],
     hashtags: ["#Education", "#Learning", "#StudentSuccess", "#EnrollNow", "#BackToSchool"],
     shortHeadlines: ["Learning That Sticks", "Confidence Starts Here", "Your Next Step Forward"],
+    autoTopics: ["your child's learning journey", "this term's program", "our small-group tutoring"],
   },
   "Real Estate": {
     toneDefault: "polished, aspirational, trustworthy",
@@ -166,6 +184,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["cluttered rooms", "cartoon style", "neon cyberpunk", "harsh overexposed lighting"],
     hashtags: ["#RealEstate", "#DreamHome", "#PropertyForSale", "#HomeSearch", "#JustListed"],
     shortHeadlines: ["Your Next Chapter Awaits", "Home Starts Here", "Find Your Fit"],
+    autoTopics: ["your home search", "this week's newest listing", "your next move"],
   },
   Healthcare: {
     toneDefault: "calm, reassuring, evidence-based",
@@ -198,6 +217,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["dark horror tones", "neon cyberpunk", "chaotic cluttered scenes", "graphic medical imagery"],
     hashtags: ["#Healthcare", "#PatientCare", "#WellnessJourney", "#HealthyLiving", "#BookNow"],
     shortHeadlines: ["Care That Listens", "Your Health, Our Focus", "Trusted Care, Every Visit"],
+    autoTopics: ["your care plan", "your next visit", "preventive care"],
   },
   "Retail & E-commerce": {
     toneDefault: "energetic, direct, deal-forward",
@@ -230,6 +250,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["dark moody tones", "cluttered chaotic composition", "rustic vintage textures", "flat low-contrast lighting"],
     hashtags: ["#ShopNow", "#NewArrival", "#RetailTherapy", "#LimitedStock", "#SaleAlert"],
     shortHeadlines: ["Just Dropped", "Shop The New Arrivals", "Deals Worth Sharing"],
+    autoTopics: ["this season's collection", "our latest drop", "this week's lineup"],
   },
   "Hospitality & Food": {
     toneDefault: "warm, sensory, inviting",
@@ -262,6 +283,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["cold clinical lighting", "neon cyberpunk", "cartoon style", "artificial plastic textures"],
     hashtags: ["#Foodie", "#EatLocal", "#MadeFresh", "#DineWithUs", "#TasteTheDifference"],
     shortHeadlines: ["Made Fresh Daily", "Pull Up A Seat", "Taste The Difference"],
+    autoTopics: ["tonight's special", "our new menu", "this week's tasting menu"],
   },
   "Professional Services": {
     toneDefault: "clear, competent, no-nonsense",
@@ -294,6 +316,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["cluttered chaotic composition", "neon cyberpunk", "whimsical cartoon style", "rustic vintage textures"],
     hashtags: ["#ProfessionalServices", "#Consulting", "#ExpertAdvice", "#TrustedPartner", "#GetInTouch"],
     shortHeadlines: ["Expertise You Can Trust", "Straight Answers, Real Results", "We Handle The Details"],
+    autoTopics: ["your business planning", "your next consultation", "your compliance review"],
   },
   Other: {
     toneDefault: "clear, genuine, professional",
@@ -326,6 +349,7 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     forbiddenStyles: ["neon cyberpunk", "dark dystopian tones", "cartoon style", "cluttered chaotic composition"],
     hashtags: ["#SmallBusiness", "#ShopLocal", "#NewPost", "#CheckItOut", "#SupportLocal"],
     shortHeadlines: ["Something New Is Here", "Worth Sharing", "See What Is New"],
+    autoTopics: ["our latest project", "this week's update", "our newest offering"],
   },
 };
 
