@@ -2,43 +2,10 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { MIN_SAMPLE_SIZE, confidenceTierFor } from "@/lib/creative-dna/signals";
+import type { TopicScore, CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 
-// CLAUDE.md's Creative DNA rule: preferences must not shift on
-// single-post overfitting. A topic needs at least this many measured,
-// still-live posts before its score is surfaced at all — below this,
-// the topic is simply omitted (not shown as "learned", not shown as
-// zero), which is the honest state.
-const MIN_SAMPLE_SIZE = 5;
-const MEDIUM_SAMPLE_SIZE = 10;
-const HIGH_SAMPLE_SIZE = 20;
-
-export interface TopicScore {
-  relativeScore: number; // 2.8 means "2.8x the company's own average engagement"
-  sampleSize: number;
-  confidenceTier: "low" | "medium" | "high";
-  updatedAt: string;
-}
-
-// peakPublishHours is written by smart-scheduler.ts (src/lib/scheduling/),
-// not this file — declared here anyway since both share the one
-// confidenceScores JSON column and need to agree on its shape.
-export interface PeakPublishHour {
-  hourGst: number; // 0-23, Gulf Standard Time (UTC+4)
-  sampleSize: number;
-  confidenceTier: "low" | "medium" | "high";
-  updatedAt: string;
-}
-
-export interface CreativeDnaConfidenceScores {
-  topics: Record<string, TopicScore>;
-  peakPublishHours?: PeakPublishHour;
-}
-
-function confidenceTierFor(sampleSize: number): "low" | "medium" | "high" {
-  if (sampleSize >= HIGH_SAMPLE_SIZE) return "high";
-  if (sampleSize >= MEDIUM_SAMPLE_SIZE) return "medium";
-  return "low";
-}
+export type { TopicScore, PeakPublishHour, CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 
 // Recomputes confidence-scored topic performance for one company from
 // real engagement snapshots — never called with synthetic data. Topics
@@ -79,7 +46,7 @@ export async function updateCreativeDnaLearning(companyId: string): Promise<void
   // rather than overwrite real prior learning with an empty result.
   if (allValues.length === 0) return;
 
-  const overallAverage = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+  const overallAverage = averageOf(allValues);
 
   const topics: Record<string, TopicScore> = {};
   for (const [topic, values] of byTopic) {
@@ -109,4 +76,32 @@ export async function updateCreativeDnaLearning(companyId: string): Promise<void
     create: { companyId, confidenceScores: scoresJson },
     update: { confidenceScores: scoresJson },
   });
+}
+
+function averageOf(values: number[]): number {
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+// Same "measured, still-live posts only" definition of a company's
+// average engagement that updateCreativeDnaLearning uses internally —
+// exported so pull-engagement.ts's per-post ENGAGEMENT signal (Part
+// 2.3/4.4) compares against the exact same baseline this file's own
+// topic scores use, not a second, subtly different average.
+export async function computeCompanyAverageEngagement(companyId: string): Promise<number | null> {
+  const jobs = await db.publishJob.findMany({
+    where: { companyId, status: "PUBLISHED" },
+    include: {
+      poster: { include: { campaignItem: true } },
+      engagementSnapshots: { orderBy: { fetchedAt: "desc" }, take: 1 },
+    },
+  });
+
+  const values = jobs
+    .filter((job) => job.poster?.campaignItem && job.engagementSnapshots[0])
+    .map((job) => {
+      const snapshot = job.engagementSnapshots[0];
+      return snapshot.likes + snapshot.comments + snapshot.shares;
+    });
+
+  return values.length > 0 ? averageOf(values) : null;
 }

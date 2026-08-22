@@ -6,6 +6,7 @@ import type { TextProvider } from "./types";
 import { TemplateTextProvider } from "./template-provider";
 import { OpenAITextProvider } from "./openai-provider";
 import { AnthropicTextProvider } from "./anthropic-provider";
+import { withDeletionAvoidance } from "@/lib/creative-dna/deletion-avoidance";
 
 // The two-click rule: callers never choose a provider, they just ask
 // for "the" provider for a company. BYOK wins when configured; the free
@@ -18,12 +19,14 @@ export async function getTextProviderForCompany(companyId: string): Promise<Text
     orderBy: { createdAt: "asc" },
   });
 
-  if (!credential) {
-    return new TemplateTextProvider();
-  }
+  const base = !credential
+    ? new TemplateTextProvider()
+    : credential.provider === "OPENAI"
+      ? new OpenAITextProvider(decryptSecret(credential.encryptedKey))
+      : new AnthropicTextProvider(decryptSecret(credential.encryptedKey));
 
-  const apiKey = decryptSecret(credential.encryptedKey);
-  return credential.provider === "OPENAI"
-    ? new OpenAITextProvider(apiKey)
-    : new AnthropicTextProvider(apiKey);
+  // Every caller of this resolver automatically gets the "never
+  // regenerate an exact deleted output again" rule (Part 1.1) — no
+  // individual call site needs to know this exists.
+  return withDeletionAvoidance(base, companyId);
 }

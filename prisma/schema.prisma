@@ -91,6 +91,7 @@ model Company {
   aggregatorCredentials AggregatorCredential[]
   aggregatorPublishLogs AggregatorPublishLog[]
   engagementSnapshots   EngagementSnapshot[]
+  creativeSignals       CreativeSignal[]
 }
 
 enum PublishingMode {
@@ -133,10 +134,18 @@ model BrandKit {
   updatedAt DateTime @updatedAt
 }
 
-// Structure only for Phase 1. confidenceScores stays an empty object
-// until Phase 7 wires up real, evidence-gated learning — CLAUDE.md is
-// explicit that preferences must not shift on single-post overfitting,
-// so no score-writing code should exist yet.
+// Phase 7 (real, evidence-gated learning) — confidenceScores has two
+// independent sections now, deliberately kept separate rather than
+// merged into one opaque number (see CreativeSignal below):
+//   - topics: real platform-engagement performance, computed by
+//     src/lib/creative-dna/learning.ts from EngagementSnapshot — unchanged
+//     from the original Phase 7 groundwork.
+//   - preferences: everyday-usage signals (delete/publish/edit/
+//     regenerate/engagement-as-correction) computed by
+//     src/lib/creative-dna/aggregate.ts from the CreativeSignal log below.
+// CLAUDE.md is explicit that preferences must not shift on single-post
+// overfitting — both writers enforce a minimum sample size before a
+// dimension is considered confident enough to influence anything.
 model CreativeDna {
   id        String  @id @default(cuid())
   companyId String  @unique
@@ -145,7 +154,79 @@ model CreativeDna {
   toneDescriptors  String[] @default([])
   confidenceScores Json     @default("{}")
 
+  // Topic keys (Campaign.campaignType strings) the user has explicitly
+  // locked via the Creative DNA review UI — aggregate.ts skips
+  // recomputing a locked topic's preference score, and it's never
+  // allowed to influence template/default-selection suggestions
+  // regardless of what new signals arrive.
+  lockedTopics String[] @default([])
+
   updatedAt DateTime @updatedAt
+}
+
+// Append-only event log — one row per real user action that carries
+// learning signal (delete, publish, edit, regenerate-reject/-choose,
+// engagement). Deliberately NOT a hard foreign-key relation to
+// Poster/Video/CampaignItem (posterId/videoId/campaignItemId below are
+// plain string fields) — a DELETE signal's whole purpose is to survive
+// after the content it describes is gone, so cascading delete would
+// destroy the very row recording that deletion, and SetNull would
+// silently erase the reference on exactly the signal that needs it.
+model CreativeSignal {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  sourceType SignalSource
+  // Base weight before recency decay is applied at read time (see
+  // SIGNAL_STRENGTH/decayedWeight in src/lib/creative-dna/signals.ts)
+  // — never pre-decayed and stored, since "decayed as of when" would
+  // require re-writing every row on every read otherwise.
+  strength Float
+
+  // Attributes this signal applies to — nullable, since not every
+  // signal has every dimension (an EDIT signal mainly informs tone; a
+  // template regenerate-reject mainly informs template).
+  topic       String?
+  template    String?
+  tone        String?
+  visualStyle String?
+
+  posterId       String?
+  videoId        String?
+  campaignItemId String?
+
+  // Normalized-text fingerprint of the generated output a DELETE
+  // signal applies to — the real mechanism behind "never regenerate
+  // the exact same deleted output again" (see wasContentDeleted in
+  // signals.ts). Only meaningful for sourceType DELETE.
+  contentFingerprint String?
+
+  // Free-form extra context — e.g. an EDIT signal's diff summary, or
+  // an ENGAGEMENT signal's real relativeScore and sample post count.
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, sourceType])
+  @@index([companyId, contentFingerprint])
+}
+
+enum SignalSource {
+  DELETE
+  PUBLISH
+  ENGAGEMENT
+  EDIT
+  REGEN_REJECTED
+  REGEN_CHOSEN
+  // Not produced anywhere yet — no like/dislike control exists in the
+  // UI (confirmed by a full audit before this enum was written). Kept
+  // here, unused, only so a future explicit rating control has an
+  // obvious, correctly-weighted place to plug into this same signal
+  // system rather than inventing a second one (see signals.ts's
+  // SIGNAL_STRENGTH table and its own comment on this).
+  LIKE
+  DISLIKE
 }
 
 // Auto-tagging in Phase 1 is limited to structural metadata (mime type,
