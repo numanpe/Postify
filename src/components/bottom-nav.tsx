@@ -21,15 +21,20 @@ export function BottomNav() {
   const pathname = usePathname();
   const moreSheetRef = useRef<BottomSheetHandle>(null);
 
+  // Reworked from the original create/campaigns/brand-kit/settings split:
+  // Brand Kit and Settings are config pages typically set once, not
+  // revisited often, while Publish and Media are core, frequently-used
+  // parts of the create -> publish workflow that don't belong buried in
+  // an overflow sheet.
   const primary = [
     { href: "/studio", label: dict.nav.createContent, icon: NavIcons.studio },
     { href: "/campaigns", label: dict.nav.campaigns, icon: NavIcons.campaigns },
-    { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
-    { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
+    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
+    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
   ];
   const overflow = [
-    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
-    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
+    { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
+    { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
     { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
   ];
 

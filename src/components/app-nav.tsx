@@ -21,13 +21,17 @@ const linkClass =
 
 // Desktop-only now (md: and above, 768px) — below that, BottomNav
 // (src/components/bottom-nav.tsx) is the real navigation surface.
-// Consolidated to 4 primary items + a "More" overflow (Media, Publish,
-// Repurpose) reusing the same BottomSheet primitive BottomNav's own
-// "More" sheet uses — one overflow pattern, not a different one per
-// breakpoint. Repurpose specifically needs to stay reachable (it's a
-// distinct entry point — transforming existing assets, not the
-// Create Content wizard's blank-prompt start), just not in the
-// always-visible primary 4.
+// Consolidated to 4 primary items + a "More" overflow reusing the same
+// BottomSheet primitive BottomNav's own "More" sheet uses — one
+// overflow pattern, not a different one per breakpoint.
+//
+// Primary is the core create -> publish workflow (Create Content,
+// Campaigns, Publish, Media) — all frequently revisited. Brand Kit and
+// Settings moved to "More": both are config pages typically set once,
+// not something worth an always-visible slot. Repurpose stays in
+// "More" too — a real, distinct entry point (transforming existing
+// assets, not the Create Content wizard's blank-prompt start), just
+// not frequent enough for the primary 4.
 export function AppNav() {
   const dict = useDict();
   const moreSheetRef = useRef<BottomSheetHandle>(null);
@@ -35,12 +39,12 @@ export function AppNav() {
   const primary: NavLink[] = [
     { href: "/studio", label: dict.nav.createContent, icon: NavIcons.studio },
     { href: "/campaigns", label: dict.nav.campaigns, icon: NavIcons.campaigns },
-    { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
-    { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
+    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
+    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
   ];
   const overflow: NavLink[] = [
-    { href: "/media", label: dict.nav.media, icon: NavIcons.media },
-    { href: "/publish", label: dict.nav.publish, icon: NavIcons.publish },
+    { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
+    { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
     { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
   ];
 
