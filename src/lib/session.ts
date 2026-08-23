@@ -28,10 +28,12 @@ export const requireUser = cache(async function requireUser() {
   // them out immediately on their next request. Every real
   // generate/publish action sits behind requireUser() or
   // requireCompany() below, so this one check covers all of them.
-  // Deliberately just redirect() rather than signOut() — signOut()
-  // needs to set a response cookie, which Server Components can't do;
-  // the cookie is left in place, but every subsequent page load keeps
-  // bouncing here regardless, which is sufficient lockout.
+  // Routes through /api/auth/force-signout rather than redirecting
+  // straight to /auth/login — a Server Component can't clear the
+  // session cookie itself, and redirecting there while it's still set
+  // hits (auth)/layout.tsx's own "already authenticated? bounce back
+  // to /" check, producing a genuine infinite redirect loop (found via
+  // Playwright, not by inspection — see that route's comment).
   const record = await db.user.findUnique({
     where: { id: session.user.id },
     select: { status: true },
@@ -40,7 +42,7 @@ export const requireUser = cache(async function requireUser() {
     redirect("/auth/login");
   }
   if (record.status !== "ACTIVE") {
-    redirect(`/auth/login?status=${record.status.toLowerCase()}`);
+    redirect(`/api/auth/force-signout?status=${record.status.toLowerCase()}`);
   }
 
   return session.user;
@@ -64,8 +66,38 @@ export const requireCompany = cache(async function requireCompany() {
     redirect("/create-company");
   }
   if (membership.company.status !== "ACTIVE") {
-    redirect(`/auth/login?status=company_${membership.company.status.toLowerCase()}`);
+    redirect(`/api/auth/force-signout?status=company_${membership.company.status.toLowerCase()}`);
   }
 
   return { user, company: membership.company, role: membership.role };
+});
+
+// Platform-level admin gate for /admin routes — deliberately separate
+// from requireCompany()'s company-membership boundary, since an admin's
+// authority isn't scoped to any one company (an admin may have no
+// company membership at all). Redirects to the app's normal home
+// rather than /auth/login for a signed-in non-admin, since "you're
+// logged in but not allowed here" is a different situation from "you're
+// not logged in at all" — matching requireCompany()'s own redirect for
+// a signed-in user with no company.
+export const requireAdmin = cache(async function requireAdmin() {
+  const user = await requireUser();
+
+  const record = await db.user.findUnique({
+    where: { id: user.id },
+    select: { adminRole: true },
+  });
+  if (!record?.adminRole) {
+    redirect("/");
+  }
+
+  return { user, adminRole: record.adminRole };
+});
+
+export const requireSuperAdmin = cache(async function requireSuperAdmin() {
+  const admin = await requireAdmin();
+  if (admin.adminRole !== "SUPER_ADMIN") {
+    redirect("/admin");
+  }
+  return admin;
 });
