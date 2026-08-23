@@ -22,6 +22,29 @@ export interface GenerateCaptionOutput {
   estimatedCostUsd?: number;
 }
 
+// Real backstop for malformed topic input (see topic-validation.ts /
+// topic-guard.ts) — only ever called when validateTopic() has already
+// flagged the raw input as a likely meta-instruction, bare URL, or
+// implausibly long text, never on ordinary topics. BYOK-only by
+// design: extracting a real subject from malformed text needs actual
+// language understanding the free template tier doesn't have —
+// TemplateTextProvider's implementation always returns null (see its
+// own doc comment), which correctly routes the free tier to block-
+// and-ask-the-user instead of guessing.
+export interface ClarifyTopicInput {
+  rawInput: string;
+  companyName: string;
+  industry: string;
+}
+
+export interface ClarifyTopicOutput {
+  // null means "couldn't confidently extract a real topic" — the
+  // caller must fall back to the same block-and-ask behavior as the
+  // free tier, never proceed with the raw flagged text.
+  clarifiedTopic: string | null;
+  providerName: string;
+}
+
 export interface GenerateScriptInput {
   context: CompanyContext;
   topic: string;
@@ -149,6 +172,11 @@ export interface SummarizeBusinessContextInput {
   metaDescription: string | null;
   ogDescription: string | null;
   visibleText: string;
+  // Real nav/header menu link text (brand-extract.ts) — the free
+  // tier's real products heuristic leans on this as its primary
+  // signal; BYOK providers may use it as an extra hint alongside their
+  // own full-text understanding.
+  navLinkTexts: string[];
 }
 
 export interface SummarizeBusinessContextOutput {
@@ -165,6 +193,7 @@ export interface TextProvider {
   generateCampaignBrief(input: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput>;
   expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput>;
   summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput>;
+  clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

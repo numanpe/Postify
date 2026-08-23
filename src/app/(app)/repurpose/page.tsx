@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { RepurposeForm } from "@/components/repurpose/repurpose-form";
+import { resolveIndustryPack } from "@/lib/industry-packs";
 
 // Requests the platform's maximum available execution time — this page's
 // Server Action (repurposeContent) can run a full poster AND video
@@ -34,7 +35,7 @@ export default async function RepurposePage() {
         <h1 className="text-xl font-semibold">{dict.repurpose.title}</h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.repurpose.subtitle}</p>
       </div>
-      <RepurposeForm posters={posters} videos={videos} />
+      <RepurposeForm posters={posters} videos={videos} topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions} />
     </div>
   );
 }

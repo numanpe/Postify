@@ -13,6 +13,7 @@ import type {
   ExpandBackgroundPromptOutput,
   SummarizeBusinessContextInput,
   SummarizeBusinessContextOutput,
+  ClarifyTopicOutput,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
@@ -136,8 +137,19 @@ function shortHeadline(seed: string, options: string[]): string {
 
 // The zero-key free path: industry pack + company context filled into
 // templates, no LLM call, works everywhere, never fails or rate-limits.
+//
+// Exported as a real constant (not just a string literal on the class)
+// because topic-guard.ts needs a reliable way to tell "this is the
+// free tier" apart from BYOK — instanceof doesn't work there, since
+// every real caller gets this wrapped in withDeletionAvoidance() (a
+// plain object literal, not a class instance). `.name` is the one
+// property that wrapper does forward correctly, so this constant keeps
+// that one check in sync with the class automatically instead of
+// duplicating the string.
+export const FREE_TEXT_PROVIDER_NAME = "Free (template)";
+
 export class TemplateTextProvider implements TextProvider {
-  readonly name = "Free (template)";
+  readonly name = FREE_TEXT_PROVIDER_NAME;
 
   async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { pack, name, tone, secondaryNiches, companyId } = context;
@@ -358,20 +370,31 @@ export class TemplateTextProvider implements TextProvider {
   // real extracted text itself, not a generated summary — the free tier
   // doesn't paraphrase, it just picks the most informative real string
   // already available (an explicit description beats raw body text,
-  // which is noisier). products stays honestly empty: identifying
-  // "likely products/services" from raw prose needs real language
-  // understanding this heuristic doesn't have — surfacing a guessed
-  // list here would be exactly the kind of fabricated-looking output
-  // CLAUDE.md rules out. tone is a real measurement (contraction/
-  // exclamation frequency, average sentence length), not invented.
+  // which is noisier). products uses a real, disclosed heuristic (see
+  // deriveProductsHeuristic below) — real signals actually pulled from
+  // the site, an honest empty array when neither signal is present,
+  // never a guessed/fabricated list. tone is a real measurement
+  // (contraction/exclamation frequency, average sentence length), not
+  // invented.
   async summarizeBusinessContext({
     ogDescription,
     metaDescription,
     visibleText,
+    navLinkTexts,
   }: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
     const description = (ogDescription ?? metaDescription ?? visibleText.slice(0, 220)).trim();
     const tone = detectToneHeuristic(visibleText || description);
-    return { description, products: [], tone, providerName: this.name };
+    const products = deriveProductsHeuristic(navLinkTexts, description);
+    return { description, products, tone, providerName: this.name };
+  }
+
+  // Real, honest "no" — per this method's own doc comment (types.ts),
+  // extracting a real subject from malformed input needs actual
+  // language understanding this deterministic tier doesn't have.
+  // topic-guard.ts's real backstop treats a null here as "block and
+  // ask the user to fix it", never as license to guess.
+  async clarifyTopic(): Promise<ClarifyTopicOutput> {
+    return { clarifiedTopic: null, providerName: this.name };
   }
 }
 
@@ -390,4 +413,60 @@ function detectToneHeuristic(text: string): string {
   return casualSignal >= 3 || avgSentenceLength < 60
     ? "casual, approachable, direct"
     : "formal, professional, polished";
+}
+
+// A real failure case found while verifying this against a realistic
+// description ("...sourdough bread, croissants, custom cakes, and
+// coffee, baked fresh daily.") — the trailing clause describes HOW the
+// products are made, not another product, but a naive comma-split
+// can't tell the two apart. A cheap, real fix: such clauses almost
+// always open with a past-participle verb.
+const TRAILING_CLAUSE_VERBS =
+  /^(baked|made|served|brewed|roasted|crafted|prepared|sourced|grown|packed|shipped|delivered|cooked|handmade)\b/i;
+
+function splitListPhrase(phrase: string): string[] {
+  return phrase
+    .split(/,|\band\b|&/i)
+    .map((item) => item.trim().replace(/^(a|an|the)\s+/i, "").replace(/\.$/, ""))
+    .filter(
+      (item) =>
+        item.length >= 2 &&
+        item.length <= 40 &&
+        !/^(more|etc\.?|so much more)$/i.test(item) &&
+        !TRAILING_CLAUSE_VERBS.test(item),
+    );
+}
+
+// Fallback for when the nav yields nothing usable: many real business
+// descriptions explicitly list what they sell in exactly this shape
+// ("a range of skincare, razors, and shave gel") — a real, common
+// English pattern, not a guess at arbitrary prose.
+const PRODUCT_LIST_PATTERNS = [
+  /(?:range|selection|variety|collection|line|assortment) of ([^.!?]+)/i,
+  /(?:offers?|offering|featuring|including) ([^.!?]+)/i,
+];
+
+function deriveProductsFromDescription(description: string): string[] {
+  for (const pattern of PRODUCT_LIST_PATTERNS) {
+    const match = pattern.exec(description);
+    if (!match) continue;
+    const items = splitListPhrase(match[1]);
+    if (items.length > 0) return items.slice(0, 6);
+  }
+  return [];
+}
+
+// Real, disclosed heuristic — no LLM here, so no true language
+// understanding, unlike the BYOK providers' real prompt-based
+// extraction. Primary signal is the site's own real navigation menu
+// (brand-extract.ts captures nav/header link text before those
+// elements are stripped for the visibleText signal) — a business's
+// own nav is usually the single most reliable non-LLM signal for what
+// it actually sells ("Shop Razors", "Skincare", "Subscriptions").
+// Falls back to parsing a comma-separated list out of the description
+// when nav yields nothing useful. A real, honest empty array — never a
+// fabricated guess — when neither signal is present.
+function deriveProductsHeuristic(navLinkTexts: string[], description: string): string[] {
+  if (navLinkTexts.length > 0) return navLinkTexts.slice(0, 6);
+  return deriveProductsFromDescription(description);
 }

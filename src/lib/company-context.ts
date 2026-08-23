@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { INDUSTRY_PACKS, type Industry, type IndustryPack } from "@/lib/industry-packs";
+import { type Industry, type IndustryPack, resolveIndustry, INDUSTRY_PACKS } from "@/lib/industry-packs";
 
 export interface CompanyContext {
   companyId: string;
@@ -21,8 +21,6 @@ export interface CompanyContext {
   businessDescription: string | null;
 }
 
-const KNOWN_INDUSTRIES = new Set(Object.keys(INDUSTRY_PACKS));
-
 // Company-scoped by design — always called with a companyId already
 // resolved through requireCompany()'s membership check, never a
 // client-supplied id.
@@ -32,9 +30,10 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
     include: { creativeDna: true },
   });
 
-  const industry: Industry = KNOWN_INDUSTRIES.has(company.primaryIndustry)
-    ? (company.primaryIndustry as Industry)
-    : "Other";
+  // Company.primaryIndustry is a plain DB string column, not narrowed
+  // to the Industry union — resolveIndustry (industry-packs.ts) is the
+  // one real, shared place this defensive fallback lives now.
+  const industry: Industry = resolveIndustry(company.primaryIndustry);
   const pack = INDUSTRY_PACKS[industry];
 
   const tone = company.creativeDna?.toneDescriptors.length

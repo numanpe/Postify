@@ -26,6 +26,16 @@ export interface Dictionary {
     save: string; cancel: string; remove: string; delete: string; retry: string;
     regenerate: string; approve: string; processNow: string; manage: string; optional: string;
   };
+  voiceInput: {
+    startLabel: string; listeningLabel: string;
+    errorNotAllowed: string; errorNoSpeech: string; errorNetwork: string; errorGeneric: string;
+  };
+  topicGuard: {
+    suggestionsLabel: string;
+    blockedGeneric: string;
+    blockedNoClarify: string;
+    clarifiedNotice: (used: string) => string;
+  };
   status: {
     PENDING: string; GENERATING: string; READY: string; FAILED: string; APPROVED: string;
     DRAFT: string; SCHEDULED: string; PUBLISHING: string; PUBLISHED: string;
@@ -58,6 +68,9 @@ export interface Dictionary {
     publishNow: string; scheduleCampaign: string; backToEdit: string;
     startOver: string;
     videoPublishUnavailable: string; downloadVideo: string;
+    durationSuggestion: (days: number) => string;
+    durationSuggestionCapped: (requestedDays: number, cappedDays: number) => string;
+    durationSuggestionAction: string; durationSuggestionDismiss: string;
   };
   poster: {
     title: string; subtitle: (name: string) => string; previousPosters: string;
@@ -110,6 +123,10 @@ export interface Dictionary {
     processingHint: (n: number) => string; weekdays: string[];
     assetTypePoster: string; assetTypeVideo: string; captionLabel: string; hashtagsLabel: string;
     noCampaignsHint: string;
+    durationDetected: (days: number) => string;
+    durationDetectedCapped: (requestedDays: number, cappedDays: number) => string;
+    durationApply: string;
+    previewSingle: string; previewMulti: (days: number) => string;
   };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
@@ -238,6 +255,20 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       manage: "Manage",
       optional: "(optional)",
     },
+    voiceInput: {
+      startLabel: "Speak instead of typing",
+      listeningLabel: "Listening… tap to stop",
+      errorNotAllowed: "Microphone access was blocked — allow it in your browser settings to use voice input.",
+      errorNoSpeech: "Didn't catch that — try again.",
+      errorNetwork: "Voice input needs an internet connection right now.",
+      errorGeneric: "Voice input didn't work — try again, or type instead.",
+    },
+    topicGuard: {
+      suggestionsLabel: "Suggestions",
+      blockedGeneric: "That doesn't look like a topic — try something like \"New product announcement\", or pick a suggestion below.",
+      blockedNoClarify: "That doesn't look like a topic, and we couldn't confidently figure out what you meant — try something like \"New product announcement\", or pick a suggestion below.",
+      clarifiedNotice: (used: string) => `We used "${used}" as the topic instead of what was typed.`,
+    },
     status: {
       PENDING: "Pending",
       GENERATING: "Generating",
@@ -319,6 +350,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       videoPublishUnavailable:
         "Direct video publishing needs a connected TikTok account — Facebook, Instagram, and LinkedIn don't support video here yet. Connect TikTok on the Publish page, or download the video below.",
       downloadVideo: "Download video",
+      durationSuggestion: (days: number) => `This sounds like about ${days} day${days === 1 ? "" : "s"} of content, not just one post.`,
+      durationSuggestionCapped: (requestedDays: number, cappedDays: number) =>
+        `That sounds like about ${requestedDays} days — this app plans up to ${cappedDays} days at a time, so it'll start with those.`,
+      durationSuggestionAction: "Create a full campaign instead",
+      durationSuggestionDismiss: "No, just this one post",
     },
     poster: {
       title: "Poster Studio",
@@ -453,6 +489,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       captionLabel: "Caption",
       hashtagsLabel: "Hashtags",
       noCampaignsHint: "Describe an objective above and we'll plan a coherent week of posts for you — no campaigns yet.",
+      durationDetected: (days: number) => `Sounds like ${days} day${days === 1 ? "" : "s"} — use that?`,
+      durationDetectedCapped: (requestedDays: number, cappedDays: number) =>
+        `Sounds like about ${requestedDays} days — this app plans up to ${cappedDays} at a time.`,
+      durationApply: "Use this",
+      previewSingle: "This will create 1 post.",
+      previewMulti: (days: number) => `This will create 1 video and ${days - 1} poster${days - 1 === 1 ? "" : "s"} over ${days} days.`,
     },
     publish: {
       title: "Publish",
@@ -765,6 +807,20 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       manage: "إدارة",
       optional: "(اختياري)",
     },
+    voiceInput: {
+      startLabel: "تحدّث بدلاً من الكتابة",
+      listeningLabel: "جارٍ الاستماع… اضغط للإيقاف",
+      errorNotAllowed: "تم حظر الوصول إلى الميكروفون — فعِّله من إعدادات المتصفح لاستخدام الإدخال الصوتي.",
+      errorNoSpeech: "لم يتم التقاط أي صوت — حاول مرة أخرى.",
+      errorNetwork: "يحتاج الإدخال الصوتي إلى اتصال بالإنترنت الآن.",
+      errorGeneric: "لم يعمل الإدخال الصوتي — حاول مرة أخرى أو اكتب بدلاً من ذلك.",
+    },
+    topicGuard: {
+      suggestionsLabel: "اقتراحات",
+      blockedGeneric: "هذا لا يبدو موضوعًا — جرّب شيئًا مثل \"إطلاق منتج جديد\"، أو اختر اقتراحًا أدناه.",
+      blockedNoClarify: "هذا لا يبدو موضوعًا، ولم نتمكن من تحديد ما تقصده بثقة — جرّب شيئًا مثل \"إطلاق منتج جديد\"، أو اختر اقتراحًا أدناه.",
+      clarifiedNotice: (used: string) => `استخدمنا "${used}" كموضوع بدلاً مما تمت كتابته.`,
+    },
     status: {
       PENDING: "قيد الانتظار",
       GENERATING: "قيد الإنشاء",
@@ -845,6 +901,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       videoPublishUnavailable:
         "يتطلب النشر المباشر للفيديو ربط حساب تيك توك — فيسبوك وإنستغرام ولينكدإن لا تدعم الفيديو هنا بعد. اربط تيك توك من صفحة النشر، أو نزّل الفيديو أدناه.",
       downloadVideo: "تنزيل الفيديو",
+      durationSuggestion: (days: number) => `يبدو أن هذا طلب لحوالي ${days} يوم من المحتوى، وليس منشورًا واحدًا فقط.`,
+      durationSuggestionCapped: (requestedDays: number, cappedDays: number) =>
+        `يبدو هذا طلبًا لحوالي ${requestedDays} يومًا — هذا التطبيق يخطط حتى ${cappedDays} يومًا في المرة الواحدة، فسيبدأ بها.`,
+      durationSuggestionAction: "إنشاء حملة كاملة بدلاً من ذلك",
+      durationSuggestionDismiss: "لا، منشور واحد فقط",
     },
     poster: {
       title: "استوديو الملصقات",
@@ -979,6 +1040,12 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       captionLabel: "التسمية التوضيحية",
       hashtagsLabel: "الوسوم",
       noCampaignsHint: "صف هدفًا أعلاه وسنخطط لك أسبوعًا متكاملًا من المنشورات — لا توجد حملات بعد.",
+      durationDetected: (days: number) => `يبدو أنك تطلب ${days} يومًا — هل تريد استخدام ذلك؟`,
+      durationDetectedCapped: (requestedDays: number, cappedDays: number) =>
+        `يبدو هذا طلبًا لحوالي ${requestedDays} يومًا — هذا التطبيق يخطط حتى ${cappedDays} يومًا في المرة الواحدة.`,
+      durationApply: "استخدام هذا",
+      previewSingle: "سيؤدي هذا إلى إنشاء منشور واحد.",
+      previewMulti: (days: number) => `سيؤدي هذا إلى إنشاء فيديو واحد و${days - 1} منشور خلال ${days} يومًا.`,
     },
     publish: {
       title: "النشر",

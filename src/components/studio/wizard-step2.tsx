@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { PosterForm } from "@/components/poster/poster-form";
 import { VideoForm } from "@/components/video/video-form";
+import type { TopicSuggestion } from "@/components/ui/topic-suggestions";
 import { useDict } from "@/components/i18n/locale-provider";
 
 interface PhotoAsset {
@@ -26,6 +27,7 @@ export function WizardStep2({
   defaultBackgroundSource,
   narrationAvailable,
   preferredTemplateOrder,
+  topicSuggestions,
 }: {
   defaultHeadline: string;
   defaultTopic: string;
@@ -36,6 +38,7 @@ export function WizardStep2({
   // Computed server-side (studio/design/page.tsx) — see PosterForm's
   // own doc comment on this prop.
   preferredTemplateOrder?: readonly string[];
+  topicSuggestions: TopicSuggestion[];
 }) {
   const [mode, setMode] = useState<"poster" | "video">("poster");
   const dict = useDict().wizard;
@@ -88,6 +91,7 @@ export function WizardStep2({
           assets={videoAssets}
           narrationAvailable={narrationAvailable}
           defaultTopic={defaultTopic}
+          topicSuggestions={topicSuggestions}
           onSuccess={(videoId) => router.push(`/studio/publish?assetType=video&id=${videoId}`)}
         />
       )}

@@ -6,10 +6,19 @@ import { requireCompany } from "@/lib/session";
 import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
+import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
 
 export type WizardStep1State =
   | { status: "error"; error: string }
-  | { status: "success"; topic: string; captions: string[]; hashtags: string[] }
+  | {
+      status: "success";
+      topic: string;
+      captions: string[];
+      hashtags: string[];
+      // See content.ts's identical field — only set when the raw typed
+      // topic was flagged and a BYOK provider inferred a real subject.
+      wasClarified: boolean;
+    }
   | undefined;
 
 const TopicSchema = z.string().trim().min(3, "Describe what this post is about (a few words).").max(300);
@@ -21,7 +30,9 @@ export async function generateWizardStep1(
   const { company } = await requireCompany();
   const context = await getCompanyContext(company.id);
 
+  const textProvider = await getTextProviderForCompany(company.id);
   let topic: string;
+  let wasClarified = false;
   if (formData.get("autoGenerate") === "true") {
     // Real, industry-relevant, deterministically rotating by day — not
     // a fabricated "AI analyzed your brand" claim (there's no signal
@@ -44,10 +55,18 @@ export async function generateWizardStep1(
     if (!parsed.success) {
       return { status: "error", error: parsed.error.issues[0]?.message ?? "Invalid input." };
     }
-    topic = parsed.data;
+    try {
+      const guard = await guardTopic(parsed.data, textProvider, context);
+      topic = guard.topic;
+      wasClarified = guard.wasClarified;
+    } catch (error) {
+      if (error instanceof TopicGuardError) {
+        return { status: "error", error: error.message };
+      }
+      throw error;
+    }
   }
 
-  const textProvider = await getTextProviderForCompany(company.id);
   const captions: string[] = [];
   try {
     // 3 independent calls to the same real generateCaption used
@@ -64,5 +83,5 @@ export async function generateWizardStep1(
     throw error;
   }
 
-  return { status: "success", topic, captions, hashtags: context.pack.hashtags };
+  return { status: "success", topic, captions, hashtags: context.pack.hashtags, wasClarified };
 }

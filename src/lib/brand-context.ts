@@ -13,7 +13,7 @@ import type { TextProvider, SummarizeBusinessContextOutput } from "@/lib/provide
 // never blocking the whole website-import feature on requiring a paid
 // key, and never silently skipping the step either.
 export async function deriveBusinessContext(
-  extracted: Pick<ExtractedBrandAssets, "metaDescription" | "ogDescription" | "visibleText">,
+  extracted: Pick<ExtractedBrandAssets, "metaDescription" | "ogDescription" | "visibleText" | "navLinkTexts">,
   companyName: string,
   textProvider: TextProvider,
 ): Promise<SummarizeBusinessContextOutput> {
@@ -22,5 +22,6 @@ export async function deriveBusinessContext(
     metaDescription: extracted.metaDescription,
     ogDescription: extracted.ogDescription,
     visibleText: extracted.visibleText,
+    navLinkTexts: extracted.navLinkTexts,
   });
 }

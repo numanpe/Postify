@@ -1,33 +1,44 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { generateCaption } from "@/lib/actions/content";
 import { Button } from "@/components/ui/button";
+import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
 import { useDict } from "@/components/i18n/locale-provider";
 import { NavIcons } from "@/components/icons";
 
-export function GenerateCaptionForm() {
+export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: TopicSuggestion[] }) {
   const [state, action, pending] = useActionState(generateCaption, undefined);
   const dict = useDict().studio;
+  const topicGuardDict = useDict().topicGuard;
+  const [topic, setTopic] = useState("");
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-4">
-      <form action={action} className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="text"
-          name="topic"
-          placeholder={dict.topicPlaceholder}
-          required
-          className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
-        />
-        <Button type="submit" pending={pending} pendingLabel={dict.generating} size="sm">
-          <NavIcons.studio size={16} aria-hidden="true" />
-          {dict.generate}
-        </Button>
+      <form action={action} className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            name="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder={dict.topicPlaceholder}
+            required
+            className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+          />
+          <Button type="submit" pending={pending} pendingLabel={dict.generating} size="sm">
+            <NavIcons.studio size={16} aria-hidden="true" />
+            {dict.generate}
+          </Button>
+        </div>
+        <TopicSuggestions suggestions={topicSuggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
       </form>
 
       {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "success" && state.usedTopic && (
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.usedTopic)}</p>
+      )}
 
       {state?.status === "success" && (
         <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-4">

@@ -16,6 +16,7 @@ import { SocialPreviewModal } from "@/components/social-preview/social-preview-m
 import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { NavIcons } from "@/components/icons";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
+import { resolveIndustryPack } from "@/lib/industry-packs";
 
 const MODES = ["captions", "poster", "video"] as const;
 type Mode = (typeof MODES)[number];
@@ -62,14 +63,29 @@ export default async function StudioModePage({ params }: { params: Promise<{ mod
         ))}
       </nav>
 
-      {mode === "captions" && <CaptionsMode companyName={company.name} />}
+      {mode === "captions" && (
+        <CaptionsMode companyName={company.name} topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions} />
+      )}
       {mode === "poster" && <PosterMode companyId={company.id} companyName={company.name} />}
-      {mode === "video" && <VideoMode companyId={company.id} companyName={company.name} voiceEngine={company.voiceEngine} />}
+      {mode === "video" && (
+        <VideoMode
+          companyId={company.id}
+          companyName={company.name}
+          voiceEngine={company.voiceEngine}
+          topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+        />
+      )}
     </div>
   );
 }
 
-async function CaptionsMode({ companyName }: { companyName: string }) {
+async function CaptionsMode({
+  companyName,
+  topicSuggestions,
+}: {
+  companyName: string;
+  topicSuggestions: { label: string; topic: string }[];
+}) {
   const dict = getDictionary(await getLocale());
   return (
     <div className="flex flex-col gap-6">
@@ -77,7 +93,7 @@ async function CaptionsMode({ companyName }: { companyName: string }) {
         <h1 className="text-xl font-semibold">{dict.studio.title}</h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.studio.subtitle(companyName)}</p>
       </div>
-      <GenerateCaptionForm />
+      <GenerateCaptionForm topicSuggestions={topicSuggestions} />
     </div>
   );
 }
@@ -175,10 +191,12 @@ async function VideoMode({
   companyId,
   companyName,
   voiceEngine,
+  topicSuggestions,
 }: {
   companyId: string;
   companyName: string;
   voiceEngine: "FREE" | "BYOK";
+  topicSuggestions: { label: string; topic: string }[];
 }) {
   const dict = getDictionary(await getLocale());
 
@@ -227,7 +245,7 @@ async function VideoMode({
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.video.subtitle(companyName)}</p>
       </div>
 
-      <VideoForm assets={assets} narrationAvailable={narrationAvailable} />
+      <VideoForm assets={assets} narrationAvailable={narrationAvailable} topicSuggestions={topicSuggestions} />
 
       {videos.length > 0 && (
         <div className="flex flex-col gap-3">

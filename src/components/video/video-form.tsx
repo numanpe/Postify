@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { generateVideo } from "@/lib/actions/video";
 import { Button } from "@/components/ui/button";
+import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
 import { useDict } from "@/components/i18n/locale-provider";
 import { NavIcons } from "@/components/icons";
 
@@ -18,19 +19,23 @@ export function VideoForm({
   assets,
   narrationAvailable,
   defaultTopic,
+  topicSuggestions,
   onSuccess,
 }: {
   assets: MediaAssetOption[];
   narrationAvailable: boolean;
   // Carried over from the Step 1 wizard's chosen caption (studio/page.tsx).
   defaultTopic?: string;
+  topicSuggestions: TopicSuggestion[];
   // Wizard Step 2 (wizard-step2.tsx) needs the new video's id to
   // advance to Step 3 — see poster-form.tsx's identical addition.
   onSuccess?: (videoId: string) => void;
 }) {
   const [state, action, pending] = useActionState(generateVideo, undefined);
   const dict = useDict().video;
+  const topicGuardDict = useDict().topicGuard;
   const router = useRouter();
+  const [topic, setTopic] = useState(defaultTopic ?? "");
   const [template, setTemplate] = useState<"STANDARD" | "LOWER_THIRD_PROMO" | "WAVEFORM_CAPTIONS">("STANDARD");
   const templateHint =
     template === "LOWER_THIRD_PROMO"
@@ -59,10 +64,12 @@ export function VideoForm({
           id="topic"
           name="topic"
           required
-          defaultValue={defaultTopic}
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
           placeholder={dict.topicPlaceholder}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
+        <TopicSuggestions suggestions={topicSuggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
       </div>
 
       <div className="flex flex-col gap-1">
@@ -132,6 +139,9 @@ export function VideoForm({
       {state?.status === "success" && (
         <div className="flex flex-col gap-1">
           <p className="text-sm text-green-700 dark:text-green-400">{dict.generatedSuccess}</p>
+          {state.usedTopic && (
+            <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.usedTopic)}</p>
+          )}
           {state.warnings.map((warning) => (
             <p key={warning} className="text-sm text-amber-600 dark:text-amber-400">
               {warning}

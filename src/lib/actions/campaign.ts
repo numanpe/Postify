@@ -14,6 +14,7 @@ import { triggerCampaignProcessing } from "@/lib/jobs/trigger";
 import { recordSignal, fingerprintContent, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
 import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 import { appendMusicCredit } from "@/lib/video/music-credit";
+import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
 
 export type CreateCampaignState = { error: string } | undefined;
 
@@ -41,10 +42,27 @@ export async function createCampaign(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { objective, startDate, days } = parsed.data;
+  const { startDate, days } = parsed.data;
 
   const context = await getCompanyContext(company.id);
   const textProvider = await getTextProviderForCompany(company.id);
+
+  // Real backstop for malformed campaign objectives — the same guard
+  // used everywhere else a topic/objective is typed (topic-guard.ts).
+  // The clarified (or unflagged, unchanged) objective is what actually
+  // gets used below, both for real generation and for what's stored on
+  // the Campaign row itself — the raw flagged text never reaches
+  // either.
+  let objective: string;
+  try {
+    const guard = await guardTopic(parsed.data.objective, textProvider, context);
+    objective = guard.topic;
+  } catch (error) {
+    if (error instanceof TopicGuardError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
 
   // <input type="date"> submits "YYYY-MM-DD", which Date parses as UTC
   // midnight — advancing with setUTCDate (not the local-time setDate)

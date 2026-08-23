@@ -4,10 +4,13 @@ import { z } from "zod";
 
 import { requireCompany } from "@/lib/session";
 import { generateVideoCore, VideoGenerationError } from "@/lib/video/generate";
+import { getCompanyContext } from "@/lib/company-context";
+import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
+import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
 
 export type GenerateVideoState =
   | { status: "error"; error: string }
-  | { status: "success"; videoId: string; warnings: string[] }
+  | { status: "success"; videoId: string; warnings: string[]; usedTopic?: string }
   | undefined;
 
 const VideoSchema = z.object({
@@ -43,16 +46,34 @@ export async function generateVideo(
   }
 
   try {
+    // Real backstop for malformed video topics — same guard used
+    // everywhere else a topic is typed (topic-guard.ts). The video
+    // pipeline generates its own script directly from this topic, so a
+    // flagged raw topic would otherwise reach that script generation
+    // completely unfiltered.
+    const context = await getCompanyContext(company.id);
+    const textProvider = await getTextProviderForCompany(company.id);
+    const guard = await guardTopic(parsed.data.topic, textProvider, context);
+
     const result = await generateVideoCore({
       companyId: company.id,
       userId: user.id,
       ...parsed.data,
+      topic: guard.topic,
     });
     // Video list refresh happens client-side (video-form.tsx's
     // router.refresh() on success) instead of here — see poster.ts's
     // identical change and the README's ISR Writes note.
-    return { status: "success", videoId: result.videoId, warnings: result.warnings };
+    return {
+      status: "success",
+      videoId: result.videoId,
+      warnings: result.warnings,
+      usedTopic: guard.wasClarified ? guard.topic : undefined,
+    };
   } catch (error) {
+    if (error instanceof TopicGuardError) {
+      return { status: "error", error: error.message };
+    }
     if (error instanceof VideoGenerationError) {
       return { status: "error", error: error.message };
     }

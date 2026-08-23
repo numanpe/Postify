@@ -5,7 +5,9 @@ import Link from "next/link";
 
 import { repurposeContent } from "@/lib/actions/repurpose";
 import { Button } from "@/components/ui/button";
-import { useDict } from "@/components/i18n/locale-provider";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
+import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
+import { useDict, useLocale } from "@/components/i18n/locale-provider";
 
 interface PosterOption {
   id: string;
@@ -40,9 +42,21 @@ function CopyCaptionButton({ text }: { text: string }) {
   );
 }
 
-export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; videos: VideoOption[] }) {
+export function RepurposeForm({
+  posters,
+  videos,
+  topicSuggestions,
+}: {
+  posters: PosterOption[];
+  videos: VideoOption[];
+  topicSuggestions: TopicSuggestion[];
+}) {
   const dict = useDict().repurpose;
+  const voiceDict = useDict().voiceInput;
+  const topicGuardDict = useDict().topicGuard;
+  const locale = useLocale();
   const [source, setSource] = useState<"POSTER" | "VIDEO" | "TEXT">(posters.length > 0 ? "POSTER" : "TEXT");
+  const [manualText, setManualText] = useState("");
   const [state, action, pending] = useActionState(repurposeContent, undefined);
 
   return (
@@ -119,12 +133,31 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
             {dict.sourceText}
           </label>
           {source === "TEXT" && (
-            <textarea
-              name="manualText"
-              rows={2}
-              placeholder={dict.describePlaceholder}
-              className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
-            />
+            <div className="flex items-start gap-2">
+              <textarea
+                name="manualText"
+                rows={2}
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                placeholder={dict.describePlaceholder}
+                className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+              />
+              <VoiceInputButton
+                lang={locale === "ar" ? "ar-SA" : "en-US"}
+                onResult={setManualText}
+                startLabel={voiceDict.startLabel}
+                listeningLabel={voiceDict.listeningLabel}
+                errorMessages={{
+                  notAllowed: voiceDict.errorNotAllowed,
+                  noSpeech: voiceDict.errorNoSpeech,
+                  network: voiceDict.errorNetwork,
+                  generic: voiceDict.errorGeneric,
+                }}
+              />
+            </div>
+          )}
+          {source === "TEXT" && (
+            <TopicSuggestions suggestions={topicSuggestions} currentValue={manualText} onSelect={setManualText} label={topicGuardDict.suggestionsLabel} />
           )}
         </div>
 
@@ -154,6 +187,9 @@ export function RepurposeForm({ posters, videos }: { posters: PosterOption[]; vi
       {state?.status === "success" && (
         <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
           <h2 className="text-sm font-semibold">{dict.resultTitle}</h2>
+          {state.usedTopic && (
+            <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.usedTopic)}</p>
+          )}
           {state.posterId && (
             <p className="text-sm">
               <Link href="/studio/poster" className="underline">

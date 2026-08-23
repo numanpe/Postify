@@ -2,14 +2,19 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { generateWizardStep1 } from "@/lib/actions/studio-wizard";
 import { Button } from "@/components/ui/button";
-import { useDict } from "@/components/i18n/locale-provider";
+import { VoiceInputButton } from "@/components/ui/voice-input-button";
+import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
+import { useDict, useLocale } from "@/components/i18n/locale-provider";
+import { parseDurationRequest } from "@/lib/campaign-duration";
 
 export function WizardStep1Form({
   companyName,
   defaultTopic,
+  topicSuggestions,
 }: {
   companyName: string;
   // Part B3.2: pre-filled from a real onboarding extraction when the
@@ -18,11 +23,19 @@ export function WizardStep1Form({
   // including the manual-signup path, which has no extracted
   // description to derive a suggestion from.
   defaultTopic?: string;
+  topicSuggestions: TopicSuggestion[];
 }) {
   const [state, action, pending] = useActionState(generateWizardStep1, undefined);
   const [chosenIndex, setChosenIndex] = useState(0);
+  const [topic, setTopic] = useState(defaultTopic ?? "");
+  const [durationDismissed, setDurationDismissed] = useState(false);
   const dict = useDict().wizard;
+  const voiceDict = useDict().voiceInput;
+  const topicGuardDict = useDict().topicGuard;
+  const locale = useLocale();
   const router = useRouter();
+
+  const duration = parseDurationRequest(topic);
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-6">
@@ -35,13 +48,58 @@ export function WizardStep1Form({
         <label htmlFor="topic" className="text-sm font-medium">
           {dict.topicLabel}
         </label>
-        <input
-          id="topic"
-          name="topic"
-          defaultValue={defaultTopic}
-          placeholder={dict.topicPlaceholder}
-          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
-        />
+        <div className="flex items-start gap-2">
+          <input
+            id="topic"
+            name="topic"
+            value={topic}
+            onChange={(e) => {
+              setTopic(e.target.value);
+              setDurationDismissed(false);
+            }}
+            placeholder={dict.topicPlaceholder}
+            className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+          />
+          <VoiceInputButton
+            lang={locale === "ar" ? "ar-SA" : "en-US"}
+            onResult={(text) => {
+              setTopic(text);
+              setDurationDismissed(false);
+            }}
+            startLabel={voiceDict.startLabel}
+            listeningLabel={voiceDict.listeningLabel}
+            errorMessages={{
+              notAllowed: voiceDict.errorNotAllowed,
+              noSpeech: voiceDict.errorNoSpeech,
+              network: voiceDict.errorNetwork,
+              generic: voiceDict.errorGeneric,
+            }}
+          />
+        </div>
+
+        <TopicSuggestions suggestions={topicSuggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
+
+        {duration && !durationDismissed && (
+          <div className="flex flex-col gap-2 rounded-md border border-paper-border bg-paper-card p-3 text-sm dark:border-night-border dark:bg-night-card">
+            <p>{duration.wasCapped ? dict.durationSuggestionCapped(duration.requestedDays, duration.days) : dict.durationSuggestion(duration.days)}</p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href={`/campaigns?objective=${encodeURIComponent(duration.cleanedObjective)}&days=${duration.days}`}
+                className="text-sm font-medium text-primary underline dark:text-primary-dark"
+              >
+                {dict.durationSuggestionAction}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDurationDismissed(true)}
+                className="text-sm text-ink-soft underline dark:text-ink-soft-dark"
+              >
+                {dict.durationSuggestionDismiss}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           <Button type="submit" pending={pending} pendingLabel={dict.generating}>
             {dict.generate}
@@ -66,6 +124,9 @@ export function WizardStep1Form({
 
       {state?.status === "success" && (
         <div className="flex flex-col gap-4 rounded-md border border-paper-border p-4 dark:border-night-border">
+          {state.wasClarified && (
+            <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.topic)}</p>
+          )}
           <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.chooseHint}</p>
           <div role="radiogroup" className="flex flex-col gap-2">
             {state.captions.map((caption, i) => (

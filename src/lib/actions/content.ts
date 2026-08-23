@@ -6,6 +6,7 @@ import { requireCompany } from "@/lib/session";
 import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
+import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
 
 export type GenerateCaptionState =
   | { status: "error"; error: string }
@@ -15,6 +16,11 @@ export type GenerateCaptionState =
       providerName: string;
       model?: string;
       estimatedCostUsd?: number;
+      // Only set when the raw typed topic was flagged as malformed and
+      // a BYOK provider inferred a real subject instead — see
+      // topic-guard.ts. Lets the UI show what was actually used rather
+      // than silently swapping the user's input.
+      usedTopic?: string;
     }
   | undefined;
 
@@ -39,15 +45,20 @@ export async function generateCaption(
   const provider = await getTextProviderForCompany(company.id);
 
   try {
-    const result = await provider.generateCaption({ context, topic: parsed.data });
+    const guard = await guardTopic(parsed.data, provider, context);
+    const result = await provider.generateCaption({ context, topic: guard.topic });
     return {
       status: "success",
       text: result.text,
       providerName: result.providerName,
       model: result.model,
       estimatedCostUsd: result.estimatedCostUsd,
+      usedTopic: guard.wasClarified ? guard.topic : undefined,
     };
   } catch (error) {
+    if (error instanceof TopicGuardError) {
+      return { status: "error", error: error.message };
+    }
     if (error instanceof ProviderError) {
       return { status: "error", error: `${error.providerName}: ${error.message}` };
     }

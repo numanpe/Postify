@@ -13,6 +13,8 @@ import type {
   ExpandBackgroundPromptOutput,
   SummarizeBusinessContextInput,
   SummarizeBusinessContextOutput,
+  ClarifyTopicInput,
+  ClarifyTopicOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -24,6 +26,8 @@ import {
   parseExpandedPromptResponse,
   buildBusinessContextPrompt,
   parseBusinessContextResponse,
+  buildClarifyTopicPrompt,
+  parseClarifyTopicResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -183,5 +187,20 @@ export class OpenAITextProvider implements TextProvider {
 
     const result = parseBusinessContextResponse(parsed, this.name);
     return { ...result, providerName: this.name };
+  }
+
+  async clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput> {
+    const { system, user } = buildClarifyTopicPrompt(input);
+    const { content } = await this.chatCompletion(system, user, { jsonMode: true, maxTokens: 60 });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      throw new ProviderError(this.name, "OpenAI returned malformed clarify-topic JSON.", error);
+    }
+
+    const clarifiedTopic = parseClarifyTopicResponse(parsed, this.name);
+    return { clarifiedTopic, providerName: this.name };
   }
 }

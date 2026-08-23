@@ -7,11 +7,22 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CampaignForm } from "@/components/campaign/campaign-form";
 import { EmptyState } from "@/components/empty-state";
 import { NavIcons } from "@/components/icons";
+import { resolveIndustryPack } from "@/lib/industry-packs";
 
-export default async function CampaignsPage() {
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  // Prefilled when arriving from the Studio wizard's "this sounds like
+  // N days of content" suggestion (see wizard-step1-form.tsx) — the
+  // user still has to review and submit this real form themselves,
+  // this only saves them retyping what they already said.
+  searchParams: Promise<{ objective?: string; days?: string }>;
+}) {
   const { company } = await requireCompany();
   const locale = await getLocale();
   const dict = getDictionary(locale);
+  const { objective, days } = await searchParams;
+  const parsedDays = days ? Number(days) : undefined;
 
   const campaigns = await db.campaign.findMany({
     where: { companyId: company.id },
@@ -26,7 +37,11 @@ export default async function CampaignsPage() {
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.subtitle(company.name)}</p>
       </div>
 
-      <CampaignForm />
+      <CampaignForm
+        defaultObjective={objective}
+        defaultDays={parsedDays && parsedDays >= 1 && parsedDays <= 14 ? parsedDays : undefined}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+      />
 
       {campaigns.length === 0 && (
         <EmptyState icon={NavIcons.campaigns} title={dict.campaigns.yourCampaigns} hint={dict.campaigns.noCampaignsHint} />

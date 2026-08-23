@@ -8,10 +8,11 @@ import { ProviderError } from "@/lib/providers/text/types";
 import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate";
 import { generateVideoCore, VideoGenerationError } from "@/lib/video/generate";
 import { selectAutoAssetIds } from "@/lib/jobs/process-campaign-items";
+import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
 
 export type RepurposeState =
   | { status: "error"; error: string }
-  | { status: "success"; posterId?: string; videoId?: string; captions?: string[] }
+  | { status: "success"; posterId?: string; videoId?: string; captions?: string[]; usedTopic?: string }
   | undefined;
 
 // Task 5: "Repurpose This" — a new entry point into the pipelines that
@@ -26,6 +27,8 @@ export async function repurposeContent(
   formData: FormData,
 ): Promise<RepurposeState> {
   const { company, user } = await requireCompany();
+  const context = await getCompanyContext(company.id);
+  const textProvider = await getTextProviderForCompany(company.id);
 
   const sourceType = formData.get("sourceType");
   const sourceId = formData.get("sourceId");
@@ -34,6 +37,7 @@ export async function repurposeContent(
 
   let topic: string;
   let headline: string;
+  let usedTopic: string | undefined;
 
   if (sourceType === "POSTER" && typeof sourceId === "string") {
     const poster = await db.poster.findFirst({ where: { id: sourceId, companyId: company.id } });
@@ -46,8 +50,19 @@ export async function repurposeContent(
     topic = video.topic;
     headline = video.topic;
   } else if (typeof manualText === "string" && manualText.trim().length >= 3) {
-    topic = manualText.trim();
-    headline = manualText.trim();
+    // Real backstop for malformed manual input — same guard used
+    // everywhere else a topic is typed (topic-guard.ts).
+    try {
+      const guard = await guardTopic(manualText.trim(), textProvider, context);
+      topic = guard.topic;
+      headline = guard.topic;
+      usedTopic = guard.wasClarified ? guard.topic : undefined;
+    } catch (error) {
+      if (error instanceof TopicGuardError) {
+        return { status: "error", error: error.message };
+      }
+      throw error;
+    }
   } else {
     return { status: "error", error: "Choose an existing poster/video, or describe the content." };
   }
@@ -87,8 +102,6 @@ export async function repurposeContent(
     }
 
     if (formats.includes("CAPTIONS")) {
-      const context = await getCompanyContext(company.id);
-      const textProvider = await getTextProviderForCompany(company.id);
       const captions: string[] = [];
       // 3 independent calls to the existing generateCaption, matching
       // the task's own "2-3 caption variants" — not a new variant-
@@ -109,5 +122,5 @@ export async function repurposeContent(
     throw error;
   }
 
-  return { status: "success", ...result };
+  return { status: "success", ...result, usedTopic };
 }

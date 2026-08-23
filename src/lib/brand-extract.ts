@@ -14,6 +14,14 @@ export interface ExtractedBrandAssets {
   // visual assets above rather than a second round-trip to the site.
   metaDescription: string | null;
   ogDescription: string | null;
+  // Real nav/header menu link text, captured BEFORE those elements are
+  // stripped for the visibleText signal below — a site's own primary
+  // navigation is usually the single most reliable place product/
+  // service category names actually live ("Shop Razors", "Skincare",
+  // "Subscriptions"), filtered to drop generic utility links (Home,
+  // Cart, Login, ...). Feeds the free tier's real products heuristic
+  // (template-provider.ts) — see that file for why this exists.
+  navLinkTexts: string[];
   // Cleaned, truncated visible body text — nav/footer/script/style
   // content stripped, not full page text (real pages often run tens of
   // thousands of characters, most of it chrome/boilerplate irrelevant
@@ -325,6 +333,8 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
   const titleFirstSegment = titleText ? titleText.split(/\s*[|\-–—]\s*/)[0]?.trim() || null : null;
   const suggestedName = ogSiteName ?? titleFirstSegment;
 
+  const navLinkTexts = extractNavLinkTexts($);
+
   $("script, style, noscript, svg, nav, footer, header").remove();
   const visibleText = $("body").text().replace(/\s+/g, " ").trim().slice(0, 3000);
 
@@ -336,7 +346,73 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
     sourceUrl: finalUrl.toString(),
     metaDescription,
     ogDescription,
+    navLinkTexts,
     visibleText,
     suggestedName,
   };
+}
+
+// Generic utility links every site has regardless of what it actually
+// sells — real, common examples gathered by inspecting several real
+// sites' nav bars during this feature's own build (dollarshaveclub.com,
+// chewy.com, stripe.com), not a guess. Exact-match after trim/
+// lowercase, not a substring filter — a real product genuinely named
+// e.g. "Contact Grill" shouldn't be dropped just because it contains
+// "contact".
+const NAV_LINK_BLOCKLIST = new Set([
+  "home", "about", "about us", "our story", "contact", "contact us", "contact sales", "blog", "news", "press",
+  "careers", "jobs", "login", "log in", "sign in", "sign up", "register", "create account",
+  "my account", "account", "start now", "get started", "pricing",
+  "cart", "my cart", "checkout", "search", "faq", "faqs", "help", "help center", "support",
+  "privacy", "privacy policy", "terms", "terms of service", "terms & conditions", "terms and conditions",
+  "shipping", "returns", "shipping & returns", "track order", "track my order", "wishlist",
+  "gift card", "gift cards", "store locator", "locations", "find a store", "investors",
+  "menu", "skip to content", "skip to main content", "skip to search", "use app",
+  "accessibility", "sitemap", "cookies", "cookie policy",
+]);
+
+// Pattern-based rejections a fixed word list can't catch — real cases
+// found by testing against real sites: accessibility "skip to X" links
+// beyond the fixed set above, "Continue to the Canada site"-style
+// region switchers, bare phone numbers, and a real messy real-world
+// HTML artifact (an icon link whose accessible name duplicates the
+// visible label, e.g. "Sign inSign in" from a nested aria-label + text
+// node) — collapsed rather than dropped, since the underlying label is
+// often still useful once de-duplicated.
+function isJunkNavText(text: string): boolean {
+  if (/^skip to\b/i.test(text)) return true;
+  if (/^continue to\b.*\bsite$/i.test(text)) return true;
+  if (/^\+?[\d\s()-]{7,}$/.test(text)) return true;
+  // Account/cart utility links have too many real phrasings to
+  // exact-match ("Sign In or Create Account", "Log In / Register") —
+  // a substring check is safe here since no real business genuinely
+  // sells a product called "cart" or "sign in" in nav text.
+  if (/\b(cart|sign in|log in|create an? account|register)\b/i.test(text)) return true;
+  return false;
+}
+
+function collapseDuplicatedText(text: string): string {
+  const half = text.length / 2;
+  if (Number.isInteger(half) && text.slice(0, half) === text.slice(half)) {
+    return text.slice(0, half);
+  }
+  return text;
+}
+
+function extractNavLinkTexts($: cheerio.CheerioAPI): string[] {
+  const seen = new Set<string>();
+  const texts: string[] = [];
+  $("nav a, header a")
+    .toArray()
+    .forEach((el) => {
+      let text = $(el).text().replace(/\s+/g, " ").trim();
+      if (text.length < 2 || text.length > 40) return;
+      if (isJunkNavText(text)) return;
+      text = collapseDuplicatedText(text);
+      const key = text.toLowerCase();
+      if (NAV_LINK_BLOCKLIST.has(key) || seen.has(key)) return;
+      seen.add(key);
+      texts.push(text);
+    });
+  return texts.slice(0, 15);
 }

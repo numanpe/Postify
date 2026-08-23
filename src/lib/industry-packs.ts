@@ -51,6 +51,17 @@ export interface IndustryPack {
   // (never plural) since several templates use a singular verb
   // ("means", "is", "gets", "exists") directly after {{topic}}.
   autoTopics: string[];
+  // Real, industry-relevant starting points shown as suggestions on
+  // topic/prompt fields (Studio, Campaign, Repurpose) — the fastest way
+  // to guarantee well-formed input, without forcing it (free typing
+  // always stays allowed). `label` is what's shown/searched (can read
+  // like a headline, e.g. "New harvest ready"); `topic` is what
+  // actually fills the field when picked — kept to the exact same
+  // singular/mass noun-phrase discipline as autoTopics above, for the
+  // exact same real reason: a headline-style label spliced straight
+  // into "{{topic}} means..." would reproduce the broken-English bug
+  // autoTopics was built to fix, just from a different source.
+  topicSuggestions: { label: string; topic: string }[];
 }
 
 export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
@@ -86,6 +97,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#Agriculture", "#FarmFresh", "#LocalFarm", "#Harvest", "#SupportLocal"],
     shortHeadlines: ["Fresh From Our Fields", "Harvested With Care", "Grown Right, Every Time"],
     autoTopics: ["this week's harvest", "our seasonal produce", "our farm-fresh selection"],
+    topicSuggestions: [
+      { label: "New harvest ready", topic: "our new harvest" },
+      { label: "Seasonal supply update", topic: "this season's supply" },
+      { label: "Customer success story", topic: "a recent customer success story" },
+      { label: "Sustainable farming practices", topic: "our sustainable farming practices" },
+      { label: "Meet the team", topic: "the team behind our farm" },
+    ],
   },
   "Construction & Engineering": {
     toneDefault: "confident, precise, safety-and-craftsmanship focused",
@@ -119,6 +137,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#Construction", "#Engineering", "#BuiltToLast", "#ProjectManagement", "#Craftsmanship"],
     shortHeadlines: ["Built To Last", "Precision You Can Trust", "Another Standard Met"],
     autoTopics: ["our latest build", "your next project", "this current build"],
+    topicSuggestions: [
+      { label: "Project milestone reached", topic: "our latest project milestone" },
+      { label: "Safety-first update", topic: "our safety standards" },
+      { label: "Before & after showcase", topic: "a recent before-and-after transformation" },
+      { label: "New equipment or capability", topic: "our newest equipment" },
+      { label: "Client testimonial", topic: "a recent client testimonial" },
+    ],
   },
   Education: {
     toneDefault: "encouraging, professional, focused on growth",
@@ -152,6 +177,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#Education", "#Learning", "#StudentSuccess", "#EnrollNow", "#BackToSchool"],
     shortHeadlines: ["Learning That Sticks", "Confidence Starts Here", "Your Next Step Forward"],
     autoTopics: ["your child's learning journey", "this term's program", "our small-group tutoring"],
+    topicSuggestions: [
+      { label: "New program launch", topic: "our new program" },
+      { label: "Student success story", topic: "a recent student success story" },
+      { label: "Enrollment reminder", topic: "open enrollment" },
+      { label: "Meet the teacher", topic: "one of our instructors" },
+      { label: "Upcoming term schedule", topic: "next term's schedule" },
+    ],
   },
   "Real Estate": {
     toneDefault: "polished, aspirational, trustworthy",
@@ -185,6 +217,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#RealEstate", "#DreamHome", "#PropertyForSale", "#HomeSearch", "#JustListed"],
     shortHeadlines: ["Your Next Chapter Awaits", "Home Starts Here", "Find Your Fit"],
     autoTopics: ["your home search", "this week's newest listing", "your next move"],
+    topicSuggestions: [
+      { label: "New listing", topic: "our newest listing" },
+      { label: "Just sold", topic: "a recent successful sale" },
+      { label: "Market update", topic: "the current market" },
+      { label: "Open house announcement", topic: "this weekend's open house" },
+      { label: "Client testimonial", topic: "a recent client testimonial" },
+    ],
   },
   Healthcare: {
     toneDefault: "calm, reassuring, evidence-based",
@@ -218,6 +257,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#Healthcare", "#PatientCare", "#WellnessJourney", "#HealthyLiving", "#BookNow"],
     shortHeadlines: ["Care That Listens", "Your Health, Our Focus", "Trusted Care, Every Visit"],
     autoTopics: ["your care plan", "your next visit", "preventive care"],
+    topicSuggestions: [
+      { label: "New service offering", topic: "a new service we offer" },
+      { label: "Health tip", topic: "a helpful health tip" },
+      { label: "Patient testimonial", topic: "a recent patient testimonial" },
+      { label: "New provider joining", topic: "a new member of our care team" },
+      { label: "Appointment availability", topic: "current appointment availability" },
+    ],
   },
   "Retail & E-commerce": {
     toneDefault: "energetic, direct, deal-forward",
@@ -251,6 +297,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#ShopNow", "#NewArrival", "#RetailTherapy", "#LimitedStock", "#SaleAlert"],
     shortHeadlines: ["Just Dropped", "Shop The New Arrivals", "Deals Worth Sharing"],
     autoTopics: ["this season's collection", "our latest drop", "this week's lineup"],
+    topicSuggestions: [
+      { label: "New arrival", topic: "our newest arrival" },
+      { label: "Limited-time offer", topic: "this week's limited-time offer" },
+      { label: "Customer favorite", topic: "a customer favorite" },
+      { label: "Restock alert", topic: "a popular restock" },
+      { label: "Seasonal collection", topic: "our seasonal collection" },
+    ],
   },
   "Hospitality & Food": {
     toneDefault: "warm, sensory, inviting",
@@ -284,6 +337,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#Foodie", "#EatLocal", "#MadeFresh", "#DineWithUs", "#TasteTheDifference"],
     shortHeadlines: ["Made Fresh Daily", "Pull Up A Seat", "Taste The Difference"],
     autoTopics: ["tonight's special", "our new menu", "this week's tasting menu"],
+    topicSuggestions: [
+      { label: "New menu item", topic: "our newest menu item" },
+      { label: "Limited-time special", topic: "this week's special" },
+      { label: "Behind the scenes", topic: "what happens behind the scenes" },
+      { label: "Customer favorite dish", topic: "a customer favorite dish" },
+      { label: "Reservation reminder", topic: "upcoming reservations" },
+    ],
   },
   "Professional Services": {
     toneDefault: "clear, competent, no-nonsense",
@@ -317,6 +377,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#ProfessionalServices", "#Consulting", "#ExpertAdvice", "#TrustedPartner", "#GetInTouch"],
     shortHeadlines: ["Expertise You Can Trust", "Straight Answers, Real Results", "We Handle The Details"],
     autoTopics: ["your business planning", "your next consultation", "your compliance review"],
+    topicSuggestions: [
+      { label: "New service offering", topic: "a new service we offer" },
+      { label: "Client testimonial", topic: "a recent client testimonial" },
+      { label: "Limited-time consultation offer", topic: "a limited-time consultation offer" },
+      { label: "Common question answered", topic: "a question we hear often" },
+      { label: "Team spotlight", topic: "a member of our team" },
+    ],
   },
   Other: {
     toneDefault: "clear, genuine, professional",
@@ -350,6 +417,13 @@ export const INDUSTRY_PACKS: Record<Industry, IndustryPack> = {
     hashtags: ["#SmallBusiness", "#ShopLocal", "#NewPost", "#CheckItOut", "#SupportLocal"],
     shortHeadlines: ["Something New Is Here", "Worth Sharing", "See What Is New"],
     autoTopics: ["our latest project", "this week's update", "our newest offering"],
+    topicSuggestions: [
+      { label: "New update", topic: "our latest update" },
+      { label: "Customer story", topic: "a recent customer story" },
+      { label: "Behind the scenes", topic: "what goes on behind the scenes" },
+      { label: "Special offer", topic: "a special offer" },
+      { label: "Team spotlight", topic: "a member of our team" },
+    ],
   },
 };
 
@@ -367,3 +441,20 @@ export const INDUSTRY_COMPOSITION_STYLE: Record<Industry, "Minimalist" | "Bold G
   "Professional Services": "Minimalist",
   Other: "Minimalist",
 };
+
+// Company.primaryIndustry is a plain DB string column, not narrowed to
+// the Industry union — the same defensive resolution
+// src/lib/company-context.ts already used (falls back to "Other" for
+// any value that isn't a currently-known industry, e.g. stale data),
+// extracted here so every caller that only needs the pack (not the
+// full CompanyContext) shares the identical real logic instead of
+// each re-implementing its own cast.
+const KNOWN_INDUSTRIES = new Set(Object.keys(INDUSTRY_PACKS));
+
+export function resolveIndustry(rawIndustry: string): Industry {
+  return KNOWN_INDUSTRIES.has(rawIndustry) ? (rawIndustry as Industry) : "Other";
+}
+
+export function resolveIndustryPack(rawIndustry: string): IndustryPack {
+  return INDUSTRY_PACKS[resolveIndustry(rawIndustry)];
+}

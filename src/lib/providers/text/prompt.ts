@@ -8,8 +8,10 @@ import type {
   GenerateCampaignBriefOutput,
   SummarizeBusinessContextInput,
   SummarizeBusinessContextOutput,
+  ClarifyTopicInput,
 } from "./types";
 import { ProviderError } from "./types";
+import { validateTopic } from "@/lib/topic-validation";
 
 // Shared by every BYOK provider so a real LLM's output is grounded in
 // the same company context the free template uses — BYOK unlocks
@@ -362,4 +364,42 @@ export function parseBusinessContextResponse(
   const tone = typeof record.tone === "string" && record.tone.trim() ? record.tone.trim() : "clear, genuine, professional";
 
   return { description: record.description.trim(), products, tone };
+}
+
+// Real backstop for malformed topic input (see topic-validation.ts) —
+// only ever called after validateTopic() flags the raw text as a
+// likely meta-instruction, bare URL, or implausibly long input. Asks
+// the real LLM to infer the actual short subject the user meant, never
+// to just clean up/repeat the raw text — a genuinely different task
+// from normal caption generation, so this is its own small prompt
+// rather than folding the instruction into buildCaptionPrompt.
+export function buildClarifyTopicPrompt(input: ClarifyTopicInput): { system: string; user: string } {
+  const system = [
+    "A user typed something into a 'topic' field for social media content, but it reads like an instruction to an AI tool (e.g. \"make a poster about X\"), a bare website URL, or otherwise isn't a real subject to post about.",
+    "Infer the real, short subject they most likely intend to post about — a few words, no meta-instructions, no URLs, no quotes.",
+    "If you cannot confidently determine a real subject, respond with null rather than guessing.",
+    'Respond with ONLY a JSON object: {"topic": "..." } or {"topic": null}',
+  ].join(" ");
+
+  const user = `Company: ${input.companyName} (${input.industry} industry).\nRaw input: "${input.rawInput}"`;
+
+  return { system, user };
+}
+
+export function parseClarifyTopicResponse(parsed: unknown, providerName: string): string | null {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  if (record.topic === null || record.topic === undefined) return null;
+  if (typeof record.topic !== "string" || !record.topic.trim()) return null;
+  const candidate = record.topic.trim();
+  // Real, defensive re-check: never trust the LLM's own claim that its
+  // output is a clean topic — if the "clarified" topic would itself
+  // still be flagged (a plausible failure mode for a less capable
+  // model, or one that just echoes the raw input back), treat it the
+  // same as a null response rather than pass through something the
+  // original bug's own detector would reject.
+  if (validateTopic(candidate).flagged) return null;
+  return candidate;
 }

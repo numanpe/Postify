@@ -1,5 +1,6 @@
 import { requireCompany } from "@/lib/session";
 import { WizardStep1Form } from "@/components/studio/wizard-step1-form";
+import { resolveIndustryPack } from "@/lib/industry-packs";
 
 // Step 1 of the guided 3-step creation wizard. Bare /studio was
 // deliberately left without a page during an earlier Vercel Hobby
@@ -19,7 +20,11 @@ export default async function StudioWizardStep1Page({
 
   return (
     <div className="flex flex-col gap-6">
-      <WizardStep1Form companyName={company.name} defaultTopic={firstTopic} />
+      <WizardStep1Form
+        companyName={company.name}
+        defaultTopic={firstTopic}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+      />
     </div>
   );
 }

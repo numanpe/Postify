@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { WizardStep2 } from "@/components/studio/wizard-step2";
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
+import { resolveIndustryPack } from "@/lib/industry-packs";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
 // VideoForm components (and their real generation actions) the
@@ -55,6 +56,7 @@ export default async function StudioWizardStep2Page({
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
         narrationAvailable={narrationAvailable}
         preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
       />
     </div>
   );
