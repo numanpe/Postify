@@ -10,10 +10,11 @@ import {
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { DownloadCopyButton } from "./download-copy-button";
-import { VideoEditModal } from "./video-edit-modal";
+import { VideoEditModal, type VideoSceneForEdit, type SceneMediaAssetOption } from "./video-edit-modal";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { ActionIcons, NavIcons } from "@/components/icons";
 import type { CampaignAssetType, CampaignItemStatus, SocialPlatform } from "@prisma/client";
+import type { VideoScriptSections } from "@/lib/providers/text/types";
 
 const STATUS_STYLES: Record<CampaignItemStatus, string> = {
   PENDING: "bg-paper-card dark:bg-night-card text-ink-soft dark:text-ink-soft-dark",
@@ -44,7 +45,18 @@ interface CalendarItemCardProps {
     hashtags: string[];
     targetPlatforms: SocialPlatform[];
     poster: { asset: MediaAssetInfo } | null;
-    video: { asset: MediaAssetInfo } | null;
+    video:
+      | {
+          id: string;
+          hasNarration: boolean;
+          // Real type is Prisma's Json column — cast at the VideoEditModal
+          // call site below, same pattern this app already uses for other
+          // Json fields (e.g. CreativeDna.confidenceScores).
+          script: unknown;
+          asset: MediaAssetInfo;
+          scenes: VideoSceneForEdit[];
+        }
+      | null;
     aggregatorPublishLogs: { succeeded: boolean; errorMessage: string | null }[];
   };
   connectedAccounts: { id: string; platform: SocialPlatform; displayName: string }[];
@@ -53,6 +65,7 @@ interface CalendarItemCardProps {
   retentionDays: number;
   companyName: string;
   companyLogoUrl: string | null;
+  sceneMediaAssets: SceneMediaAssetOption[];
 }
 
 // Server component — the "Manage" disclosure is a native <details>
@@ -70,6 +83,7 @@ export async function CalendarItemCard({
   retentionDays,
   companyName,
   companyLogoUrl,
+  sceneMediaAssets,
 }: CalendarItemCardProps) {
   const dict = getDictionary(await getLocale());
   const pubDict = dict.publishing;
@@ -192,7 +206,14 @@ export async function CalendarItemCard({
           )}
 
           {fileAvailable && item.assetType === "VIDEO" && item.video?.asset && (
-            <VideoEditModal itemId={item.id} videoUrl={storage.url(item.video.asset.storageKey)} />
+            <VideoEditModal
+              videoId={item.video.id}
+              videoUrl={storage.url(item.video.asset.storageKey)}
+              hasNarration={item.video.hasNarration}
+              script={item.video.script as VideoScriptSections}
+              scenes={item.video.scenes}
+              sceneMediaAssets={sceneMediaAssets}
+            />
           )}
 
           {fileAvailable &&

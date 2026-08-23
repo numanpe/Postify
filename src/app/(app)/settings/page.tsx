@@ -6,6 +6,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
+import { MusicCredits } from "@/components/settings/music-credits";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
 import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
 import { CreativeDnaPreferencesPanel, type Dimension, type PreferenceRow } from "@/components/settings/creative-dna-preferences";
@@ -18,6 +19,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   OPENAI: "OpenAI",
   ANTHROPIC: "Anthropic",
   ELEVENLABS: "ElevenLabs",
+  FISH_AUDIO: "Fish Audio",
+  GEMINI: "Google Gemini",
 };
 
 export default async function SettingsPage() {
@@ -106,6 +109,8 @@ export default async function SettingsPage() {
       <VoiceEngineToggle currentEngine={company.voiceEngine} />
 
       <ApiKeyGuide dict={dict.settings} />
+
+      <MusicCredits dict={dict.settings} />
 
       <PublishingSettings publishingMode={company.publishingMode} credentials={aggregatorCredentials} />
 

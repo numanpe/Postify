@@ -59,6 +59,16 @@ interface SceneProvenance {
   order: number;
   kind: SceneKind;
   mediaAssetId: string | null;
+  scriptKey: string;
+  // Only set for non-narrated videos — mirrors the exact caption text
+  // burned into that scene at render time (see render.ts: with no
+  // narration words, each scene's caption is literally its section's
+  // full text). Populating this at generation time is what lets the
+  // scene editor's "On-screen text" field start pre-filled with the
+  // video's real existing text instead of blank — an empty field there
+  // otherwise trips the editor's own "every scene needs on-screen text"
+  // validation on first open, before the user has touched anything.
+  overlayText: string | null;
 }
 
 export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<GenerateVideoCoreResult> {
@@ -153,7 +163,13 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       const buffer = await storage.get(asset.storageKey);
       const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
       scenes.push({ section, kind, buffer, mimeType: asset.mimeType });
-      sceneProvenance.push({ order: i, kind, mediaAssetId: asset.id });
+      sceneProvenance.push({
+        order: i,
+        kind,
+        mediaAssetId: asset.id,
+        scriptKey: section.key,
+        overlayText: hasNarration ? null : section.text,
+      });
       continue;
     }
 
@@ -168,7 +184,13 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           heightPx: height,
         });
         scenes.push({ section, kind: "AI_STILL", buffer: result.buffer, mimeType: result.mimeType });
-        sceneProvenance.push({ order: i, kind: "AI_STILL", mediaAssetId: null });
+        sceneProvenance.push({
+          order: i,
+          kind: "AI_STILL",
+          mediaAssetId: null,
+          scriptKey: section.key,
+          overlayText: hasNarration ? null : section.text,
+        });
       } catch (error) {
         if (error instanceof ImageProviderError) {
           throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
@@ -182,7 +204,13 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     const buffer = await storage.get(asset.storageKey);
     const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
     scenes.push({ section, kind, buffer, mimeType: asset.mimeType });
-    sceneProvenance.push({ order: i, kind, mediaAssetId: asset.id });
+    sceneProvenance.push({
+      order: i,
+      kind,
+      mediaAssetId: asset.id,
+      scriptKey: section.key,
+      overlayText: hasNarration ? null : section.text,
+    });
   }
 
   // 5. Music — bundled library, auto-selected by industry tone.
@@ -260,6 +288,8 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           order: scene.order,
           kind: scene.kind,
           mediaAssetId: scene.mediaAssetId,
+          scriptKey: scene.scriptKey,
+          overlayText: scene.overlayText,
         })),
       },
     },

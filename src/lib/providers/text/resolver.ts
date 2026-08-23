@@ -14,8 +14,17 @@ import { withDeletionAvoidance } from "@/lib/creative-dna/deletion-avoidance";
 // from a BYOK failure, only from BYOK being unconfigured in the first
 // place.
 export async function getTextProviderForCompany(companyId: string): Promise<TextProvider> {
+  // Real bug fixed here: this used to have no provider filter at all,
+  // unlike the voice/image resolvers (which correctly scope to their
+  // own providers). ProviderCredential is one shared table across every
+  // AiProviderKind (OPENAI/ANTHROPIC/ELEVENLABS/FISH_AUDIO) — an
+  // unfiltered findFirst could pick up a voice-only credential (e.g. a
+  // company that only ever saved an ElevenLabs key) and try to build a
+  // text provider out of it, breaking text generation with a real
+  // (not fake) 401 instead of correctly falling back to the free
+  // template provider.
   const credential = await db.providerCredential.findFirst({
-    where: { companyId },
+    where: { companyId, provider: { in: ["OPENAI", "ANTHROPIC"] } },
     orderBy: { createdAt: "asc" },
   });
 

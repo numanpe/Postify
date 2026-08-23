@@ -13,7 +13,9 @@ import { VideoForm } from "@/components/video/video-form";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
+import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { NavIcons } from "@/components/icons";
+import type { VideoScriptSections } from "@/lib/providers/text/types";
 
 const MODES = ["captions", "poster", "video"] as const;
 type Mode = (typeof MODES)[number];
@@ -197,11 +199,17 @@ async function VideoMode({
     }),
     db.video.findMany({
       where: { companyId },
-      include: { asset: true },
+      include: {
+        asset: true,
+        scenes: {
+          include: { mediaAsset: { select: { id: true, fileName: true } } },
+          orderBy: { order: "asc" },
+        },
+      },
       orderBy: { createdAt: "desc" },
     }),
     db.providerCredential.findFirst({
-      where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS"] } },
+      where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
     }),
     db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
   ]);
@@ -245,6 +253,14 @@ async function VideoMode({
                     captionText={video.topic}
                   />
                 )}
+                <VideoEditModal
+                  videoId={video.id}
+                  videoUrl={storage.url(video.asset.storageKey)}
+                  hasNarration={video.hasNarration}
+                  script={video.script as unknown as VideoScriptSections}
+                  scenes={video.scenes}
+                  sceneMediaAssets={assets}
+                />
               </li>
             ))}
           </ul>

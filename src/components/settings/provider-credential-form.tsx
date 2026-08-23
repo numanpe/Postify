@@ -26,6 +26,8 @@ export function ProviderCredentialForm() {
           <option value="OPENAI">OpenAI</option>
           <option value="ANTHROPIC">Anthropic</option>
           <option value="ELEVENLABS">ElevenLabs</option>
+          <option value="FISH_AUDIO">Fish Audio</option>
+          <option value="GEMINI">Google Gemini</option>
         </select>
       </div>
 

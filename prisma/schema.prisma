@@ -516,6 +516,32 @@ model VideoScene {
   mediaAssetId String?
   mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id], onDelete: SetNull)
 
+  // Which of the 5 fixed script sections (hook/context/value/message/cta)
+  // this scene corresponds to — narrated videos only. Needed because a
+  // script edit can remove a section (its text emptied), which shifts
+  // every later scene's `order`; storing the real key lets a later edit
+  // still correctly find "the media already used for the CTA scene"
+  // instead of assuming order 4 always means cta. Unused/null for
+  // non-narrated videos, where scenes are freely added/reordered by the
+  // scene editor and aren't tied to a fixed section at all.
+  scriptKey String?
+
+  // Scene-level editor fields (script/scene editor, see src/lib/video/scene-editor.ts).
+  // Null/unused for narrated videos — there, a scene's duration and its
+  // on-screen text are always DERIVED at render time from the real
+  // narration's Whisper word timestamps and Video.script respectively
+  // (src/lib/video/timeline.ts), never independently stored, because
+  // they have to match real recorded speech. Only set for non-narrated
+  // (free-tier) videos, where a scene has no audio to stay in sync
+  // with, so its duration/caption genuinely are independent, editable
+  // values — once a non-narrated video's scenes are edited via the
+  // scene editor, these fields become the authoritative source for
+  // re-rendering that scene, superseding Video.script's fixed 5-section
+  // text (which stays as the original generated record, not kept in
+  // sync once scenes are added/removed/reordered independent of it).
+  durationSec Float?
+  overlayText String?
+
   @@index([videoId])
 }
 
@@ -523,6 +549,8 @@ enum AiProviderKind {
   OPENAI
   ANTHROPIC
   ELEVENLABS
+  FISH_AUDIO
+  GEMINI
 }
 
 // FREE (default) uses the bundled edge-tts community engine — no key,

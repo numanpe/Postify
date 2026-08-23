@@ -5,6 +5,7 @@ import { decryptSecret } from "@/lib/crypto";
 import type { VoiceProvider } from "./types";
 import { OpenAIVoiceProvider } from "./openai-voice-provider";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice-provider";
+import { FishAudioVoiceProvider } from "./fish-audio-voice-provider";
 import { EdgeVoiceProvider } from "./edge-voice-provider";
 
 // Unlike the text/image resolvers, this is an explicit per-company
@@ -24,12 +25,28 @@ export async function getVoiceProviderForCompany(companyId: string): Promise<Voi
     return new EdgeVoiceProvider();
   }
 
+  // No explicit "which BYOK voice provider is active" selector exists
+  // on Company — same real, pre-existing design limitation this
+  // resolver already had with 2 options, now with 3. Real usage
+  // pattern (and this app's own Settings UI) is remove-then-add when
+  // switching, so at most one of these three normally exists at a
+  // time; `desc` breaks ties in favor of whichever was saved/updated
+  // most recently if more than one somehow does.
   const credential = await db.providerCredential.findFirst({
-    where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS"] } },
-    orderBy: { createdAt: "asc" },
+    where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
+    orderBy: { createdAt: "desc" },
   });
   if (!credential) return null;
 
   const apiKey = decryptSecret(credential.encryptedKey);
-  return credential.provider === "OPENAI" ? new OpenAIVoiceProvider(apiKey) : new ElevenLabsVoiceProvider(apiKey);
+  switch (credential.provider) {
+    case "OPENAI":
+      return new OpenAIVoiceProvider(apiKey);
+    case "ELEVENLABS":
+      return new ElevenLabsVoiceProvider(apiKey);
+    case "FISH_AUDIO":
+      return new FishAudioVoiceProvider(apiKey);
+    default:
+      return null;
+  }
 }

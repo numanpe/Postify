@@ -38,7 +38,7 @@ export default async function StudioWizardStep2Page({
       select: { id: true, fileName: true, mimeType: true },
     }),
     db.providerCredential.findFirst({
-      where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS"] } },
+      where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
     }),
     getPreferredTemplateOrder(company.id, TEMPLATE_IDS),
   ]);

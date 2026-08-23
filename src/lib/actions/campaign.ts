@@ -13,6 +13,7 @@ import { processCampaignItems, processSingleCampaignItem } from "@/lib/jobs/proc
 import { triggerCampaignProcessing } from "@/lib/jobs/trigger";
 import { recordSignal, fingerprintContent, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
 import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
+import { appendMusicCredit } from "@/lib/video/music-credit";
 
 export type CreateCampaignState = { error: string } | undefined;
 
@@ -96,7 +97,11 @@ export async function createCampaign(
           headline: item.headline,
           subhead: item.subhead,
           cta: item.cta,
-          captionText: item.captionText,
+          // Every VIDEO campaign item's generated asset carries bundled
+          // CC BY music (see music-credit.ts) — real attribution, not
+          // decoration, since this captionText is what actually ships
+          // with the published post via publishCampaignItemViaAggregator.
+          captionText: item.assetType === "VIDEO" ? appendMusicCredit(item.captionText) : item.captionText,
           hashtags: item.hashtags,
           targetPlatforms: item.targetPlatforms,
           suggestedPostAt: new Date(item.suggestedPostAt),

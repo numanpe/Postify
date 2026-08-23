@@ -86,6 +86,21 @@ export interface Dictionary {
     editVideo: string; editVideoTrimStart: string; editVideoTrimEnd: string;
     editVideoOverlayText: string; editVideoOverlayPlaceholder: string;
     editVideoSave: string; editVideoSaving: string; editVideoSaved: string; editVideoCancel: string;
+    editReRendersWholeVideo: string; editSuccessPreview: string;
+    scriptEditorTitle: string; scriptEditorHint: string;
+    scriptEditorHook: string; scriptEditorContext: string; scriptEditorValue: string;
+    scriptEditorMessage: string; scriptEditorCta: string;
+    scriptEditorRemoveSection: string; scriptEditorRemoveLastWarning: string;
+    scriptEditorSave: string; scriptEditorSaving: string; scriptEditorSaved: string;
+    sceneEditorTitle: string;
+    sceneMediaSwap: string; sceneMediaSwapPickTitle: string; sceneMediaSwapChooseAsset: string;
+    sceneMediaSwapGenerateAi: string; sceneMediaSwapSave: string; sceneMediaSwapSaving: string;
+    sceneMediaSwapCancel: string; sceneMediaSwapSaved: string;
+    sceneReorderDisabledNarrated: string; sceneDurationDisabledNarrated: string;
+    sceneRemoveGuidanceNarrated: string;
+    sceneMoveUp: string; sceneMoveDown: string; sceneDurationLabel: string; sceneOverlayTextLabel: string;
+    sceneRemoveButton: string; sceneAddButton: string; sceneEditorSave: string; sceneEditorSaving: string;
+    sceneEditorSaved: string; sceneCurrentMedia: string;
   };
   campaigns: {
     title: string; subtitle: (name: string) => string; yourCampaigns: string;
@@ -137,6 +152,12 @@ export interface Dictionary {
     apiKeyGuideTitle: string; apiKeyGuideSubtitle: string;
     openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
     elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
+    fishAudioGuideTitle: string; fishAudioGuideSteps: string[]; fishAudioGuideLinkLabel: string;
+    fishAudioCostNote: string;
+    geminiGuideTitle: string; geminiGuideSteps: string[]; geminiGuideLinkLabel: string;
+    geminiCostNote: string;
+    musicCreditsTitle: string; musicCreditsSubtitle: string; musicCreditsLicenseNote: string;
+    musicCreditsLicenseLinkLabel: string;
     insightsTitle: string; insightsNoData: string;
     insightsSentence: (topic: string, relativeScore: number) => string;
     insightsConfidence: (tier: string, sampleSize: number) => string;
@@ -374,6 +395,42 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       editVideoSaving: "Saving edit…",
       editVideoSaved: "Saved — the updated video will appear on the card.",
       editVideoCancel: "Cancel",
+      editReRendersWholeVideo: "Saving re-renders the whole video with new narration and captions — this can take a minute or two.",
+      editSuccessPreview: "Done — here's the updated video.",
+      scriptEditorTitle: "Script",
+      scriptEditorHint: "This is the real narration script — edit the words, and the voiceover and captions update to match.",
+      scriptEditorHook: "Hook",
+      scriptEditorContext: "Context",
+      scriptEditorValue: "Value",
+      scriptEditorMessage: "Message",
+      scriptEditorCta: "Call to action",
+      scriptEditorRemoveSection: "Remove this section",
+      scriptEditorRemoveLastWarning: "At least one section needs text.",
+      scriptEditorSave: "Save script",
+      scriptEditorSaving: "Re-rendering…",
+      scriptEditorSaved: "Script updated.",
+      sceneEditorTitle: "Scenes",
+      sceneMediaSwap: "Swap media",
+      sceneMediaSwapPickTitle: "Choose new media for this scene",
+      sceneMediaSwapChooseAsset: "Choose from Media Library",
+      sceneMediaSwapGenerateAi: "Generate a new AI background instead",
+      sceneMediaSwapSave: "Use this",
+      sceneMediaSwapSaving: "Re-rendering…",
+      sceneMediaSwapCancel: "Cancel",
+      sceneMediaSwapSaved: "Scene media updated.",
+      sceneReorderDisabledNarrated: "Not available for narrated videos — reordering would desync the voiceover from what's on screen.",
+      sceneDurationDisabledNarrated: "Not available for narrated videos — a scene's length follows the real narration timing.",
+      sceneRemoveGuidanceNarrated: "To remove this scene, delete its text in the script editor above.",
+      sceneMoveUp: "Move up",
+      sceneMoveDown: "Move down",
+      sceneDurationLabel: "Duration (seconds)",
+      sceneOverlayTextLabel: "On-screen text",
+      sceneRemoveButton: "Remove scene",
+      sceneAddButton: "Add a scene",
+      sceneEditorSave: "Save scenes",
+      sceneEditorSaving: "Re-rendering…",
+      sceneEditorSaved: "Scenes updated.",
+      sceneCurrentMedia: "Current media",
     },
     campaigns: {
       title: "Campaigns",
@@ -530,6 +587,33 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "In the voiceover engine section above, switch to \"Use my own API key\" so videos actually use it.",
       ],
       elevenLabsGuideLinkLabel: "Get ElevenLabs key → elevenlabs.io",
+      fishAudioGuideTitle: "Fish Audio (lower-cost voiceovers)",
+      fishAudioGuideSteps: [
+        "Go to fish.audio and create an account.",
+        "Open fish.audio/app/api-keys → \"Create New Key\".",
+        "Name it \"Postify\" and copy the key.",
+        "Paste it into the API key field above, choose Fish Audio as the provider, and save.",
+        "In the voiceover engine section above, switch to \"Use my own API key\" so videos actually use it.",
+      ],
+      fishAudioGuideLinkLabel: "Get Fish Audio key → fish.audio",
+      fishAudioCostNote:
+        "Fish Audio's per-character rate (~$15 per 1M characters on its S2.1 Pro model) is typically well below ElevenLabs' — a real cost-conscious option, not a lower-quality one. Either provider works equally well here; pick whichever fits your budget.",
+      geminiGuideTitle: "Google Gemini (lower-cost AI backgrounds)",
+      geminiGuideSteps: [
+        "Go to aistudio.google.com and sign in with a Google account.",
+        "Open aistudio.google.com/apikey → \"Create API key\".",
+        "Copy the key.",
+        "Paste it into the API key field above, choose Google Gemini as the provider, and save.",
+        "Enable billing on the linked Google Cloud project — Gemini's image models have no free tier, so image generation won't work until billing is turned on.",
+      ],
+      geminiGuideLinkLabel: "Get Gemini key → aistudio.google.com",
+      geminiCostNote:
+        "Gemini's image model (gemini-3.1-flash-lite-image) costs about $0.034 per image, with no free tier — billing must be enabled from the very first image. That's typically cheaper than OpenAI's gpt-image-1 (roughly $0.01–$0.17 per image depending on quality). Both are real, equally valid choices — pick whichever fits your budget.",
+      musicCreditsTitle: "Music credits",
+      musicCreditsSubtitle: "Background music used in your generated videos.",
+      musicCreditsLicenseNote:
+        "All tracks are by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 — free for commercial use with attribution.",
+      musicCreditsLicenseLinkLabel: "View license → creativecommons.org",
       insightsTitle: "What's working",
       insightsNoData:
         "Not enough published posts with measured engagement yet — this fills in once you've published several posts through a connected Facebook or Instagram account.",
@@ -837,6 +921,42 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       editVideoSaving: "جارٍ حفظ التعديل…",
       editVideoSaved: "تم الحفظ — سيظهر الفيديو المُحدَّث على البطاقة.",
       editVideoCancel: "إلغاء",
+      editReRendersWholeVideo: "الحفظ يعيد إنتاج الفيديو بالكامل بتعليق صوتي وترجمة جديدين — قد يستغرق ذلك دقيقة أو دقيقتين.",
+      editSuccessPreview: "تم — هذا هو الفيديو المُحدَّث.",
+      scriptEditorTitle: "النص",
+      scriptEditorHint: "هذا هو نص التعليق الصوتي الفعلي — عدّل الكلمات، وسيتم تحديث التعليق الصوتي والترجمة تلقائيًا لتطابقه.",
+      scriptEditorHook: "الافتتاحية",
+      scriptEditorContext: "السياق",
+      scriptEditorValue: "القيمة",
+      scriptEditorMessage: "الرسالة",
+      scriptEditorCta: "دعوة لاتخاذ إجراء",
+      scriptEditorRemoveSection: "حذف هذا القسم",
+      scriptEditorRemoveLastWarning: "يجب أن يحتوي قسم واحد على الأقل على نص.",
+      scriptEditorSave: "حفظ النص",
+      scriptEditorSaving: "جارٍ إعادة الإنتاج…",
+      scriptEditorSaved: "تم تحديث النص.",
+      sceneEditorTitle: "المشاهد",
+      sceneMediaSwap: "تبديل الوسائط",
+      sceneMediaSwapPickTitle: "اختر وسائط جديدة لهذا المشهد",
+      sceneMediaSwapChooseAsset: "اختر من مكتبة الوسائط",
+      sceneMediaSwapGenerateAi: "أو أنشئ خلفية جديدة بالذكاء الاصطناعي",
+      sceneMediaSwapSave: "استخدم هذا",
+      sceneMediaSwapSaving: "جارٍ إعادة الإنتاج…",
+      sceneMediaSwapCancel: "إلغاء",
+      sceneMediaSwapSaved: "تم تحديث وسائط المشهد.",
+      sceneReorderDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — إعادة الترتيب ستُفقد تزامن التعليق الصوتي مع ما يظهر على الشاشة.",
+      sceneDurationDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — مدة المشهد تتبع توقيت التعليق الصوتي الفعلي.",
+      sceneRemoveGuidanceNarrated: "لحذف هذا المشهد، احذف نصه من محرّر النص أعلاه.",
+      sceneMoveUp: "تحريك لأعلى",
+      sceneMoveDown: "تحريك لأسفل",
+      sceneDurationLabel: "المدة (بالثواني)",
+      sceneOverlayTextLabel: "النص الظاهر على الشاشة",
+      sceneRemoveButton: "حذف المشهد",
+      sceneAddButton: "إضافة مشهد",
+      sceneEditorSave: "حفظ المشاهد",
+      sceneEditorSaving: "جارٍ إعادة الإنتاج…",
+      sceneEditorSaved: "تم تحديث المشاهد.",
+      sceneCurrentMedia: "الوسائط الحالية",
     },
     campaigns: {
       title: "الحملات",
@@ -993,6 +1113,33 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "في قسم محرك التعليق الصوتي أعلاه، بدّل إلى \"استخدام مفتاح API الخاص بي\" ليتم استخدامه فعليًا في الفيديوهات.",
       ],
       elevenLabsGuideLinkLabel: "احصل على مفتاح ElevenLabs ← elevenlabs.io",
+      fishAudioGuideTitle: "Fish Audio (تعليق صوتي بتكلفة أقل)",
+      fishAudioGuideSteps: [
+        "اذهب إلى fish.audio وأنشئ حسابًا.",
+        "افتح fish.audio/app/api-keys ← \"Create New Key\".",
+        "سمِّه \"Postify\" وانسخ المفتاح.",
+        "الصقه في حقل مفتاح API أعلاه، اختر Fish Audio كمزوّد، ثم احفظ.",
+        "في قسم محرك التعليق الصوتي أعلاه، بدّل إلى \"استخدام مفتاح API الخاص بي\" ليتم استخدامه فعليًا في الفيديوهات.",
+      ],
+      fishAudioGuideLinkLabel: "احصل على مفتاح Fish Audio ← fish.audio",
+      fishAudioCostNote:
+        "سعر Fish Audio لكل حرف (حوالي 15 دولارًا لكل مليون حرف على نموذج S2.1 Pro) عادة أقل بكثير من ElevenLabs — خيار موفّر حقيقي، وليس أقل جودة. كلا المزوّدين يعمل بشكل جيد هنا؛ اختر ما يناسب ميزانيتك.",
+      geminiGuideTitle: "Google Gemini (خلفيات بالذكاء الاصطناعي بتكلفة أقل)",
+      geminiGuideSteps: [
+        "اذهب إلى aistudio.google.com وسجّل الدخول بحساب Google.",
+        "افتح aistudio.google.com/apikey ← \"Create API key\".",
+        "انسخ المفتاح.",
+        "الصقه في حقل مفتاح API أعلاه، اختر Google Gemini كمزوّد، ثم احفظ.",
+        "فعِّل الفوترة على مشروع Google Cloud المرتبط — نماذج Gemini للصور ليس لها مستوى مجاني، فلن يعمل توليد الصور إلا بعد تفعيل الفوترة.",
+      ],
+      geminiGuideLinkLabel: "احصل على مفتاح Gemini ← aistudio.google.com",
+      geminiCostNote:
+        "نموذج Gemini للصور (gemini-3.1-flash-lite-image) يكلّف حوالي 0.034 دولار لكل صورة، بدون مستوى مجاني — يجب تفعيل الفوترة من أول صورة. هذا عادة أقل تكلفة من gpt-image-1 من OpenAI (حوالي 0.01 إلى 0.17 دولار للصورة حسب الجودة). كلا الخيارين حقيقي وصالح تمامًا؛ اختر ما يناسب ميزانيتك.",
+      musicCreditsTitle: "حقوق الموسيقى",
+      musicCreditsSubtitle: "الموسيقى الخلفية المستخدمة في الفيديوهات التي أنشأتها.",
+      musicCreditsLicenseNote:
+        "جميع المقطوعات من تأليف Kevin MacLeod (incompetech.com)، مرخّصة بموجب Creative Commons: By Attribution 4.0 — مجانية للاستخدام التجاري بشرط ذكر المصدر.",
+      musicCreditsLicenseLinkLabel: "عرض الترخيص ← creativecommons.org",
       insightsTitle: "ما الذي ينجح",
       insightsNoData:
         "لا توجد منشورات كافية منشورة وقيست تفاعلاتها بعد — ستظهر هذه المعلومات بعد نشر عدة منشورات عبر حساب فيسبوك أو إنستغرام متصل.",

@@ -51,6 +51,48 @@ export function ApiKeyGuide({ dict }: { dict: Dictionary["settings"] }) {
           {dict.elevenLabsGuideLinkLabel}
         </a>
       </details>
+
+      <details className="group rounded-md border border-paper-border dark:border-night-border p-3">
+        <summary className="cursor-pointer text-sm font-medium">{dict.fishAudioGuideTitle}</summary>
+        <ol className="mt-3 flex flex-col gap-2 text-sm text-ink-soft dark:text-ink-soft-dark">
+          {dict.fishAudioGuideSteps.map((step, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="font-medium text-ink dark:text-ink-dark">{i + 1}.</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-ink-soft dark:text-ink-soft-dark">{dict.fishAudioCostNote}</p>
+        <a
+          href="https://fish.audio"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-sm font-medium text-primary hover:underline dark:text-primary-dark"
+        >
+          {dict.fishAudioGuideLinkLabel}
+        </a>
+      </details>
+
+      <details className="group rounded-md border border-paper-border dark:border-night-border p-3">
+        <summary className="cursor-pointer text-sm font-medium">{dict.geminiGuideTitle}</summary>
+        <ol className="mt-3 flex flex-col gap-2 text-sm text-ink-soft dark:text-ink-soft-dark">
+          {dict.geminiGuideSteps.map((step, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="font-medium text-ink dark:text-ink-dark">{i + 1}.</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-ink-soft dark:text-ink-soft-dark">{dict.geminiCostNote}</p>
+        <a
+          href="https://aistudio.google.com/apikey"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block text-sm font-medium text-primary hover:underline dark:text-primary-dark"
+        >
+          {dict.geminiGuideLinkLabel}
+        </a>
+      </details>
     </div>
   );
 }

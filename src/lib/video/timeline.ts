@@ -5,7 +5,13 @@ export const SCRIPT_SECTION_KEYS = ["hook", "context", "value", "message", "cta"
 export type ScriptSectionKey = (typeof SCRIPT_SECTION_KEYS)[number];
 
 export interface SectionTiming {
-  key: ScriptSectionKey;
+  // string, not ScriptSectionKey — the scene editor (scene-editor.ts)
+  // lets free-tier (non-narrated) videos add scenes beyond the fixed 5
+  // script sections, so a scene's key can't always be one of the 5
+  // literal names. Only ever compared against "hook"/"cta" in one place
+  // (render.ts's LOWER_THIRD_PROMO banner lookup), which still works
+  // fine against a plain string.
+  key: string;
   text: string;
   startSec: number;
   endSec: number;
@@ -16,13 +22,41 @@ export interface SectionTiming {
 // audio-derived timing.
 const FALLBACK_SECTION_DURATION_SEC = 4.5;
 
+// Empty/whitespace-only section text is treated as "this scene was
+// removed" (scene-editor.ts's script editor lets a user delete a
+// section's text entirely to remove that scene) — skipped here rather
+// than producing a real 0-duration or blank-caption scene. A normal
+// generation never produces empty section text on its own, so this is
+// purely additive for the original generation path.
 export function computeSectionTimingsWithoutNarration(script: VideoScriptSections): SectionTiming[] {
   let cursor = 0;
-  return SCRIPT_SECTION_KEYS.map((key) => {
+  const timings: SectionTiming[] = [];
+  for (const key of SCRIPT_SECTION_KEYS) {
+    const text = script[key];
+    if (!text.trim()) continue;
     const startSec = cursor;
     const endSec = cursor + FALLBACK_SECTION_DURATION_SEC;
     cursor = endSec;
-    return { key, text: script[key], startSec, endSec };
+    timings.push({ key, text, startSec, endSec });
+  }
+  return timings;
+}
+
+// The free-tier scene editor's own timing source — each scene carries
+// its own user-set duration (VideoScene.durationSec) instead of the
+// fixed FALLBACK_SECTION_DURATION_SEC every scene otherwise shares.
+// Safe only where there's no real narration audio to desync from (see
+// scene-editor.ts's doc comment on why duration adjustment is
+// narrated-video-unsafe) — this is that codepath's real timing builder.
+export function computeSectionTimingsFromDurations(
+  scenes: { key: string; text: string; durationSec: number }[],
+): SectionTiming[] {
+  let cursor = 0;
+  return scenes.map((scene) => {
+    const startSec = cursor;
+    const endSec = cursor + scene.durationSec;
+    cursor = endSec;
+    return { key: scene.key, text: scene.text, startSec, endSec };
   });
 }
 
@@ -39,11 +73,17 @@ export function computeSectionTimingsFromWords(
 ): SectionTiming[] {
   let cursor = 0;
   const timings: SectionTiming[] = [];
+  // Same "empty text = removed scene" contract as
+  // computeSectionTimingsWithoutNarration — the last NON-EMPTY section
+  // absorbs any leftover words (Whisper transcript drift), not
+  // necessarily script's literal last key, since that key may itself
+  // have been removed.
+  const activeKeys = SCRIPT_SECTION_KEYS.filter((key) => script[key].trim());
 
-  for (const key of SCRIPT_SECTION_KEYS) {
+  for (const key of activeKeys) {
     const text = script[key];
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-    const isLast = key === SCRIPT_SECTION_KEYS[SCRIPT_SECTION_KEYS.length - 1];
+    const isLast = key === activeKeys[activeKeys.length - 1];
 
     const sectionWords = words.slice(cursor, cursor + wordCount);
     cursor += wordCount;

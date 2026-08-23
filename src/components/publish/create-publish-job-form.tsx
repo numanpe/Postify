@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 
 import { createPublishJob, suggestPublishTime } from "@/lib/actions/publish";
 import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
+import { appendMusicCredit } from "@/lib/video/music-credit";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 
@@ -55,7 +56,7 @@ export function CreatePublishJobForm({
   const selectedPoster = posters.find((poster) => poster.id === selectedPosterId);
   const selectedVideo = videos.find((video) => video.id === selectedVideoId);
   const suggestedCaption = needsVideo
-    ? (selectedVideo?.topic ?? "")
+    ? (selectedVideo ? appendMusicCredit(selectedVideo.topic) : "")
     : selectedPoster
       ? [selectedPoster.headline, selectedPoster.subhead, selectedPoster.cta].filter(Boolean).join("\n\n")
       : "";

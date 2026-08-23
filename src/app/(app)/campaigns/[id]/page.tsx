@@ -27,14 +27,22 @@ export default async function CampaignDetailPage({
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [campaign, connectedAccounts, aggregatorCredential, brandKit] = await Promise.all([
+  const [campaign, connectedAccounts, aggregatorCredential, brandKit, sceneMediaAssets] = await Promise.all([
     db.campaign.findFirst({
       where: { id, companyId: company.id },
       include: {
         items: {
           include: {
             poster: { include: { asset: true } },
-            video: { include: { asset: true } },
+            video: {
+              include: {
+                asset: true,
+                scenes: {
+                  include: { mediaAsset: { select: { id: true, fileName: true } } },
+                  orderBy: { order: "asc" },
+                },
+              },
+            },
             aggregatorPublishLogs: { orderBy: { createdAt: "desc" }, take: 1 },
           },
           orderBy: { scheduledDate: "asc" },
@@ -51,6 +59,20 @@ export default async function CampaignDetailPage({
         })
       : null,
     db.brandKit.findUnique({ where: { companyId: company.id }, include: { logoAsset: true } }),
+    // Real Media Library assets for the video edit modal's scene-media
+    // swap picker — same exclusions as the Video Studio's own picker
+    // (no poster/video outputs, no brand logo offered back as B-roll).
+    db.mediaAsset.findMany({
+      where: {
+        companyId: company.id,
+        posterOutput: null,
+        videoOutput: null,
+        brandKitLogo: null,
+        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fileName: true, mimeType: true },
+    }),
   ]);
   if (!campaign) {
     notFound();
@@ -123,6 +145,7 @@ export default async function CampaignDetailPage({
                     retentionDays={retentionDays}
                     companyName={company.name}
                     companyLogoUrl={companyLogoUrl}
+                    sceneMediaAssets={sceneMediaAssets}
                   />
                 ))}
               </div>

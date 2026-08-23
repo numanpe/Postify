@@ -7,11 +7,33 @@ import { requireCompany } from "@/lib/session";
 import { storage, buildStorageKey } from "@/lib/storage";
 import { editVideo } from "@/lib/video/edit";
 import { cleanupMediaStorage } from "@/lib/storage-cleanup";
+import {
+  editNarratedVideoScript,
+  swapNarratedVideoSceneMedia,
+  editNonNarratedVideoScenes,
+  VideoEditError,
+  type EditableSceneInput,
+} from "@/lib/video/scene-editor";
+import type { VideoScriptSections } from "@/lib/providers/text/types";
 
 export type EditVideoState = { error: string } | { success: true } | undefined;
 
-// Task 3: "Edit Video" on a campaign card — trim and/or a burned-in text
-// overlay, via the existing FFmpeg pipeline (src/lib/video/edit.ts).
+async function revalidateVideoViews(videoId: string) {
+  const video = await db.video.findUnique({
+    where: { id: videoId },
+    select: { campaignItem: { select: { campaignId: true } } },
+  });
+  revalidatePath("/studio/video");
+  if (video?.campaignItem) revalidatePath(`/campaigns/${video.campaignItem.campaignId}`);
+}
+
+// Trim and/or a burned-in text overlay, via the existing FFmpeg pipeline
+// (src/lib/video/edit.ts). Re-scoped from CampaignItem to Video directly
+// (was editCampaignItemVideo(itemId, ...)) — the script/scene editor
+// below needs company-scoped Video ownership regardless of whether a
+// CampaignItem wraps it (standalone Studio videos never have one), so
+// this now shares that same real ownership check instead of the whole
+// modal needing two different lookup paths for the same video.
 //
 // Storage-cleanup safety rule: this creates a brand-new MediaAsset for
 // the edited file and only repoints Video.assetId to it — the OLD asset
@@ -21,21 +43,21 @@ export type EditVideoState = { error: string } | { success: true } | undefined;
 // never the DB row/history. A failed edit (ffmpeg error, storage
 // failure) never reaches the old asset at all. Never triggered by a
 // download — see src/app/api/campaign-items/[id]/download/route.ts.
-export async function editCampaignItemVideo(
-  itemId: string,
+export async function editVideoAsset(
+  videoId: string,
   _prevState: EditVideoState,
   formData: FormData,
 ): Promise<EditVideoState> {
   const { company } = await requireCompany();
 
-  const item = await db.campaignItem.findFirst({
-    where: { id: itemId, campaign: { companyId: company.id } },
-    include: { video: { include: { asset: true } } },
+  const video = await db.video.findFirst({
+    where: { id: videoId, companyId: company.id },
+    include: { asset: true },
   });
-  if (!item?.video) {
-    return { error: "This item has no video to edit." };
+  if (!video) {
+    return { error: "This video no longer exists." };
   }
-  if (item.video.asset.storageDeletedAt) {
+  if (video.asset.storageDeletedAt) {
     return { error: "This video's file was already cleaned up after a confirmed publish." };
   }
 
@@ -55,11 +77,11 @@ export async function editCampaignItemVideo(
   }
 
   try {
-    const sourceBuffer = await storage.get(item.video.asset.storageKey);
+    const sourceBuffer = await storage.get(video.asset.storageKey);
     const edited = await editVideo({
       sourceBuffer,
-      width: item.video.asset.width ?? 1080,
-      height: item.video.asset.height ?? 1080,
+      width: video.asset.width ?? 1080,
+      height: video.asset.height ?? 1080,
       trimStartSec,
       trimEndSec,
       overlayText,
@@ -75,22 +97,120 @@ export async function editCampaignItemVideo(
         fileName: `video-edit-${Date.now()}.mp4`,
         mimeType: "video/mp4",
         sizeBytes: edited.mp4.byteLength,
-        width: item.video.asset.width,
-        height: item.video.asset.height,
-        orientation: item.video.asset.orientation,
+        width: video.asset.width,
+        height: video.asset.height,
+        orientation: video.asset.orientation,
       },
     });
 
-    const oldAssetId = item.video.asset.id;
-    await db.video.update({ where: { id: item.video.id }, data: { assetId: newAsset.id } });
+    const oldAssetId = video.asset.id;
+    await db.video.update({ where: { id: video.id }, data: { assetId: newAsset.id } });
 
     // Only reachable once the reassignment above has actually committed
     // — see this function's doc comment.
     await cleanupMediaStorage(oldAssetId);
 
-    revalidatePath(`/campaigns/${item.campaignId}`);
+    await revalidateVideoViews(video.id);
     return { success: true };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Video edit failed." };
+  }
+}
+
+export type EditScriptState = { error: string } | { success: true } | undefined;
+
+const SCRIPT_KEYS = ["hook", "context", "value", "message", "cta"] as const;
+
+// Narrated videos only — full re-render (new narration, new timing, new
+// composite). Empty section text removes that scene from the re-render.
+export async function editVideoScript(
+  videoId: string,
+  _prevState: EditScriptState,
+  formData: FormData,
+): Promise<EditScriptState> {
+  const { company } = await requireCompany();
+
+  const newScript = {} as VideoScriptSections;
+  for (const key of SCRIPT_KEYS) {
+    const raw = formData.get(key);
+    newScript[key] = typeof raw === "string" ? raw.trim() : "";
+  }
+
+  try {
+    await editNarratedVideoScript(videoId, company.id, newScript);
+    await revalidateVideoViews(videoId);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof VideoEditError) return { error: error.message };
+    return { error: error instanceof Error ? error.message : "Could not re-render this video." };
+  }
+}
+
+export type SwapSceneMediaState = { error: string } | { success: true } | undefined;
+
+// Narrated videos: swap one scene's media, script text unchanged (still
+// a near-full re-render — see scene-editor.ts's own notes on why).
+export async function swapVideoSceneMedia(
+  videoId: string,
+  sceneScriptKey: string,
+  _prevState: SwapSceneMediaState,
+  formData: FormData,
+): Promise<SwapSceneMediaState> {
+  const { company } = await requireCompany();
+
+  const assetId = formData.get("assetId");
+  const regenerateAi = formData.get("regenerateAi") === "true";
+
+  if (!regenerateAi && (typeof assetId !== "string" || !assetId)) {
+    return { error: "Choose a photo/video, or generate a new AI background." };
+  }
+
+  try {
+    await swapNarratedVideoSceneMedia(
+      videoId,
+      company.id,
+      sceneScriptKey,
+      regenerateAi ? { regenerateAi: true } : { assetId: assetId as string },
+    );
+    await revalidateVideoViews(videoId);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof VideoEditError) return { error: error.message };
+    return { error: error instanceof Error ? error.message : "Could not re-render this video." };
+  }
+}
+
+export type EditScenesState = { error: string } | { success: true } | undefined;
+
+// Non-narrated (free-tier) videos: reorder / duration / add / remove /
+// swap / overlay-text — the client component serializes the full edited
+// scene list as JSON (a plain form can't express an ordered,
+// heterogeneous list of edits cleanly) into one hidden field.
+export async function editVideoScenes(
+  videoId: string,
+  _prevState: EditScenesState,
+  formData: FormData,
+): Promise<EditScenesState> {
+  const { company } = await requireCompany();
+
+  const raw = formData.get("scenes");
+  if (typeof raw !== "string") {
+    return { error: "No scene changes to save." };
+  }
+
+  let editedScenes: EditableSceneInput[];
+  try {
+    editedScenes = JSON.parse(raw);
+  } catch {
+    return { error: "Could not read the scene changes." };
+  }
+
+  try {
+    await editNonNarratedVideoScenes(videoId, company.id, editedScenes);
+    await revalidateVideoViews(videoId);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof VideoEditError) return { error: error.message };
+    return { error: error instanceof Error ? error.message : "Could not re-render this video." };
   }
 }
