@@ -31,8 +31,92 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships    CompanyMember[]
-  uploadedAssets MediaAsset[]
+  // null = regular user (the overwhelming majority). Platform-level role,
+  // distinct from CompanyMember.role — a company OWNER has zero admin
+  // capability by default, and an ADMIN has zero special access to any
+  // specific company's data beyond what the admin panel explicitly exposes
+  // (ban/suspend, not "browse this company's media library").
+  adminRole AdminRole?
+  // Reversible (unlike deletion): a suspended/banned user can be
+  // reactivated with their data intact. Enforced at login (auth.ts) and
+  // implicitly at every requireUser()/requireCompany() call site since
+  // generation/publish always sit behind one of those.
+  status    AccountStatus @default(ACTIVE)
+
+  memberships          CompanyMember[]
+  uploadedAssets       MediaAsset[]
+  passwordResetTokens  PasswordResetToken[]
+  sentAdminInvites     AdminInvite[]    @relation("AdminInviteSender")
+  adminActions         AdminActionLog[] @relation("AdminActionActor")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+// Single-use, expiring, hashed token for both password reset and admin
+// invitation (AdminInvite embeds its own token separately since it also
+// carries an email + inviter, but both follow this file's one convention:
+// hash the raw token the same one-way way User.passwordHash is hashed —
+// src/lib/crypto.ts's reversible AES-256-GCM is for values the app must
+// later decrypt to make outbound API calls (ProviderCredential,
+// SocialAccount), which a reset token never needs).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum AdminInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model AdminInvite {
+  id          String            @id @default(cuid())
+  email       String
+  tokenHash   String            @unique
+  status      AdminInviteStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  invitedById String
+  invitedBy   User              @relation("AdminInviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([invitedById])
+}
+
+// Every ban/suspend/reactivate/invite/revoke action, who did it, when —
+// append-only, never edited or deleted through the app itself.
+model AdminActionLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation("AdminActionActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
 }
 
 enum CompanyRole {
@@ -69,6 +153,12 @@ model Company {
   businessDescription String?
   locale          Locale   @default(EN)
   voiceEngine     VoiceEngine @default(FREE)
+  // Company-level suspend, independent of any individual member's own
+  // User.status — lets an abusive company be shut down without banning
+  // every member by hand, and a member can still be individually banned
+  // while their company stays active. Same enum, same reversibility as
+  // User.status.
+  status          AccountStatus @default(ACTIVE)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

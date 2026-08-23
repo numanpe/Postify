@@ -67,6 +67,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const existing = await db.user.findUnique({ where: { email: user.email } });
       if (existing) {
+        // Returning false here sends NextAuth to its default
+        // AccessDenied error page rather than a tailored message — the
+        // Credentials path (src/lib/actions/auth.ts's login()) gives a
+        // more specific one since it fully controls its own response;
+        // duplicating that specificity here would mean guessing how
+        // Auth.js maps a signIn-callback rejection to a message.
+        if (existing.status !== "ACTIVE") return false;
         user.id = existing.id;
         return true;
       }

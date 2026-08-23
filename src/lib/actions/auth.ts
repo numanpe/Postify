@@ -86,6 +86,24 @@ export async function login(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
+  // Checked before attempting real sign-in, not inside authorize() —
+  // keeps the specific reason (banned vs. suspended) fully in this
+  // file's control rather than depending on how NextAuth maps a thrown
+  // authorize() error to a message. A wrong password against a
+  // banned/suspended account still reveals nothing beyond "this account
+  // exists and is banned" — no worse than the existing "invalid email
+  // or password" signal an attacker already gets either way.
+  const existing = await db.user.findUnique({
+    where: { email: parsed.data.email },
+    select: { status: true },
+  });
+  if (existing?.status === "BANNED") {
+    return { error: "This account has been banned." };
+  }
+  if (existing?.status === "SUSPENDED") {
+    return { error: "This account is suspended." };
+  }
+
   try {
     await signIn("credentials", {
       email: parsed.data.email,

@@ -21,6 +21,28 @@ export const requireUser = cache(async function requireUser() {
   if (!session?.user) {
     redirect("/auth/login");
   }
+
+  // JWT sessions carry no live status — a banned/suspended user's
+  // existing session cookie stays cryptographically valid until it
+  // naturally expires, so this real DB check is what actually locks
+  // them out immediately on their next request. Every real
+  // generate/publish action sits behind requireUser() or
+  // requireCompany() below, so this one check covers all of them.
+  // Deliberately just redirect() rather than signOut() — signOut()
+  // needs to set a response cookie, which Server Components can't do;
+  // the cookie is left in place, but every subsequent page load keeps
+  // bouncing here regardless, which is sufficient lockout.
+  const record = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { status: true },
+  });
+  if (!record) {
+    redirect("/auth/login");
+  }
+  if (record.status !== "ACTIVE") {
+    redirect(`/auth/login?status=${record.status.toLowerCase()}`);
+  }
+
   return session.user;
 });
 
@@ -40,6 +62,9 @@ export const requireCompany = cache(async function requireCompany() {
 
   if (!membership) {
     redirect("/create-company");
+  }
+  if (membership.company.status !== "ACTIVE") {
+    redirect(`/auth/login?status=company_${membership.company.status.toLowerCase()}`);
   }
 
   return { user, company: membership.company, role: membership.role };
