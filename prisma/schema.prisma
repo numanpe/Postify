@@ -641,6 +641,10 @@ enum AiProviderKind {
   ELEVENLABS
   FISH_AUDIO
   GEMINI
+  // Platform-held only (src/lib/providers/image/shared-image-pool.ts) —
+  // no BYOK Cloudflare credential path exists, so this never appears in
+  // ProviderCredential, only as a SharedAiUsage.provider value.
+  CLOUDFLARE
 }
 
 // Platform-held, zero-setup "Free AI" pool (src/lib/providers/text/shared-pool.ts)

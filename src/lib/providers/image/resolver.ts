@@ -6,7 +6,7 @@ import type { ImageProvider } from "./types";
 import { GradientBackgroundProvider, type GradientColors } from "./gradient-provider";
 import { OpenAIImageProvider } from "./openai-image-provider";
 import { GeminiImageProvider } from "./gemini-image-provider";
-import { PollinationsImageProvider } from "./pollinations-provider";
+import { resolveSharedImagePool } from "./shared-image-pool";
 
 // No explicit "which BYOK image provider is active" selector exists on
 // Company — same real, pre-existing pattern the voice resolver already
@@ -43,15 +43,22 @@ export async function getAiImageProviderForCompany(companyId: string): Promise<I
   return getByokImageCredential(companyId);
 }
 
-// Poster's "AI Background" option — free tier via Pollinations (no key,
-// open-source models) when no OpenAI/Gemini key is configured,
-// otherwise the company's own key for higher/more predictable quality.
-// Never returns null: "AI Background" now always works with zero
-// setup, matching the free-first, BYOK-is-additive-not-required
-// principle the gradient/photo backgrounds already followed.
-export async function getAiImageProviderForPoster(companyId: string): Promise<ImageProvider> {
+// Poster's "AI Background" option — free tier via the platform-held
+// Cloudflare Workers AI pool (FLUX.1-schnell, then SDXL, then the
+// brand gradient — see shared-image-pool.ts) when no OpenAI/Gemini key
+// is configured, otherwise the company's own key for higher/more
+// predictable quality. Never returns null and never throws for the
+// free-tier case: "AI Background" now always works with zero setup,
+// matching the free-first, BYOK-is-additive-not-required principle the
+// gradient/photo backgrounds already followed. Replaced Pollinations
+// entirely (real, current free-tier evidence for Cloudflare vs. no
+// SLA/reliability guarantee for a community-run service) rather than
+// adding it as a third option — see free-ai-plan.md's Cloudflare
+// investigation for why.
+export async function getAiImageProviderForPoster(companyId: string, brandColors: GradientColors): Promise<ImageProvider> {
   const byok = await getByokImageCredential(companyId);
-  return byok ?? new PollinationsImageProvider();
+  if (byok) return byok;
+  return resolveSharedImagePool(new GradientBackgroundProvider(brandColors));
 }
 
 export function getBrandGradientProvider(colors: GradientColors): ImageProvider {

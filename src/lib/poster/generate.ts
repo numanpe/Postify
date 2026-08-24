@@ -156,9 +156,15 @@ export async function generatePosterCore(
       throw error;
     }
 
-    // Never null — free (Pollinations, no key) when unconfigured, BYOK
-    // OpenAI otherwise. See resolver.ts.
-    const provider = await getAiImageProviderForPoster(input.companyId);
+    // Never null and never throws for the free-tier case — the shared
+    // Cloudflare pool (no key) falls through to the brand gradient
+    // internally on any failure; BYOK still throws real errors below,
+    // caught same as always. See resolver.ts / shared-image-pool.ts.
+    const provider = await getAiImageProviderForPoster(input.companyId, {
+      primary: brandKit?.primaryColor,
+      secondary: brandKit?.secondaryColor,
+      accent: brandKit?.accentColor,
+    });
     try {
       const result = await provider.generateBackground({
         companyName: context.name,
