@@ -14,14 +14,29 @@ import { fetchWithRetry } from "../http";
 // visually inspected before this was implemented.
 const API_BASE = "https://api.cloudflare.com/client/v4/accounts";
 
-// Real, confirmed-live: Cloudflare's daily free-tier neuron quota
-// exhaustion returns this exact internal error code (HTTP 429) —
-// distinct from code 3040 ("Capacity temporarily exceeded", a
-// transient infrastructure issue unrelated to quota, also HTTP 429).
-// shared-image-pool.ts's circuit breaker must only react to 3036, or a
-// one-off capacity blip would wrongly disable the whole pool for the
-// rest of the day.
+// Real, confirmed-live (per Cloudflare's REST error taxonomy docs):
+// Cloudflare's daily free-tier neuron quota exhaustion is documented as
+// internal error code 3036 (HTTP 429) — distinct from code 3040
+// ("Capacity temporarily exceeded", a transient infrastructure issue
+// unrelated to quota, also HTTP 429). shared-image-pool.ts's circuit
+// breaker must only react to real quota exhaustion, or a one-off
+// capacity blip would wrongly disable the whole pool for the rest of
+// the day.
+//
+// HOWEVER: a real production incident (2026-08-24, confirmed via
+// `vercel logs`) showed the Workers AI binding does NOT always return
+// that documented {code, message} shape for this exact condition — the
+// real body observed was `{"errors":[{"message":"AiError: AiError: you
+// have used up your daily free allocation of 10,000 neurons..."}]}`,
+// with no numeric `code` field at all. Relying on the code alone left
+// this silently unrecognized: the circuit breaker never tripped,
+// SharedAiUsage never recorded the exhaustion, and every request kept
+// wastefully retrying both models before falling back to the gradient
+// with zero trace. Matching on the documented message text as well
+// (case-insensitive substring) closes that gap without weakening the
+// code-based check — both are real, both are checked.
 const QUOTA_EXHAUSTED_CODE = 3036;
+const QUOTA_EXHAUSTED_MESSAGE_MARKER = "daily free allocation";
 
 export class CloudflareQuotaExhaustedError extends ImageProviderError {}
 
@@ -38,13 +53,17 @@ function buildBackgroundPrompt(input: GenerateBackgroundInput): string {
   return base;
 }
 
-async function readErrorCode(response: Response): Promise<{ code?: number; body: string }> {
+async function readErrorCode(response: Response): Promise<{ isQuotaExhausted: boolean; body: string }> {
   const body = await response.text().catch(() => "");
   try {
     const parsed = JSON.parse(body) as CloudflareErrorBody;
-    return { code: parsed.errors?.[0]?.code, body };
+    const message = parsed.errors?.[0]?.message ?? "";
+    const isQuotaExhausted =
+      parsed.errors?.[0]?.code === QUOTA_EXHAUSTED_CODE ||
+      message.toLowerCase().includes(QUOTA_EXHAUSTED_MESSAGE_MARKER);
+    return { isQuotaExhausted, body };
   } catch {
-    return { body };
+    return { isQuotaExhausted: false, body };
   }
 }
 
@@ -88,8 +107,8 @@ export class CloudflareFluxImageProvider implements ImageProvider {
     }
 
     if (!response.ok) {
-      const { code, body } = await readErrorCode(response);
-      if (code === QUOTA_EXHAUSTED_CODE) {
+      const { isQuotaExhausted, body } = await readErrorCode(response);
+      if (isQuotaExhausted) {
         throw new CloudflareQuotaExhaustedError(this.name, "Today's free AI image quota is used up.");
       }
       throw new ImageProviderError(this.name, `Cloudflare Workers AI (FLUX) request failed (${response.status}). ${body.slice(0, 200)}`);
@@ -164,8 +183,8 @@ export class CloudflareSdxlImageProvider implements ImageProvider {
     }
 
     if (!response.ok) {
-      const { code, body } = await readErrorCode(response);
-      if (code === QUOTA_EXHAUSTED_CODE) {
+      const { isQuotaExhausted, body } = await readErrorCode(response);
+      if (isQuotaExhausted) {
         throw new CloudflareQuotaExhaustedError(this.name, "Today's free AI image quota is used up.");
       }
       throw new ImageProviderError(this.name, `Cloudflare Workers AI (SDXL) request failed (${response.status}). ${body.slice(0, 200)}`);
