@@ -75,7 +75,16 @@ export async function shouldShowImagePoolExhaustedNotice(): Promise<boolean> {
 // failed" the way it correctly still does for a real BYOK failure.
 export async function resolveSharedImagePool(gradientFallback: ImageProvider): Promise<ImageProvider> {
   const credentials = getPlatformCloudflareCredentials();
-  if (!credentials || (await isSharedImagePoolExhaustedToday())) {
+  if (!credentials) {
+    // Real, server-side-only visibility into why the zero-setup pool
+    // silently isn't running — the free-tier caller never sees this
+    // (falls to the gradient exactly the same as any other reason),
+    // but an operator checking real logs shouldn't have to guess
+    // between "not configured" and "configured but genuinely failing".
+    console.warn("[shared-image-pool] PLATFORM_CLOUDFLARE_ACCOUNT_ID/API_TOKEN not set — falling back to gradient.");
+    return gradientFallback;
+  }
+  if (await isSharedImagePoolExhaustedToday()) {
     return gradientFallback;
   }
 
@@ -105,6 +114,12 @@ export async function resolveSharedImagePool(gradientFallback: ImageProvider): P
           // response) — real, but not necessarily shared across both
           // models (3040 in particular is a transient per-request
           // routing issue), so still worth trying the next model.
+          // Logged server-side (never surfaced to the free-tier caller,
+          // same as the missing-credentials case above) — this path was
+          // previously completely silent, which made a real production
+          // issue (every generation quietly falling back to the
+          // gradient) impossible to diagnose from logs alone.
+          console.warn(`[shared-image-pool] ${provider.name} failed, trying next option:`, error);
         }
       }
       return gradientFallback.generateBackground(input);
