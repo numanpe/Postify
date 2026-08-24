@@ -92,6 +92,7 @@ export interface Dictionary {
     templateModernBannerName: string; templateModernBannerDescription: string;
     templateBadgeOfferName: string; templateBadgeOfferDescription: string;
     templateMinimalistFrameName: string; templateMinimalistFrameDescription: string;
+    regenerateBackground: string; regeneratingBackground: string; regenerateBackgroundSuccess: string;
   };
   video: {
     title: string; subtitle: (name: string) => string; previousVideos: string; topic: string;
@@ -411,6 +412,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templateBadgeOfferDescription: "A centered accent-color card holds the whole message — built for a sale or offer.",
       templateMinimalistFrameName: "Minimalist Frame",
       templateMinimalistFrameDescription: "Clean bottom text with a thin brand-color border frame and a subtle logo watermark.",
+      regenerateBackground: "Regenerate background",
+      regeneratingBackground: "Regenerating…",
+      regenerateBackgroundSuccess: "New background generated — see it above.",
       generate: "Generate poster",
       generating: "Generating…",
     },
@@ -979,6 +983,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templateBadgeOfferDescription: "بطاقة مركزية بلون العلامة تحمل الرسالة كاملة — مصمّمة للتخفيضات والعروض.",
       templateMinimalistFrameName: "إطار بسيط",
       templateMinimalistFrameDescription: "نص سفلي نظيف مع إطار رفيع بلون العلامة وعلامة مائية خفيفة للشعار.",
+      regenerateBackground: "إعادة توليد الخلفية",
+      regeneratingBackground: "جارٍ إعادة التوليد…",
+      regenerateBackgroundSuccess: "تم توليد خلفية جديدة — شاهدها أعلاه.",
       generate: "إنشاء الملصق",
       generating: "جارٍ الإنشاء…",
     },

@@ -9,6 +9,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { GenerateCaptionForm } from "@/components/studio/generate-caption-form";
 import { PosterForm } from "@/components/poster/poster-form";
+import { RegenerateBackgroundButton } from "@/components/poster/regenerate-background-button";
 import { VideoForm } from "@/components/video/video-form";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
@@ -178,6 +179,7 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
                     captionText={poster.headline}
                   />
                 )}
+                {poster.backgroundSource === "AI" && <RegenerateBackgroundButton posterId={poster.id} />}
               </li>
             ))}
           </ul>
