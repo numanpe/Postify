@@ -26,6 +26,15 @@ const CreateCampaignSchema = z.object({
     .max(200, "Keep the objective under 200 characters."),
   startDate: z.string().refine((value) => !Number.isNaN(Date.parse(value)), "Pick a valid start date."),
   days: z.coerce.number().int().min(1, "At least 1 day.").max(14, "Up to 14 days at a time."),
+  // A checkbox's field is simply absent from FormData when unchecked
+  // (not "false") — checking for the literal "true" the form's hidden
+  // value sends (see campaign-form.tsx) is the correct, unambiguous
+  // read, not z.coerce.boolean() (which would treat the mere presence
+  // of any non-empty string, including "false", as true).
+  useAiBackgrounds: z
+    .string()
+    .nullish()
+    .transform((value) => value === "true"),
 });
 
 export async function createCampaign(
@@ -38,11 +47,12 @@ export async function createCampaign(
     objective: formData.get("objective"),
     startDate: formData.get("startDate"),
     days: formData.get("days"),
+    useAiBackgrounds: formData.get("useAiBackgrounds"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { startDate, days } = parsed.data;
+  const { startDate, days, useAiBackgrounds } = parsed.data;
 
   const context = await getCompanyContext(company.id);
   const textProvider = await getTextProviderForCompany(company.id);
@@ -107,6 +117,7 @@ export async function createCampaign(
       name: objective.length > 60 ? `${objective.slice(0, 57)}...` : objective,
       objective,
       campaignType: brief.campaignType,
+      useAiBackgrounds,
       items: {
         create: brief.items.map((item, index) => ({
           scheduledDate: scheduledDates[index],

@@ -172,7 +172,18 @@ export async function processSingleCampaignItem(item: DueItem): Promise<boolean>
         // auto-generation still has no per-post UI for a person to
         // pick a template.
         template: POSTER_TEMPLATE_ROTATION[item.generationAttempt % POSTER_TEMPLATE_ROTATION.length],
-        backgroundSource: "BRAND",
+        // Explicit per-campaign opt-in (Campaign.useAiBackgrounds,
+        // default false) — BRAND stays the default here specifically
+        // because this function can process up to 20 items in one
+        // synchronous batch (processCampaignNow, right after campaign
+        // creation); defaulting that burst to the shared "Free AI"
+        // Cloudflare pool would let one company's campaign consume a
+        // large share of the platform's entire daily quota in under a
+        // minute. getAiImageProviderForPoster's own shared-pool wrapper
+        // still falls back to the gradient per-item on any failure
+        // (exhaustion or otherwise) even when this is "AI", so opting
+        // in never risks a harder failure than BRAND already has.
+        backgroundSource: item.campaign.useAiBackgrounds ? "AI" : "BRAND",
       });
       await db.campaignItem.update({
         where: { id: item.id },

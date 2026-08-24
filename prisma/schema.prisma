@@ -463,6 +463,18 @@ model Campaign {
   // Creative Director infers it from the objective (src/lib/campaign/
   // creative-director.ts); never asked of the user as a separate field.
   campaignType String @default("General")
+  // Explicit per-campaign opt-in, default false — campaigns default to
+  // the deterministic brand gradient (process-campaign-items.ts), not
+  // the shared "Free AI" Cloudflare pool, because a single campaign can
+  // process up to 20 posters in one synchronous batch
+  // (processCampaignNow) right after creation. Defaulting that burst to
+  // AI would let one company's campaign burn through a large share of
+  // the platform's entire shared daily quota in under a minute, at
+  // every other company's expense — a real, confirmed risk, not
+  // hypothetical (see project memory). BRAND stays the safe default;
+  // this flag is how a company consciously accepts that tradeoff for
+  // one specific campaign.
+  useAiBackgrounds Boolean @default(false)
 
   createdAt DateTime @default(now())
 

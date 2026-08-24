@@ -17,6 +17,16 @@ test.describe("Regenerate background", () => {
 
   test("appears only for AI-background posters, and produces a real new poster on click", async ({ page }) => {
     test.skip(!CLOUDFLARE_CONFIGURED, "PLATFORM_CLOUDFLARE_ACCOUNT_ID/API_TOKEN not configured for this dev server");
+    // Playwright's default 30s *test*-level timeout (separate from any
+    // individual assertion's own timeout) was genuinely too tight here
+    // — this test makes three real, sequential Cloudflare-touching
+    // generations (BRAND, AI, AI regenerate), and real observed latency
+    // variance (FLUX hitting a transient capacity error and falling
+    // through to SDXL within one attempt) can push their cumulative
+    // real time past 30s even when each step's own wait was already
+    // extended. Caught by a real suite run timing out here, not
+    // assumed in advance.
+    test.setTimeout(120_000);
     const email = "e2e-regen-bg@postify.test";
     const password = "e2e-test-pass-123";
 

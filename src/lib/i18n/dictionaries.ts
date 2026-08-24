@@ -134,6 +134,7 @@ export interface Dictionary {
     durationDetectedCapped: (requestedDays: number, cappedDays: number) => string;
     durationApply: string;
     previewSingle: string; previewMulti: (days: number) => string;
+    useAiBackgrounds: string; useAiBackgroundsDisclosure: string;
   };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
@@ -520,6 +521,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       durationApply: "Use this",
       previewSingle: "This will create 1 post.",
       previewMulti: (days: number) => `This will create 1 video and ${days - 1} poster${days - 1 === 1 ? "" : "s"} over ${days} days.`,
+      useAiBackgrounds: "Use AI backgrounds for this campaign's posters",
+      useAiBackgroundsDisclosure:
+        "Uses today's shared free AI quota — if it runs out partway through a large campaign, remaining posts automatically use your brand style instead. Off by default; your brand gradient always works with zero limits.",
     },
     publish: {
       title: "Publish",
@@ -1091,6 +1095,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       durationApply: "استخدام هذا",
       previewSingle: "سيؤدي هذا إلى إنشاء منشور واحد.",
       previewMulti: (days: number) => `سيؤدي هذا إلى إنشاء فيديو واحد و${days - 1} منشور خلال ${days} يومًا.`,
+      useAiBackgrounds: "استخدام خلفيات بالذكاء الاصطناعي لمنشورات هذه الحملة",
+      useAiBackgroundsDisclosure:
+        "يستخدم حصة الذكاء الاصطناعي المجانية المشتركة لليوم — إذا نفدت في منتصف حملة كبيرة، ستستخدم المنشورات المتبقية أسلوب علامتك التجارية تلقائيًا. معطّل افتراضيًا؛ التدرج اللوني لعلامتك يعمل دائمًا بلا حدود.",
     },
     publish: {
       title: "النشر",

@@ -33,6 +33,10 @@ export function CampaignForm({
   const [objective, setObjective] = useState(defaultObjective ?? "");
   const [days, setDays] = useState(defaultDays ?? 7);
   const [durationDismissed, setDurationDismissed] = useState(false);
+  // Off by default (see Campaign.useAiBackgrounds's own schema comment
+  // for why) — a company consciously opts in per campaign rather than
+  // this silently defaulting on.
+  const [useAiBackgrounds, setUseAiBackgrounds] = useState(false);
 
   const duration = parseDurationRequest(objective);
   const showDurationSuggestion = duration && !durationDismissed && duration.days !== days;
@@ -133,6 +137,21 @@ export function CampaignForm({
             className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="useAiBackgrounds"
+            value="true"
+            checked={useAiBackgrounds}
+            onChange={(e) => setUseAiBackgrounds(e.target.checked)}
+            className="accent-current"
+          />
+          {dict.useAiBackgrounds}
+        </label>
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.useAiBackgroundsDisclosure}</p>
       </div>
 
       {/* Real preview before committing — matches this app's existing
