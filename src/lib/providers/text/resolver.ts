@@ -6,6 +6,7 @@ import type { TextProvider } from "./types";
 import { TemplateTextProvider } from "./template-provider";
 import { OpenAITextProvider } from "./openai-provider";
 import { AnthropicTextProvider } from "./anthropic-provider";
+import { GeminiTextProvider } from "./gemini-provider";
 import { withDeletionAvoidance } from "@/lib/creative-dna/deletion-avoidance";
 
 // The two-click rule: callers never choose a provider, they just ask
@@ -23,8 +24,19 @@ export async function getTextProviderForCompany(companyId: string): Promise<Text
   // text provider out of it, breaking text generation with a real
   // (not fake) 401 instead of correctly falling back to the free
   // template provider.
+  // GEMINI included here on purpose: ProviderCredential is one row per
+  // (company, vendor), not per capability (see its own schema comment)
+  // — a Gemini key saved for the Part 2 image provider is the exact
+  // same row this query can find, so it transparently covers text too
+  // without the user ever entering it twice. Existing `asc` ordering
+  // (oldest credential wins ties) is unchanged/pre-existing behavior,
+  // not something this change should alter — it already does the right
+  // thing here: a company's first-configured text-capable credential
+  // keeps winning even after a later Gemini key is added for images
+  // only, and a Gemini key added first (e.g. via onboarding) becomes
+  // the text default same as any other provider would.
   const credential = await db.providerCredential.findFirst({
-    where: { companyId, provider: { in: ["OPENAI", "ANTHROPIC"] } },
+    where: { companyId, provider: { in: ["OPENAI", "ANTHROPIC", "GEMINI"] } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -32,7 +44,9 @@ export async function getTextProviderForCompany(companyId: string): Promise<Text
     ? new TemplateTextProvider()
     : credential.provider === "OPENAI"
       ? new OpenAITextProvider(decryptSecret(credential.encryptedKey))
-      : new AnthropicTextProvider(decryptSecret(credential.encryptedKey));
+      : credential.provider === "ANTHROPIC"
+        ? new AnthropicTextProvider(decryptSecret(credential.encryptedKey))
+        : new GeminiTextProvider(decryptSecret(credential.encryptedKey));
 
   // Every caller of this resolver automatically gets the "never
   // regenerate an exact deleted output again" rule (Part 1.1) — no

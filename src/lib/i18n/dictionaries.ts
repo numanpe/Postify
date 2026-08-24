@@ -51,10 +51,15 @@ export interface Dictionary {
     reviewColors: string; reviewNoColors: string; reviewFonts: string; reviewNoFonts: string;
     reviewDescription: string; reviewTone: string; industrySuggestedHint: string;
     createAndContinue: string; creating: string;
+    geminiStepTitle: string; geminiStepBody: string; geminiStepDisclosure: string;
+    geminiStepGetKeyLink: string; geminiStepApiKeyPlaceholder: string;
+    geminiStepConnect: string; geminiStepConnecting: string; geminiStepSkip: string;
+    geminiStepConnected: string;
   };
   studio: {
     title: string; subtitle: (name: string) => string; topicPlaceholder: string;
     generate: string; generating: string;
+    geminiNudgeText: string; geminiNudgeDismiss: string;
   };
   wizard: {
     stepOf: (step: number) => string;
@@ -172,7 +177,7 @@ export interface Dictionary {
     fishAudioGuideTitle: string; fishAudioGuideSteps: string[]; fishAudioGuideLinkLabel: string;
     fishAudioCostNote: string;
     geminiGuideTitle: string; geminiGuideSteps: string[]; geminiGuideLinkLabel: string;
-    geminiCostNote: string;
+    geminiCostNote: string; geminiTextFreeNote: string;
     musicCreditsTitle: string; musicCreditsSubtitle: string; musicCreditsLicenseNote: string;
     musicCreditsLicenseLinkLabel: string;
     insightsTitle: string; insightsNoData: string;
@@ -313,6 +318,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       industrySuggestedHint: "(suggested from your website — change if needed)",
       createAndContinue: "Create company",
       creating: "Creating…",
+      geminiStepTitle: "Want better, more natural AI writing?",
+      geminiStepBody:
+        "Our quick templates work great and always will. Connecting a free Google Gemini account gets you more natural, varied captions and scripts instead — about 2 minutes, no credit card, no cost.",
+      geminiStepDisclosure:
+        "One real tradeoff, worth knowing: on Google's free tier, human reviewers may read and use what you submit to improve their AI models (Google disconnects it from your account first). Skip this if you'd rather not share business content that way — templates keep working fully either way.",
+      geminiStepGetKeyLink: "Get a free key → aistudio.google.com",
+      geminiStepApiKeyPlaceholder: "Paste your Gemini API key",
+      geminiStepConnect: "Connect Gemini",
+      geminiStepConnecting: "Connecting…",
+      geminiStepSkip: "Skip for now",
+      geminiStepConnected: "Connected — you'll get Gemini's writing from now on.",
     },
     studio: {
       title: "Content Studio",
@@ -321,6 +337,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicPlaceholder: "What's this post about? e.g. our new spring menu",
       generate: "Generate",
       generating: "Generating…",
+      geminiNudgeText: "Get better writing for free — connect Gemini in 2 minutes.",
+      geminiNudgeDismiss: "Dismiss",
     },
     wizard: {
       stepOf: (step: number) => `Step ${step} of 3`,
@@ -640,17 +658,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       fishAudioGuideLinkLabel: "Get Fish Audio key → fish.audio",
       fishAudioCostNote:
         "Fish Audio's per-character rate (~$15 per 1M characters on its S2.1 Pro model) is typically well below ElevenLabs' — a real cost-conscious option, not a lower-quality one. Either provider works equally well here; pick whichever fits your budget.",
-      geminiGuideTitle: "Google Gemini (lower-cost AI backgrounds)",
+      geminiGuideTitle: "Google Gemini (free AI writing + lower-cost AI backgrounds)",
       geminiGuideSteps: [
         "Go to aistudio.google.com and sign in with a Google account.",
         "Open aistudio.google.com/apikey → \"Create API key\".",
         "Copy the key.",
         "Paste it into the API key field above, choose Google Gemini as the provider, and save.",
-        "Enable billing on the linked Google Cloud project — Gemini's image models have no free tier, so image generation won't work until billing is turned on.",
+        "That's it for captions/scripts — Gemini's text models have a genuine free tier, no billing needed. AI image backgrounds are separate: enable billing on the linked Google Cloud project only if you also want those (Gemini's image models have no free tier).",
       ],
       geminiGuideLinkLabel: "Get Gemini key → aistudio.google.com",
       geminiCostNote:
         "Gemini's image model (gemini-3.1-flash-lite-image) costs about $0.034 per image, with no free tier — billing must be enabled from the very first image. That's typically cheaper than OpenAI's gpt-image-1 (roughly $0.01–$0.17 per image depending on quality). Both are real, equally valid choices — pick whichever fits your budget.",
+      geminiTextFreeNote:
+        "Gemini's text models (captions, scripts) have a genuine, permanent free tier — no credit card, no cost. One real tradeoff: on the free tier, human reviewers may read and use submitted content to improve Google's models (disconnected from your account first). The same key you save here works for both AI writing and AI backgrounds — no need to enter it twice.",
       musicCreditsTitle: "Music credits",
       musicCreditsSubtitle: "Background music used in your generated videos.",
       musicCreditsLicenseNote:
@@ -865,6 +885,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       industrySuggestedHint: "(مقترح من موقعك — غيّره إذا لزم الأمر)",
       createAndContinue: "إنشاء الشركة",
       creating: "جارٍ الإنشاء…",
+      geminiStepTitle: "تريد كتابة أفضل وأكثر طبيعية بالذكاء الاصطناعي؟",
+      geminiStepBody:
+        "قوالبنا الجاهزة تعمل جيدًا دائمًا. لكن ربط حساب Google Gemini المجاني يمنحك تعليقات ونصوصًا أكثر طبيعية وتنوعًا — يستغرق الأمر دقيقتين تقريبًا، بلا بطاقة ائتمان وبلا أي تكلفة.",
+      geminiStepDisclosure:
+        "مقايضة حقيقية تستحق المعرفة: في الخطة المجانية، قد يطّلع مراجعون بشريون على ما ترسله ويستخدمونه لتحسين نماذج Google (بعد فصله عن حسابك). تخطَّ هذه الخطوة إن كنت تفضّل عدم مشاركة محتوى عملك بهذه الطريقة — القوالب تظل تعمل بكامل كفاءتها في الحالتين.",
+      geminiStepGetKeyLink: "احصل على مفتاح مجاني ← aistudio.google.com",
+      geminiStepApiKeyPlaceholder: "الصق مفتاح Gemini الخاص بك",
+      geminiStepConnect: "ربط Gemini",
+      geminiStepConnecting: "جارٍ الربط…",
+      geminiStepSkip: "تخطَّ الآن",
+      geminiStepConnected: "تم الربط — ستحصل على كتابة Gemini من الآن فصاعدًا.",
     },
     studio: {
       title: "استوديو المحتوى",
@@ -872,6 +903,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicPlaceholder: "عن ماذا هذا المنشور؟ مثال: قائمة طعامنا الجديدة لفصل الربيع",
       generate: "إنشاء",
       generating: "جارٍ الإنشاء…",
+      geminiNudgeText: "احصل على كتابة أفضل مجانًا — اربط Gemini خلال دقيقتين.",
+      geminiNudgeDismiss: "إغلاق",
     },
     wizard: {
       stepOf: (step: number) => `الخطوة ${step} من 3`,
@@ -1191,17 +1224,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       fishAudioGuideLinkLabel: "احصل على مفتاح Fish Audio ← fish.audio",
       fishAudioCostNote:
         "سعر Fish Audio لكل حرف (حوالي 15 دولارًا لكل مليون حرف على نموذج S2.1 Pro) عادة أقل بكثير من ElevenLabs — خيار موفّر حقيقي، وليس أقل جودة. كلا المزوّدين يعمل بشكل جيد هنا؛ اختر ما يناسب ميزانيتك.",
-      geminiGuideTitle: "Google Gemini (خلفيات بالذكاء الاصطناعي بتكلفة أقل)",
+      geminiGuideTitle: "Google Gemini (كتابة مجانية بالذكاء الاصطناعي + خلفيات بتكلفة أقل)",
       geminiGuideSteps: [
         "اذهب إلى aistudio.google.com وسجّل الدخول بحساب Google.",
         "افتح aistudio.google.com/apikey ← \"Create API key\".",
         "انسخ المفتاح.",
         "الصقه في حقل مفتاح API أعلاه، اختر Google Gemini كمزوّد، ثم احفظ.",
-        "فعِّل الفوترة على مشروع Google Cloud المرتبط — نماذج Gemini للصور ليس لها مستوى مجاني، فلن يعمل توليد الصور إلا بعد تفعيل الفوترة.",
+        "هذا كل ما تحتاجه للتعليقات والنصوص — نماذج Gemini النصية لها مستوى مجاني حقيقي، بلا فوترة. خلفيات الصور بالذكاء الاصطناعي منفصلة: فعِّل الفوترة على مشروع Google Cloud المرتبط فقط إذا أردتها أيضًا (نماذج الصور ليس لها مستوى مجاني).",
       ],
       geminiGuideLinkLabel: "احصل على مفتاح Gemini ← aistudio.google.com",
       geminiCostNote:
         "نموذج Gemini للصور (gemini-3.1-flash-lite-image) يكلّف حوالي 0.034 دولار لكل صورة، بدون مستوى مجاني — يجب تفعيل الفوترة من أول صورة. هذا عادة أقل تكلفة من gpt-image-1 من OpenAI (حوالي 0.01 إلى 0.17 دولار للصورة حسب الجودة). كلا الخيارين حقيقي وصالح تمامًا؛ اختر ما يناسب ميزانيتك.",
+      geminiTextFreeNote:
+        "نماذج Gemini النصية (التعليقات والنصوص) لها مستوى مجاني حقيقي ودائم — بلا بطاقة ائتمان وبلا أي تكلفة. مقايضة حقيقية واحدة: في الخطة المجانية، قد يطّلع مراجعون بشريون على المحتوى المُرسَل ويستخدمونه لتحسين نماذج Google (بعد فصله عن حسابك). المفتاح نفسه الذي تحفظه هنا يعمل للكتابة والخلفيات معًا — لا حاجة لإدخاله مرتين.",
       musicCreditsTitle: "حقوق الموسيقى",
       musicCreditsSubtitle: "الموسيقى الخلفية المستخدمة في الفيديوهات التي أنشأتها.",
       musicCreditsLicenseNote:

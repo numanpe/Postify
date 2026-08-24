@@ -134,12 +134,24 @@ function OnboardingReview({
     ? `Introducing ${businessContext.products[0]}`
     : (description.split(/[.!?]/)[0]?.trim() ?? "");
 
+  // Real bug found via Playwright, not inspection: rendering
+  // GeminiOnboardingStep as a step on THIS page (still /create-company)
+  // and letting it call saveProviderCredential() here raced against
+  // /create-company/page.tsx's own "already has a company? redirect to
+  // /media" check — any Server Action invoked from a page triggers
+  // Next.js's automatic refresh of that page's Server Component tree,
+  // which re-ran that redirect now that the company genuinely exists,
+  // sometimes winning the race against this file's own
+  // window.location.href navigation. Fixed by never rendering
+  // GeminiOnboardingStep here at all — hard-navigate to /studio
+  // immediately (original behavior) and let /studio itself show the
+  // step (studio/page.tsx has no competing "already set up" redirect).
   useEffect(() => {
     if (submittedRef.current && !pending && state && "success" in state) {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ showGeminiStep: "1" });
       if (suggestedTopic) params.set("firstTopic", suggestedTopic);
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = `/studio${params.toString() ? `?${params.toString()}` : ""}`;
+      window.location.href = `/studio?${params.toString()}`;
     }
     // suggestedTopic intentionally omitted — recomputing it after submit
     // (fields are no longer editable at that point) would be redundant.

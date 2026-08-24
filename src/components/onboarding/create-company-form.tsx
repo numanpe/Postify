@@ -26,6 +26,16 @@ export function CreateCompanyForm() {
   // <html lang/dir> and <LocaleProvider> would keep showing whatever
   // locale was current before this company (and its locale) existed. A
   // genuine hard navigation is required here, not a lint-rule violation.
+  //
+  // Routes through /studio?showGeminiStep=1 rather than rendering
+  // GeminiOnboardingStep on this page — real bug found via Playwright:
+  // a Server Action invoked from a form still mounted here triggers
+  // Next.js's automatic refresh of this page's Server Component tree,
+  // which re-runs create-company/page.tsx's own "already has a company?
+  // redirect to /media" check now that the company genuinely exists,
+  // racing against (and sometimes beating) this file's own navigation.
+  // /studio has no equivalent redirect, so showing the step there is
+  // race-free — see studio/page.tsx.
   useEffect(() => {
     if (submittedRef.current && !pending && state && "success" in state) {
       // Part B3.1: land directly in the guided wizard, not a generic
@@ -35,7 +45,7 @@ export function CreateCompanyForm() {
       // one from — an empty Step 1 topic field is the honest default,
       // not a fabricated suggestion.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = "/studio";
+      window.location.href = "/studio?showGeminiStep=1";
     }
   }, [pending, state]);
 

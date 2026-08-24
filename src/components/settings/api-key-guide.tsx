@@ -83,7 +83,8 @@ export function ApiKeyGuide({ dict }: { dict: Dictionary["settings"] }) {
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs text-ink-soft dark:text-ink-soft-dark">{dict.geminiCostNote}</p>
+        <p className="mt-3 text-xs text-ink-soft dark:text-ink-soft-dark">{dict.geminiTextFreeNote}</p>
+        <p className="mt-2 text-xs text-ink-soft dark:text-ink-soft-dark">{dict.geminiCostNote}</p>
         <a
           href="https://aistudio.google.com/apikey"
           target="_blank"
