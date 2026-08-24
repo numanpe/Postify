@@ -3,6 +3,7 @@ import "server-only";
 import type { TextProvider } from "@/lib/providers/text/types";
 import type { CompanyContext } from "@/lib/company-context";
 import { FREE_TEXT_PROVIDER_NAME } from "@/lib/providers/text/template-provider";
+import { SHARED_POOL_PROVIDER_NAME } from "@/lib/providers/text/shared-pool";
 import { validateTopic } from "@/lib/topic-validation";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -55,7 +56,11 @@ export async function guardTopic(
   // does forward correctly (`name: provider.name`), so it's the real,
   // reliable signal here — same value already used to identify a
   // resolved provider in this codebase's own error messages.
-  if (textProvider.name === FREE_TEXT_PROVIDER_NAME) {
+  // The shared "Free AI" pool (shared-pool.ts) reports its own name
+  // here too — it never gets real clarifyTopic() capability either
+  // (see its own comment), so it needs the exact same block-and-ask
+  // treatment as the plain template, not the BYOK branch below.
+  if (textProvider.name === FREE_TEXT_PROVIDER_NAME || textProvider.name === SHARED_POOL_PROVIDER_NAME) {
     throw new TopicGuardError(dict.blockedGeneric);
   }
 

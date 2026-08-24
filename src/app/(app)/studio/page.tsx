@@ -4,6 +4,7 @@ import { resolveIndustryPack } from "@/lib/industry-packs";
 import { shouldShowGeminiNudge } from "@/lib/gemini-nudge";
 import { GeminiNudgeBanner } from "@/components/studio/gemini-nudge-banner";
 import { StudioGeminiGate } from "@/components/onboarding/studio-gemini-gate";
+import { shouldShowSharedPoolExhaustedNotice } from "@/lib/providers/text/shared-pool";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 
@@ -22,8 +23,9 @@ export default async function StudioWizardStep1Page({
 }) {
   const { company } = await requireCompany();
   const { firstTopic, showGeminiStep } = await searchParams;
-  const [showGeminiNudge, dict] = await Promise.all([
+  const [showGeminiNudge, showSharedAiExhausted, dict] = await Promise.all([
     shouldShowGeminiNudge(company.id),
+    shouldShowSharedPoolExhaustedNotice(company.id),
     getDictionary(await getLocale()),
   ]);
 
@@ -37,11 +39,21 @@ export default async function StudioWizardStep1Page({
 
   return (
     <div className="flex flex-col gap-6">
-      <GeminiNudgeBanner
-        show={showGeminiNudge}
-        text={dict.studio.geminiNudgeText}
-        dismissLabel={dict.studio.geminiNudgeDismiss}
-      />
+      {showSharedAiExhausted ? (
+        // Calm, expected-feeling — no dismiss control, since this is a
+        // transient daily state that resolves itself, not something to
+        // nag about (Part 5.3: "normal, expected behavior... not an
+        // error state").
+        <p className="rounded-md border border-paper-border bg-paper-card px-4 py-3 text-sm text-ink-soft dark:border-night-border dark:bg-night-card dark:text-ink-soft-dark">
+          {dict.studio.sharedAiExhaustedText}
+        </p>
+      ) : (
+        <GeminiNudgeBanner
+          show={showGeminiNudge}
+          text={dict.studio.geminiNudgeText}
+          dismissLabel={dict.studio.geminiNudgeDismiss}
+        />
+      )}
       <WizardStep1Form
         companyName={company.name}
         defaultTopic={firstTopic}

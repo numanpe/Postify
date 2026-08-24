@@ -643,6 +643,25 @@ enum AiProviderKind {
   GEMINI
 }
 
+// Platform-held, zero-setup "Free AI" pool (src/lib/providers/text/shared-pool.ts)
+// — distinct from ProviderCredential, which is per-company BYOK. One row
+// per (provider, day). successCount is purely for the admin panel's real
+// usage visibility, never a self-imposed cap — the real cap is whatever
+// the provider's own account actually enforces. exhaustedAt is the real
+// circuit breaker: set only when a real API response indicates the
+// account's quota is exhausted (not guessed from our own count, which
+// could drift from the provider's real limit), and checked before every
+// attempt so a known-exhausted day doesn't keep retrying pointlessly.
+model SharedAiUsage {
+  id           String         @id @default(cuid())
+  provider     AiProviderKind
+  date         DateTime       @db.Date
+  successCount Int            @default(0)
+  exhaustedAt  DateTime?
+
+  @@unique([provider, date])
+}
+
 // FREE (default) uses the bundled edge-tts community engine — no key,
 // no cost, works out of the box. BYOK routes narration through
 // whichever of OPENAI/ELEVENLABS credential the company has saved

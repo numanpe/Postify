@@ -60,6 +60,7 @@ export interface Dictionary {
     title: string; subtitle: (name: string) => string; topicPlaceholder: string;
     generate: string; generating: string;
     geminiNudgeText: string; geminiNudgeDismiss: string;
+    sharedAiExhaustedText: string;
   };
   wizard: {
     stepOf: (step: number) => string;
@@ -339,6 +340,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generating: "Generating…",
       geminiNudgeText: "Get better writing for free — connect Gemini in 2 minutes.",
       geminiNudgeDismiss: "Dismiss",
+      sharedAiExhaustedText:
+        "Today's free AI quota is used up — templates still work, or connect your own free Gemini key in Settings for unlimited access.",
     },
     wizard: {
       stepOf: (step: number) => `Step ${step} of 3`,
@@ -905,6 +908,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generating: "جارٍ الإنشاء…",
       geminiNudgeText: "احصل على كتابة أفضل مجانًا — اربط Gemini خلال دقيقتين.",
       geminiNudgeDismiss: "إغلاق",
+      sharedAiExhaustedText:
+        "انتهت حصة الذكاء الاصطناعي المجاني لهذا اليوم — القوالب لا تزال تعمل، أو اربط مفتاح Gemini المجاني الخاص بك في الإعدادات للوصول غير المحدود.",
     },
     wizard: {
       stepOf: (step: number) => `الخطوة ${step} من 3`,

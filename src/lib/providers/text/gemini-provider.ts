@@ -79,8 +79,20 @@ function stripCodeFence(text: string): string {
   return match ? match[1] : text;
 }
 
+// Distinguishable from a generic ProviderError so callers can react
+// specifically to real quota exhaustion — src/lib/providers/text/
+// shared-pool.ts's circuit breaker needs this to know when to mark the
+// platform-held pool exhausted for the rest of the day, vs. a
+// transient/unrelated failure it shouldn't treat the same way.
+export class GeminiQuotaExhaustedError extends ProviderError {}
+
 export class GeminiTextProvider implements TextProvider {
-  readonly name = "Google Gemini";
+  // Not `readonly` with a fixed literal — src/lib/providers/text/
+  // shared-pool.ts subclasses this with a different name ("Free AI")
+  // for the platform-held pool, so generated content's providerName
+  // honestly distinguishes "your own key" from "the shared free pool"
+  // rather than both reporting "Google Gemini" identically.
+  name = "Google Gemini";
 
   constructor(private readonly apiKey: string) {}
 
@@ -123,7 +135,7 @@ export class GeminiTextProvider implements TextProvider {
         throw new ProviderError(this.name, "Google rejected this request — check the API key in Settings.");
       }
       if (response.status === 429) {
-        throw new ProviderError(
+        throw new GeminiQuotaExhaustedError(
           this.name,
           "Google's free-tier rate limit was reached for this request. Try again shortly, or check your quota in Google AI Studio.",
         );
