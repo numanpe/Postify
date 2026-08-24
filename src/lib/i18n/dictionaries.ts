@@ -435,7 +435,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       footage: "Footage",
       footageHint: "(pick up to 5 — used in the order listed below)",
       noFootage:
-        "No photos or videos uploaded yet — visit Media Library first, or rely on AI-generated visuals if an OpenAI key is configured.",
+        "No photos or videos uploaded yet — visit Media Library first, or rely on free AI-generated visuals (add an OpenAI/Gemini key in Settings for higher, more consistent quality).",
       kindVideo: "video",
       kindPhoto: "photo",
       generatedSuccess: "Video generated — see it below.",
@@ -1009,7 +1009,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       footage: "اللقطات",
       footageHint: "(اختر حتى 5 — تُستخدم بالترتيب المدرج أدناه)",
       noFootage:
-        "لم يتم رفع صور أو فيديوهات بعد — قم بزيارة مكتبة الوسائط أولًا، أو اعتمد على مرئيات الذكاء الاصطناعي إذا كان مفتاح OpenAI مُفعّلًا.",
+        "لم يتم رفع صور أو فيديوهات بعد — قم بزيارة مكتبة الوسائط أولًا، أو اعتمد على مرئيات الذكاء الاصطناعي المجانية (أضف مفتاح OpenAI أو Gemini في الإعدادات لجودة أعلى وأكثر ثباتًا).",
       kindVideo: "فيديو",
       kindPhoto: "صورة",
       generatedSuccess: "تم إنشاء الفيديو — شاهده أدناه.",

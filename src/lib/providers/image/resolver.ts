@@ -6,7 +6,7 @@ import type { ImageProvider } from "./types";
 import { GradientBackgroundProvider, type GradientColors } from "./gradient-provider";
 import { OpenAIImageProvider } from "./openai-image-provider";
 import { GeminiImageProvider } from "./gemini-image-provider";
-import { resolveSharedImagePool } from "./shared-image-pool";
+import { resolveSharedImagePool, resolveSharedImagePoolForVideo } from "./shared-image-pool";
 
 // No explicit "which BYOK image provider is active" selector exists on
 // Company — same real, pre-existing pattern the voice resolver already
@@ -33,14 +33,29 @@ async function getByokImageCredential(companyId: string): Promise<ImageProvider 
 // Video's AI B-roll gap-filling — unlike the text resolver, this
 // doesn't silently choose between providers — the caller already knows
 // which backgroundSource/scene kind was picked. Returns null if
-// unconfigured so the caller (video.ts) can fall back to its existing
-// real-photo-cycling behavior. Kept BYOK-only, unlike the poster
-// resolver below: video generation already does a slow ffmpeg render,
-// and the free image provider's 9-45s+ (sometimes longer) latency isn't
-// worth risking there for a capability that already degrades
-// gracefully to real footage.
-export async function getAiImageProviderForCompany(companyId: string): Promise<ImageProvider | null> {
-  return getByokImageCredential(companyId);
+// unconfigured/exhausted so the caller (video.ts, scene-editor.ts) can
+// fall back to its existing real-footage-cycling behavior, or fail
+// honestly.
+//
+// Was BYOK-only until 2026-08-24 (video's slow ffmpeg render made the
+// free pool's 9-45s+ per-call latency feel too risky, and it already
+// degraded gracefully to real footage) — but that left companies with
+// zero real media AND no BYOK key fully blocked, unlike posters, which
+// always have a working zero-setup path. Now falls back to the same
+// shared Cloudflare pool posters use. `source` tells the caller which
+// one it got: BYOK is the company's own key/quota (uncapped, same as
+// everywhere else), SHARED_POOL is the platform's shared daily quota
+// (the caller must bound how many fresh calls a single video makes —
+// see MAX_FREE_AI_STILLS_PER_VIDEO in generate.ts — since one video can
+// need several B-roll stills where a poster only ever needs one).
+export async function getAiImageProviderForCompany(
+  companyId: string,
+): Promise<{ provider: ImageProvider; source: "BYOK" | "SHARED_POOL" } | null> {
+  const byok = await getByokImageCredential(companyId);
+  if (byok) return { provider: byok, source: "BYOK" };
+  const shared = await resolveSharedImagePoolForVideo();
+  if (shared) return { provider: shared, source: "SHARED_POOL" };
+  return null;
 }
 
 // Poster's "AI Background" option — free tier via the platform-held

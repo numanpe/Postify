@@ -128,11 +128,12 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       : computeSectionTimingsWithoutNarration(script);
   const totalDurationSec = sectionTimings[sectionTimings.length - 1].endSec;
 
-  // 4. Scenes — real uploaded media first (in the order given), AI
-  // stills fill any remaining slots when an OpenAI key is configured,
-  // otherwise the given assets cycle to fill out the full section
-  // count. Never offers previously-generated posters/videos as source
-  // material (see Phase 3's photo-picker fix).
+  // 4. Scenes — real uploaded media first (in the order given), then AI
+  // stills fill any remaining slots (BYOK key, or the same free shared
+  // Cloudflare pool posters use if none is configured), otherwise the
+  // given assets cycle to fill out the full section count. Never offers
+  // previously-generated posters/videos as source material (see Phase
+  // 3's photo-picker fix).
   const selectedAssets =
     assetIds.length > 0
       ? await db.mediaAsset.findMany({
@@ -143,13 +144,26 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     .map((id) => selectedAssets.find((asset) => asset.id === id))
     .filter((asset): asset is (typeof selectedAssets)[number] => !!asset);
 
-  const imageProvider = await getAiImageProviderForCompany(companyId);
+  const imageResolution = await getAiImageProviderForCompany(companyId);
 
-  if (orderedAssets.length === 0 && !imageProvider) {
+  if (orderedAssets.length === 0 && !imageResolution) {
     throw new VideoGenerationError(
-      "Select at least one photo or video from your Media Library, or add an OpenAI key in Settings to generate visuals.",
+      "Select at least one photo or video from your Media Library, add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
     );
   }
+
+  // A video can need up to 5 fresh B-roll stills (one per script
+  // section) where a poster only ever needs one — real, at Nikolai's
+  // request (2026-08-24 investigation), this is capped when drawing on
+  // the *shared* free pool (not a company's own BYOK key/quota, which
+  // isn't capped anywhere else) so one company's video generation can't
+  // burn several posters' worth of the platform's shared daily quota in
+  // a single request. Beyond the cap, already-generated stills are
+  // cycled — visually the same "reuse real footage across scenes"
+  // pattern already used for real uploaded assets above, not a
+  // degraded/fake output.
+  const MAX_FREE_AI_STILLS_PER_VIDEO = 2;
+  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
 
   const { width, height } = POSTER_DIMENSIONS[aspectRatio];
   const scenes: VideoSceneInput[] = [];
@@ -173,9 +187,12 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       continue;
     }
 
-    if (imageProvider) {
+    const atFreePoolCap =
+      imageResolution?.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_VIDEO;
+
+    if (imageResolution && !atFreePoolCap) {
       try {
-        const result = await imageProvider.generateBackground({
+        const result = await imageResolution.provider.generateBackground({
           companyName: context.name,
           industry: context.industry,
           tone: context.tone,
@@ -183,6 +200,9 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           widthPx: width,
           heightPx: height,
         });
+        if (imageResolution.source === "SHARED_POOL") {
+          freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+        }
         scenes.push({ section, kind: "AI_STILL", buffer: result.buffer, mimeType: result.mimeType });
         sceneProvenance.push({
           order: i,
@@ -197,6 +217,19 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
         }
         throw error;
       }
+      continue;
+    }
+
+    if (imageResolution?.source === "SHARED_POOL" && freeAiStills.length > 0) {
+      const reused = freeAiStills[i % freeAiStills.length];
+      scenes.push({ section, kind: "AI_STILL", buffer: reused.buffer, mimeType: reused.mimeType });
+      sceneProvenance.push({
+        order: i,
+        kind: "AI_STILL",
+        mediaAssetId: null,
+        scriptKey: section.key,
+        overlayText: hasNarration ? null : section.text,
+      });
       continue;
     }
 

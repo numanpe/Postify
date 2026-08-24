@@ -260,7 +260,13 @@ async function reRenderNarratedVideo(
 
   const renderCtx = await buildRenderContext(companyId, video);
   const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
-  const imageProvider = await getAiImageProviderForCompany(companyId);
+  const imageResolution = await getAiImageProviderForCompany(companyId);
+  // Same shared-quota fairness cap as the main generation pipeline (see
+  // generate.ts) — a script re-edit can touch multiple sections at
+  // once, so this loop can call the free pool as many times as
+  // generate.ts's initial pass can.
+  const MAX_FREE_AI_STILLS_PER_EDIT = 2;
+  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
 
   const existingByKey = new Map(video.scenes.filter((s) => s.scriptKey).map((s) => [s.scriptKey as string, s]));
 
@@ -301,13 +307,29 @@ async function reRenderNarratedVideo(
     // limitation, see this feature's design notes) or it's a
     // newly-reintroduced section with no prior scene to reuse. Both
     // cases need a fresh generation.
-    if (!imageProvider) {
+    if (!imageResolution) {
       throw new VideoEditError(
-        `No saved photo/video exists for "${section.key}" and no AI image provider is configured — add one in Settings, or choose a real photo/video for this scene instead.`,
+        `No saved photo/video exists for "${section.key}" and no AI image provider is configured — add an OpenAI/Gemini key in Settings, choose a real photo/video for this scene instead, or try again shortly if today's free AI visual quota is temporarily used up.`,
       );
     }
+    const atFreePoolCap =
+      imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+    if (atFreePoolCap && freeAiStills.length > 0) {
+      const reused = freeAiStills[scenePlans.length % freeAiStills.length];
+      scenePlans.push({
+        section,
+        kind: "AI_STILL",
+        buffer: reused.buffer,
+        mimeType: reused.mimeType,
+        mediaAssetId: null,
+        scriptKey: section.key,
+        durationSec: null,
+        overlayText: null,
+      });
+      continue;
+    }
     try {
-      const result = await imageProvider.generateBackground({
+      const result = await imageResolution.provider.generateBackground({
         companyName: renderCtx.companyName,
         industry: renderCtx.industry,
         tone: renderCtx.tone,
@@ -315,6 +337,9 @@ async function reRenderNarratedVideo(
         widthPx: width,
         heightPx: height,
       });
+      if (imageResolution.source === "SHARED_POOL") {
+        freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+      }
       scenePlans.push({
         section,
         kind: "AI_STILL",
@@ -390,14 +415,16 @@ export async function swapNarratedVideoSceneMedia(
     override = { scriptKey: sceneScriptKey, kind, buffer, mimeType: asset.mimeType, mediaAssetId: asset.id };
   } else {
     const renderCtx = await buildRenderContext(companyId, video);
-    const imageProvider = await getAiImageProviderForCompany(companyId);
-    if (!imageProvider) {
-      throw new VideoEditError("Add an OpenAI key in Settings to generate a new AI background for this scene.");
+    const imageResolution = await getAiImageProviderForCompany(companyId);
+    if (!imageResolution) {
+      throw new VideoEditError(
+        "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
+      );
     }
     const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
     const sectionText = video.script[sceneScriptKey as keyof VideoScriptSections] ?? video.topic;
     try {
-      const result = await imageProvider.generateBackground({
+      const result = await imageResolution.provider.generateBackground({
         companyName: renderCtx.companyName,
         industry: renderCtx.industry,
         tone: renderCtx.tone,
@@ -471,6 +498,15 @@ export async function editNonNarratedVideoScenes(
   const renderCtx = await buildRenderContext(companyId, video);
   const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
   const existingById = new Map(video.scenes.map((s) => [s.id, s]));
+  // Same shared-quota fairness cap as the main generation pipeline (see
+  // generate.ts) — a single edit submission can touch up to MAX_SCENES
+  // (10) scenes at once, so unbounded regeneration here could burn far
+  // more of the platform's shared daily quota than one video's worth.
+  // Shared across both the explicit "regenerate this scene" and the
+  // implicit "unchanged AI_STILL scene wasn't persisted, redo it"
+  // paths below, since both draw on the same quota in the same request.
+  const MAX_FREE_AI_STILLS_PER_EDIT = 2;
+  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
 
   const scenePlans: ScenePlan[] = [];
   for (const edited of editedScenes) {
@@ -489,26 +525,41 @@ export async function editNonNarratedVideoScenes(
       kind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
       mediaAssetId = asset.id;
     } else if (edited.media && "regenerateAi" in edited.media) {
-      const imageProvider = await getAiImageProviderForCompany(companyId);
-      if (!imageProvider) {
-        throw new VideoEditError("Add an OpenAI key in Settings to generate an AI background for this scene.");
+      const imageResolution = await getAiImageProviderForCompany(companyId);
+      if (!imageResolution) {
+        throw new VideoEditError(
+          "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
+        );
       }
-      try {
-        const result = await imageProvider.generateBackground({
-          companyName: renderCtx.companyName,
-          industry: renderCtx.industry,
-          tone: renderCtx.tone,
-          topic: edited.overlayText,
-          widthPx: width,
-          heightPx: height,
-        });
-        buffer = result.buffer;
-        mimeType = result.mimeType;
+      const atFreePoolCap =
+        imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+      if (atFreePoolCap && freeAiStills.length > 0) {
+        const reused = freeAiStills[scenePlans.length % freeAiStills.length];
+        buffer = reused.buffer;
+        mimeType = reused.mimeType;
         kind = "AI_STILL";
         mediaAssetId = null;
-      } catch (error) {
-        if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
-        throw error;
+      } else {
+        try {
+          const result = await imageResolution.provider.generateBackground({
+            companyName: renderCtx.companyName,
+            industry: renderCtx.industry,
+            tone: renderCtx.tone,
+            topic: edited.overlayText,
+            widthPx: width,
+            heightPx: height,
+          });
+          if (imageResolution.source === "SHARED_POOL") {
+            freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+          }
+          buffer = result.buffer;
+          mimeType = result.mimeType;
+          kind = "AI_STILL";
+          mediaAssetId = null;
+        } catch (error) {
+          if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
+          throw error;
+        }
       }
     } else if (existing?.mediaAssetId && existing.mediaAsset) {
       buffer = await fetchRealAssetBuffer(existing.mediaAsset.storageKey);
@@ -519,28 +570,41 @@ export async function editNonNarratedVideoScenes(
       // Unchanged AI-still scene — never persisted, real disclosed
       // limitation (see this module's top-of-file notes): regenerate
       // fresh rather than silently drop the scene.
-      const imageProvider = await getAiImageProviderForCompany(companyId);
-      if (!imageProvider) {
+      const imageResolution = await getAiImageProviderForCompany(companyId);
+      if (!imageResolution) {
         throw new VideoEditError(
           "This scene's AI background wasn't saved and no AI image provider is configured anymore — choose a real photo/video for it instead.",
         );
       }
-      try {
-        const result = await imageProvider.generateBackground({
-          companyName: renderCtx.companyName,
-          industry: renderCtx.industry,
-          tone: renderCtx.tone,
-          topic: edited.overlayText,
-          widthPx: width,
-          heightPx: height,
-        });
-        buffer = result.buffer;
-        mimeType = result.mimeType;
+      const atFreePoolCap =
+        imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+      if (atFreePoolCap && freeAiStills.length > 0) {
+        const reused = freeAiStills[scenePlans.length % freeAiStills.length];
+        buffer = reused.buffer;
+        mimeType = reused.mimeType;
         kind = "AI_STILL";
         mediaAssetId = null;
-      } catch (error) {
-        if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
-        throw error;
+      } else {
+        try {
+          const result = await imageResolution.provider.generateBackground({
+            companyName: renderCtx.companyName,
+            industry: renderCtx.industry,
+            tone: renderCtx.tone,
+            topic: edited.overlayText,
+            widthPx: width,
+            heightPx: height,
+          });
+          if (imageResolution.source === "SHARED_POOL") {
+            freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+          }
+          buffer = result.buffer;
+          mimeType = result.mimeType;
+          kind = "AI_STILL";
+          mediaAssetId = null;
+        } catch (error) {
+          if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
+          throw error;
+        }
       }
     } else {
       throw new VideoEditError("Choose a photo/video (or generate an AI background) for every scene.");

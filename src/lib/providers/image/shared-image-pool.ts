@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { ImageProvider, GenerateBackgroundInput, GenerateBackgroundOutput } from "./types";
+import { ImageProviderError } from "./types";
 import {
   CloudflareFluxImageProvider,
   CloudflareSdxlImageProvider,
@@ -123,6 +124,48 @@ export async function resolveSharedImagePool(gradientFallback: ImageProvider): P
         }
       }
       return gradientFallback.generateBackground(input);
+    },
+  };
+}
+
+// Video's zero-setup AI B-roll fallback — real, was never wired in
+// until this point (video generation launched BYOK-only; see the
+// removed comment in resolver.ts for the original latency reasoning).
+// Deliberately NOT built on resolveSharedImagePool above: that
+// wrapper's job is to guarantee an always-succeeds ImageProvider by
+// falling back to a brand gradient on any failure, which is right for
+// a poster background but wrong for a video scene — a gradient card
+// standing in for real B-roll is exactly the "slideshow-quality"
+// output CLAUDE.md's video pipeline explicitly fails. This version
+// throws a real error on total failure instead, so the caller
+// (generate.ts) can fall back to its own real-footage-cycling logic,
+// or fail the generation honestly, the same way a BYOK failure already
+// does — never silently swaps in a flat color card.
+export async function resolveSharedImagePoolForVideo(): Promise<ImageProvider | null> {
+  const credentials = getPlatformCloudflareCredentials();
+  if (!credentials) return null;
+  if (await isSharedImagePoolExhaustedToday()) return null;
+
+  const flux = new CloudflareFluxImageProvider(credentials.accountId, credentials.apiToken);
+  const sdxl = new CloudflareSdxlImageProvider(credentials.accountId, credentials.apiToken);
+
+  return {
+    name: flux.name,
+    async generateBackground(input: GenerateBackgroundInput): Promise<GenerateBackgroundOutput> {
+      for (const provider of [flux, sdxl]) {
+        try {
+          const result = await provider.generateBackground(input);
+          await recordSharedImagePoolSuccess();
+          return result;
+        } catch (error) {
+          if (error instanceof CloudflareQuotaExhaustedError) {
+            await recordSharedImagePoolExhaustion();
+            break;
+          }
+          console.warn(`[shared-image-pool:video] ${provider.name} failed, trying next option:`, error);
+        }
+      }
+      throw new ImageProviderError(flux.name, "Free AI visuals are temporarily unavailable — today's shared quota may be used up.");
     },
   };
 }
