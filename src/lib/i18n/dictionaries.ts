@@ -100,6 +100,7 @@ export interface Dictionary {
     formatLandscape: string; narration: string; narrationHint: string; footage: string;
     footageHint: string; noFootage: string; kindVideo: string; kindPhoto: string;
     generatedSuccess: string; generate: string; generating: string;
+    generatingSlowNotice: string; generatingVerySlowWarning: string; generatingSilentFailure: string;
     motionTemplate: string; motionTemplateStandard: string; motionTemplateStandardHint: string;
     motionTemplateLowerThird: string; motionTemplateLowerThirdHint: string;
     motionTemplateWaveform: string; motionTemplateWaveformHint: string;
@@ -446,6 +447,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "Video generated — see it below.",
       generate: "Generate video",
       generating: "Generating… this can take a minute",
+      generatingSlowNotice: "Still working — narrated videos with real voiceover and captions take longer than static ones.",
+      generatingVerySlowWarning:
+        "This is taking longer than expected. If it doesn't finish soon, try a shorter script, fewer scenes, or turning off narration and trying again.",
+      generatingSilentFailure:
+        "Something went wrong and the video didn't finish generating — this can happen when a render takes too long. Try a shorter script, fewer scenes, or turning off narration, then generate again.",
       motionTemplate: "Motion style",
       motionTemplateStandard: "Standard",
       motionTemplateStandardHint: "Scenes, captions, and your logo — no extra motion graphics.",
@@ -1029,6 +1035,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       generatedSuccess: "تم إنشاء الفيديو — شاهده أدناه.",
       generate: "إنشاء الفيديو",
       generating: "جارٍ الإنشاء… قد يستغرق ذلك دقيقة",
+      generatingSlowNotice: "لا يزال العمل جاريًا — الفيديوهات ذات التعليق الصوتي الحقيقي والترجمة تستغرق وقتًا أطول من الفيديوهات الثابتة.",
+      generatingVerySlowWarning:
+        "هذا يستغرق وقتًا أطول من المتوقع. إذا لم ينتهِ قريبًا، جرّب نصًا أقصر، أو مشاهد أقل، أو أوقف التعليق الصوتي وحاول مجددًا.",
+      generatingSilentFailure:
+        "حدث خطأ ولم يكتمل إنشاء الفيديو — قد يحدث هذا عندما يستغرق الإنتاج وقتًا طويلاً جدًا. جرّب نصًا أقصر، أو مشاهد أقل، أو أوقف التعليق الصوتي، ثم أنشئ الفيديو مجددًا.",
       motionTemplate: "أسلوب الحركة",
       motionTemplateStandard: "قياسي",
       motionTemplateStandardHint: "مشاهد وترجمة وشعارك — دون رسوميات حركية إضافية.",
