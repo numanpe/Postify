@@ -644,6 +644,18 @@ model VideoScene {
   durationSec Float?
   overlayText String?
 
+  // Real scene thumbnail for the visual editor strip (src/lib/video/
+  // scene-thumbnails.ts) — a small JPEG captured from the scene's own
+  // clean, pre-composited buffer at the moment it was generated/edited,
+  // stored via the normal storage abstraction (not a MediaAsset row;
+  // this is a disposable derived artifact, not a real asset with its
+  // own provenance/lifecycle). Only ever set for REAL_VIDEO (a single
+  // extracted frame — the raw clip isn't directly displayable) and
+  // AI_STILL (the generated image itself, re-encoded small) — null for
+  // REAL_PHOTO, where the real uploaded photo (mediaAsset.storageKey)
+  // already IS a displayable image and needs no separate copy.
+  thumbnailStorageKey String?
+
   @@index([videoId])
 }
 

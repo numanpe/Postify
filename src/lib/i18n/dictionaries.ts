@@ -121,6 +121,9 @@ export interface Dictionary {
     sceneMoveUp: string; sceneMoveDown: string; sceneDurationLabel: string; sceneOverlayTextLabel: string;
     sceneRemoveButton: string; sceneAddButton: string; sceneEditorSave: string; sceneEditorSaving: string;
     sceneEditorSaved: string; sceneCurrentMedia: string;
+    sceneNoPreview: string; sceneThumbnailAlt: (n: number) => string; sceneRemoveAria: (n: number) => string;
+    sceneDragHandleAria: (n: number) => string; sceneAddAria: string;
+    sceneJumpToScript: string; sceneJumpToScriptAria: (section: string) => string;
   };
   campaigns: {
     title: string; subtitle: (name: string) => string; yourCampaigns: string;
@@ -491,6 +494,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneOverlayTextLabel: "On-screen text",
       sceneRemoveButton: "Remove scene",
       sceneAddButton: "Add a scene",
+      sceneNoPreview: "No preview yet",
+      sceneThumbnailAlt: (n: number) => `Scene ${n}`,
+      sceneRemoveAria: (n: number) => `Remove scene ${n}`,
+      sceneDragHandleAria: (n: number) => `Drag to reorder scene ${n}`,
+      sceneAddAria: "Add a new scene at the end",
+      sceneJumpToScript: "Go to script",
+      sceneJumpToScriptAria: (section: string) => `Jump to the "${section}" section in the script editor`,
       sceneEditorSave: "Save scenes",
       sceneEditorSaving: "Re-rendering…",
       sceneEditorSaved: "Scenes updated.",
@@ -1067,6 +1077,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneOverlayTextLabel: "النص الظاهر على الشاشة",
       sceneRemoveButton: "حذف المشهد",
       sceneAddButton: "إضافة مشهد",
+      sceneNoPreview: "لا توجد معاينة بعد",
+      sceneThumbnailAlt: (n: number) => `المشهد ${n}`,
+      sceneRemoveAria: (n: number) => `حذف المشهد ${n}`,
+      sceneDragHandleAria: (n: number) => `اسحب لإعادة ترتيب المشهد ${n}`,
+      sceneAddAria: "إضافة مشهد جديد في النهاية",
+      sceneJumpToScript: "الانتقال إلى النص",
+      sceneJumpToScriptAria: (section: string) => `الانتقال إلى قسم "${section}" في محرّر النص`,
       sceneEditorSave: "حفظ المشاهد",
       sceneEditorSaving: "جارٍ إعادة الإنتاج…",
       sceneEditorSaved: "تم تحديث المشاهد.",

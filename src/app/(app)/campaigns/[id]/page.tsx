@@ -38,7 +38,7 @@ export default async function CampaignDetailPage({
               include: {
                 asset: true,
                 scenes: {
-                  include: { mediaAsset: { select: { id: true, fileName: true } } },
+                  include: { mediaAsset: { select: { id: true, fileName: true, storageKey: true } } },
                   orderBy: { order: "asc" },
                 },
               },

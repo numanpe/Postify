@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { storage } from "@/lib/storage";
+import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from "@/lib/actions/campaign";
 import {
   publishCampaignItemViaAggregator,
@@ -54,7 +55,13 @@ interface CalendarItemCardProps {
           // Json fields (e.g. CreativeDna.confidenceScores).
           script: unknown;
           asset: MediaAssetInfo;
-          scenes: VideoSceneForEdit[];
+          // Raw shape from the page's Prisma query — mapped to
+          // VideoSceneForEdit (resolving thumbnailUrl) just below, not
+          // passed straight through.
+          scenes: (Omit<VideoSceneForEdit, "mediaAsset" | "thumbnailUrl"> & {
+            mediaAsset: { id: string; fileName: string; storageKey: string } | null;
+            thumbnailStorageKey: string | null;
+          })[];
         }
       | null;
     aggregatorPublishLogs: { succeeded: boolean; errorMessage: string | null }[];
@@ -211,7 +218,11 @@ export async function CalendarItemCard({
               videoUrl={storage.url(item.video.asset.storageKey)}
               hasNarration={item.video.hasNarration}
               script={item.video.script as VideoScriptSections}
-              scenes={item.video.scenes}
+              scenes={item.video.scenes.map((scene) => ({
+                ...scene,
+                mediaAsset: scene.mediaAsset ? { id: scene.mediaAsset.id, fileName: scene.mediaAsset.fileName } : null,
+                thumbnailUrl: resolveSceneThumbnailUrl(scene),
+              }))}
               sceneMediaAssets={sceneMediaAssets}
             />
           )}

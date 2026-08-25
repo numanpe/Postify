@@ -14,6 +14,7 @@ import type { WordTimestamp } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { getMusicForIndustry } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
+import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
 import {
   computeSectionTimingsFromWords,
   computeSectionTimingsWithoutNarration,
@@ -69,6 +70,9 @@ interface SceneProvenance {
   // otherwise trips the editor's own "every scene needs on-screen text"
   // validation on first open, before the user has touched anything.
   overlayText: string | null;
+  // See scene-thumbnails.ts — captured from this scene's own clean
+  // buffer right here, null for REAL_PHOTO (needs no separate copy).
+  thumbnailStorageKey: string | null;
 }
 
 export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<GenerateVideoCoreResult> {
@@ -163,7 +167,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   // pattern already used for real uploaded assets above, not a
   // degraded/fake output.
   const MAX_FREE_AI_STILLS_PER_VIDEO = 2;
-  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
+  const freeAiStills: { buffer: Buffer; mimeType: string; thumbnailStorageKey: string | null }[] = [];
 
   const { width, height } = POSTER_DIMENSIONS[aspectRatio];
   const scenes: VideoSceneInput[] = [];
@@ -183,6 +187,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
         mediaAssetId: asset.id,
         scriptKey: section.key,
         overlayText: hasNarration ? null : section.text,
+        thumbnailStorageKey: await captureSceneThumbnail(companyId, kind, buffer, asset.mimeType),
       });
       continue;
     }
@@ -200,8 +205,9 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           widthPx: width,
           heightPx: height,
         });
+        const thumbnailStorageKey = await captureSceneThumbnail(companyId, "AI_STILL", result.buffer, result.mimeType);
         if (imageResolution.source === "SHARED_POOL") {
-          freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+          freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType, thumbnailStorageKey });
         }
         scenes.push({ section, kind: "AI_STILL", buffer: result.buffer, mimeType: result.mimeType });
         sceneProvenance.push({
@@ -210,6 +216,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           mediaAssetId: null,
           scriptKey: section.key,
           overlayText: hasNarration ? null : section.text,
+          thumbnailStorageKey,
         });
       } catch (error) {
         if (error instanceof ImageProviderError) {
@@ -229,6 +236,9 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
         mediaAssetId: null,
         scriptKey: section.key,
         overlayText: hasNarration ? null : section.text,
+        // Reuses the already-captured thumbnail for this exact buffer —
+        // no point re-extracting from a still we've already thumbnailed.
+        thumbnailStorageKey: reused.thumbnailStorageKey,
       });
       continue;
     }
@@ -243,6 +253,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       mediaAssetId: asset.id,
       scriptKey: section.key,
       overlayText: hasNarration ? null : section.text,
+      thumbnailStorageKey: await captureSceneThumbnail(companyId, kind, buffer, asset.mimeType),
     });
   }
 
@@ -323,6 +334,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           mediaAssetId: scene.mediaAssetId,
           scriptKey: scene.scriptKey,
           overlayText: scene.overlayText,
+          thumbnailStorageKey: scene.thumbnailStorageKey,
         })),
       },
     },

@@ -13,6 +13,7 @@ import { VoiceProviderError } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { getMusicForIndustry } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
+import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
 import {
   computeSectionTimingsFromWords,
   computeSectionTimingsFromDurations,
@@ -43,6 +44,7 @@ interface LoadedScene {
   scriptKey: string | null;
   durationSec: number | null;
   overlayText: string | null;
+  thumbnailStorageKey: string | null;
 }
 
 interface LoadedVideo {
@@ -129,7 +131,7 @@ interface ScenePlan {
 }
 
 async function persistRender(
-  video: { id: string; companyId: string; assetId: string },
+  video: { id: string; companyId: string; assetId: string; scenes: LoadedScene[] },
   rendered: Awaited<ReturnType<typeof renderVideo>>,
   scenePlans: ScenePlan[],
   scriptUpdate?: VideoScriptSections,
@@ -154,6 +156,17 @@ async function persistRender(
   });
 
   const oldAssetId = video.assetId;
+  // Captured before the old scenes are deleted below — every re-render
+  // replaces the whole scene set, so any of these not reused by the new
+  // plans (see the post-commit cleanup below) would otherwise leak.
+  const oldThumbnailKeys = video.scenes.map((s) => s.thumbnailStorageKey).filter((k): k is string => !!k);
+
+  // Real thumbnails (src/lib/video/scene-thumbnails.ts), captured from
+  // each plan's own clean buffer — same real capture point as initial
+  // generation (generate.ts), just here for every re-render too.
+  const thumbnailStorageKeys = await Promise.all(
+    scenePlans.map((plan) => captureSceneThumbnail(video.companyId, plan.kind, plan.buffer, plan.mimeType)),
+  );
 
   await db.videoScene.deleteMany({ where: { videoId: video.id } });
   await db.video.update({
@@ -169,6 +182,7 @@ async function persistRender(
           scriptKey: plan.scriptKey,
           durationSec: plan.durationSec,
           overlayText: plan.overlayText,
+          thumbnailStorageKey: thumbnailStorageKeys[i],
         })),
       },
     },
@@ -177,8 +191,13 @@ async function persistRender(
   // Only reachable once the reassignment above has actually committed —
   // same safety rule editCampaignItemVideo (video-edit.ts) already
   // established for this exact "supersede the old rendered file"
-  // situation.
+  // situation. New thumbnails were freshly re-captured above (a scene's
+  // duration/section can shift where its representative frame falls
+  // even when its source media didn't change), so every old thumbnail
+  // key is stale now — never one of the just-created new ones — and
+  // safe to delete unconditionally.
   await cleanupMediaStorage(oldAssetId);
+  await Promise.all(oldThumbnailKeys.map((key) => storage.delete(key)));
 
   const failMessages = rendered.qualityGate.issues
     .filter((issue) => issue.severity === "fail")

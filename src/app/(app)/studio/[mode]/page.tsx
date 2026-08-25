@@ -15,6 +15,7 @@ import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preferenc
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { VideoEditModal } from "@/components/campaign/video-edit-modal";
+import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { NavIcons } from "@/components/icons";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 import { resolveIndustryPack } from "@/lib/industry-packs";
@@ -222,7 +223,7 @@ async function VideoMode({
       include: {
         asset: true,
         scenes: {
-          include: { mediaAsset: { select: { id: true, fileName: true } } },
+          include: { mediaAsset: { select: { id: true, fileName: true, storageKey: true } } },
           orderBy: { order: "asc" },
         },
       },
@@ -278,7 +279,11 @@ async function VideoMode({
                   videoUrl={storage.url(video.asset.storageKey)}
                   hasNarration={video.hasNarration}
                   script={video.script as unknown as VideoScriptSections}
-                  scenes={video.scenes}
+                  scenes={video.scenes.map((scene) => ({
+                    ...scene,
+                    mediaAsset: scene.mediaAsset ? { id: scene.mediaAsset.id, fileName: scene.mediaAsset.fileName } : null,
+                    thumbnailUrl: resolveSceneThumbnailUrl(scene),
+                  }))}
                   sceneMediaAssets={assets}
                 />
               </li>

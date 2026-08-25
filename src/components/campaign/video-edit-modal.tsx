@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
 import { useDict } from "@/components/i18n/locale-provider";
 import { ActionIcons } from "@/components/icons";
+import { SceneThumbnailStrip } from "@/components/campaign/scene-thumbnail-strip";
 
 export interface VideoSceneForEdit {
   id: string;
@@ -18,6 +19,12 @@ export interface VideoSceneForEdit {
   durationSec: number | null;
   overlayText: string | null;
   mediaAsset: { id: string; fileName: string } | null;
+  // Resolved server-side (src/lib/video/scene-thumbnails.ts's
+  // resolveSceneThumbnailUrl) — the real uploaded photo for
+  // REAL_PHOTO, the real captured frame/image for REAL_VIDEO/AI_STILL,
+  // or null for a scene from before this feature existed (shown as a
+  // real "no preview" placeholder, never a fake image).
+  thumbnailUrl: string | null;
 }
 
 export interface SceneMediaAssetOption {
@@ -241,10 +248,15 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
   );
 }
 
-// Narrated videos: every scene is read-only order/duration (both follow
-// the real narration timing — see scene-editor.ts) with an explicit,
-// visible explanation rather than hidden controls. Swap-media is the
-// one real, safe per-scene action here.
+// Narrated videos: every scene's order/duration is read-only (both
+// follow the real narration timing — see scene-editor.ts), so the
+// strip renders with no remove/add/reorder controls at all — not
+// disabled buttons cluttering the UI, per this feature's own scope.
+// Swap-media (tap a thumbnail) is the one real, safe per-scene action
+// here; a second tap target, the script-section badge, makes the
+// "this scene = this part of the script" connection visible instead of
+// just explained in a caption — tapping it scrolls to and briefly
+// highlights the real matching textarea in the script editor above.
 function NarratedSceneList({
   videoId,
   scenes,
@@ -255,6 +267,27 @@ function NarratedSceneList({
   sceneMediaAssets: SceneMediaAssetOption[];
 }) {
   const dict = useDict().video;
+  const [openSwapIndex, setOpenSwapIndex] = useState<number | null>(null);
+
+  const scriptLabels: Record<string, string> = {
+    hook: dict.scriptEditorHook,
+    context: dict.scriptEditorContext,
+    value: dict.scriptEditorValue,
+    message: dict.scriptEditorMessage,
+    cta: dict.scriptEditorCta,
+  };
+
+  function jumpToScript(index: number) {
+    const scriptKey = scenes[index].scriptKey;
+    if (!scriptKey) return;
+    const el = document.getElementById(`script-${videoId}-${scriptKey}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus();
+    el.classList.add("ring-2", "ring-primary", "dark:ring-primary-dark");
+    window.setTimeout(() => el.classList.remove("ring-2", "ring-primary", "dark:ring-primary-dark"), 1500);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold">{dict.sceneEditorTitle}</h3>
@@ -262,27 +295,29 @@ function NarratedSceneList({
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.sceneDurationDisabledNarrated}</p>
       <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.sceneRemoveGuidanceNarrated}</p>
 
-      <ul className="flex flex-col gap-2">
-        {scenes.map((scene) => (
-          <li
-            key={scene.id}
-            className="flex items-center justify-between gap-2 rounded border border-paper-border dark:border-night-border p-2 text-sm"
-          >
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
-                {scene.scriptKey ?? `#${scene.order + 1}`}
-              </span>
-              <span>{scene.mediaAsset?.fileName ?? (scene.kind === "AI_STILL" ? "AI background" : "—")}</span>
-            </div>
-            <SceneMediaSwapButton
-              disabled={!scene.scriptKey}
-              sceneMediaAssets={sceneMediaAssets}
-              videoId={videoId}
-              scriptKey={scene.scriptKey}
-            />
-          </li>
-        ))}
-      </ul>
+      <SceneThumbnailStrip
+        editable={false}
+        items={scenes.map((scene) => ({
+          key: scene.id,
+          thumbnailUrl: scene.thumbnailUrl,
+          overlayText: "",
+          durationSec: null,
+          scriptLabel: scene.scriptKey ? (scriptLabels[scene.scriptKey] ?? scene.scriptKey) : null,
+        }))}
+        onThumbnailClick={(i) => {
+          if (scenes[i].scriptKey) setOpenSwapIndex(i);
+        }}
+        onJumpToScript={jumpToScript}
+      />
+
+      {openSwapIndex !== null && scenes[openSwapIndex]?.scriptKey && (
+        <SceneMediaSwapButton
+          sceneMediaAssets={sceneMediaAssets}
+          videoId={videoId}
+          scriptKey={scenes[openSwapIndex].scriptKey}
+          onClose={() => setOpenSwapIndex(null)}
+        />
+      )}
     </div>
   );
 }
@@ -292,38 +327,30 @@ function NarratedSceneList({
 // or a fresh AI background. Used directly with swapVideoSceneMedia for
 // narrated scenes; the non-narrated editor instead captures the pick
 // into its own local scene-row state (see NonNarratedSceneEditor).
+//
+// Mounted only while open — the caller (NarratedSceneList /
+// NonNarratedSceneEditor) tracks which scene's picker is open and
+// conditionally renders this, triggered by a real thumbnail tap (Part 4
+// of the visual-editor spec) instead of the original list row's own
+// "Swap media" button, which this replaces.
 function SceneMediaSwapButton({
   videoId,
   scriptKey,
   sceneMediaAssets,
-  disabled,
   onPicked,
+  onClose,
 }: {
   videoId: string;
   scriptKey: string | null;
   sceneMediaAssets: SceneMediaAssetOption[];
-  disabled?: boolean;
   onPicked?: (media: { assetId: string; fileName: string } | { regenerateAi: true }) => void;
+  onClose: () => void;
 }) {
   const dict = useDict().video;
-  const [open, setOpen] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState(sceneMediaAssets[0]?.id ?? "");
   const boundAction = scriptKey ? swapVideoSceneMedia.bind(null, videoId, scriptKey) : undefined;
   const [state, action, pending] = useActionState(boundAction ?? swapVideoSceneMedia.bind(null, videoId, ""), undefined);
   useRefreshOnSuccess(state && "success" in state ? true : undefined);
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        className="shrink-0 rounded border border-paper-border dark:border-night-border px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {dict.sceneMediaSwap}
-      </button>
-    );
-  }
 
   if (onPicked) {
     // Local (non-narrated editor) mode — no server action here, just
@@ -349,7 +376,7 @@ function SceneMediaSwapButton({
               onClick={() => {
                 const asset = sceneMediaAssets.find((a) => a.id === selectedAssetId);
                 if (asset) onPicked({ assetId: asset.id, fileName: asset.fileName });
-                setOpen(false);
+                onClose();
               }}
               className="rounded bg-primary px-2 py-1 font-medium text-paper dark:bg-primary-dark dark:text-night"
             >
@@ -361,13 +388,13 @@ function SceneMediaSwapButton({
           type="button"
           onClick={() => {
             onPicked({ regenerateAi: true });
-            setOpen(false);
+            onClose();
           }}
           className="text-start underline"
         >
           {dict.sceneMediaSwapGenerateAi}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-start text-ink-soft dark:text-ink-soft-dark">
+        <button type="button" onClick={() => onClose()} className="text-start text-ink-soft dark:text-ink-soft-dark">
           {dict.sceneMediaSwapCancel}
         </button>
       </div>
@@ -405,7 +432,7 @@ function SceneMediaSwapButton({
       >
         {dict.sceneMediaSwapGenerateAi}
       </button>
-      <button type="button" onClick={() => setOpen(false)} className="text-start text-ink-soft dark:text-ink-soft-dark">
+      <button type="button" onClick={() => onClose()} className="text-start text-ink-soft dark:text-ink-soft-dark">
         {dict.sceneMediaSwapCancel}
       </button>
       {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
@@ -421,9 +448,19 @@ interface SceneRow {
   pendingMedia?: { assetId: string; fileName: string } | { regenerateAi: true };
   durationSec: number;
   overlayText: string;
+  // The real existing scene's captured thumbnail — kept as-is across a
+  // pending media swap (the new image/frame doesn't exist yet, only
+  // after a real re-render), so the strip never shows a fake preview,
+  // just the honest "still the old image until you save" state.
+  thumbnailUrl: string | null;
 }
 
 const DEFAULT_SCENE_DURATION = 4.5;
+// Mirrors MAX_SCENES in src/lib/video/scene-editor.ts (a server-only
+// module this client component can't import from directly) — kept as
+// the same real client-side cap the original list editor already
+// enforced here, not a new limit.
+const MAX_SCENES_CLIENT = 10;
 
 function NonNarratedSceneEditor({
   videoId,
@@ -442,27 +479,34 @@ function NonNarratedSceneEditor({
       mediaLabel: s.mediaAsset?.fileName ?? (s.kind === "AI_STILL" ? "AI background" : "—"),
       durationSec: s.durationSec ?? DEFAULT_SCENE_DURATION,
       overlayText: s.overlayText ?? "",
+      thumbnailUrl: s.thumbnailUrl,
     })),
   );
+  const [openSwapIndex, setOpenSwapIndex] = useState<number | null>(null);
   const [state, action, pending] = useActionState(editVideoScenes.bind(null, videoId), undefined);
   useRefreshOnSuccess(state && "success" in state ? true : undefined);
 
-  function move(index: number, delta: number) {
+  function reorder(from: number, to: number) {
     setRows((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev;
       const next = [...prev];
-      const target = index + delta;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
       return next;
     });
+    // Simplest correct behavior for the rare "reorder while a swap
+    // picker is open" overlap — closing it avoids the picker silently
+    // pointing at a different scene than the one the user opened it for.
+    setOpenSwapIndex(null);
   }
   function remove(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
+    setOpenSwapIndex(null);
   }
   function addScene() {
     setRows((prev) => [
       ...prev,
-      { clientKey: `new-${Date.now()}`, mediaLabel: "—", durationSec: DEFAULT_SCENE_DURATION, overlayText: "" },
+      { clientKey: `new-${Date.now()}`, mediaLabel: "—", durationSec: DEFAULT_SCENE_DURATION, overlayText: "", thumbnailUrl: null },
     ]);
   }
 
@@ -480,102 +524,79 @@ function NonNarratedSceneEditor({
       <input type="hidden" name="scenes" value={payload} />
       <h3 className="text-sm font-semibold">{dict.sceneEditorTitle}</h3>
 
-      <ul className="flex flex-col gap-2">
+      <SceneThumbnailStrip
+        editable
+        items={rows.map((row) => ({
+          key: row.clientKey,
+          thumbnailUrl: row.thumbnailUrl,
+          overlayText: row.overlayText,
+          durationSec: row.durationSec,
+          scriptLabel: null,
+        }))}
+        onThumbnailClick={(i) => setOpenSwapIndex(i)}
+        onRemove={remove}
+        onAdd={addScene}
+        onReorder={reorder}
+        onDurationChange={(i, durationSec) =>
+          setRows((prev) => prev.map((r, j) => (j === i ? { ...r, durationSec } : r)))
+        }
+        maxItems={MAX_SCENES_CLIENT}
+      />
+
+      {/* On-screen text stays independently editable per scene, same as
+          the original list rows — unrelated to whether that scene's
+          media-swap picker (triggered from its thumbnail, see the strip
+          above) happens to be open right now. */}
+      <div className="flex flex-col gap-2">
         {rows.map((row, i) => (
-          <li key={row.clientKey} className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-sm">
-            <div className="flex items-center justify-between gap-2">
+          <div key={row.clientKey} className="flex items-center gap-2">
+            <label htmlFor={`overlay-text-${row.clientKey}`} className="w-12 shrink-0 text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
+              #{i + 1}
+            </label>
+            <input
+              id={`overlay-text-${row.clientKey}`}
+              type="text"
+              value={row.overlayText}
+              placeholder={dict.sceneOverlayTextLabel}
+              onChange={(e) => setRows((prev) => prev.map((r, j) => (j === i ? { ...r, overlayText: e.target.value } : r)))}
+              className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
+            />
+          </div>
+        ))}
+      </div>
+
+      {openSwapIndex !== null &&
+        (() => {
+          const openRow = rows[openSwapIndex];
+          if (!openRow) return null;
+          return (
+            <div className="flex flex-col gap-2">
               <span className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
-                {dict.sceneCurrentMedia}: {row.pendingMedia ? "regenerateAi" in row.pendingMedia ? "AI background" : row.pendingMedia.fileName : row.mediaLabel}
+                {dict.sceneCurrentMedia}:{" "}
+                {openRow.pendingMedia
+                  ? "regenerateAi" in openRow.pendingMedia
+                    ? "AI background"
+                    : openRow.pendingMedia.fileName
+                  : openRow.mediaLabel}
               </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                  aria-label={dict.sceneMoveUp}
-                  className="min-h-[36px] min-w-[36px] rounded border border-paper-border dark:border-night-border disabled:opacity-30"
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  disabled={i === rows.length - 1}
-                  onClick={() => move(i, 1)}
-                  aria-label={dict.sceneMoveDown}
-                  className="min-h-[36px] min-w-[36px] rounded border border-paper-border dark:border-night-border disabled:opacity-30"
-                >
-                  ▼
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">{dict.sceneOverlayTextLabel}</label>
-              <input
-                type="text"
-                value={row.overlayText}
-                onChange={(e) =>
-                  setRows((prev) => prev.map((r, j) => (j === i ? { ...r, overlayText: e.target.value } : r)))
-                }
-                className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">
-                {dict.sceneDurationLabel}: {row.durationSec.toFixed(1)}s
-              </label>
-              <input
-                type="range"
-                min={1.5}
-                max={10}
-                step={0.5}
-                value={row.durationSec}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r, j) => (j === i ? { ...r, durationSec: Number(e.target.value) } : r)),
-                  )
-                }
-                className="min-h-[36px] accent-current"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-2">
               <SceneMediaSwapButton
                 videoId={videoId}
                 scriptKey={null}
                 sceneMediaAssets={sceneMediaAssets}
+                onClose={() => setOpenSwapIndex(null)}
                 onPicked={(media) =>
                   setRows((prev) =>
                     prev.map((r, j) =>
-                      j === i
+                      j === openSwapIndex
                         ? { ...r, pendingMedia: media, mediaLabel: "regenerateAi" in media ? "AI background" : media.fileName }
                         : r,
                     ),
                   )
                 }
               />
-              <button
-                type="button"
-                disabled={rows.length === 1}
-                onClick={() => remove(i)}
-                className="text-xs font-medium text-red-600 underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
-              >
-                {dict.sceneRemoveButton}
-              </button>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        type="button"
-        onClick={addScene}
-        disabled={rows.length >= 10}
-        className="rounded border border-dashed border-paper-border dark:border-night-border px-2 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {dict.sceneAddButton}
-      </button>
+          );
+        })()}
 
       {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
       {state && "success" in state && (
