@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { generateCaption } from "@/lib/actions/content";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,34 @@ export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: To
   const dict = useDict().studio;
   const topicGuardDict = useDict().topicGuard;
   const [topic, setTopic] = useState("");
+  // Real fix, not cosmetic: the free tier's caption picker is fully
+  // deterministic given identical (topic, attempt) inputs (see
+  // content.ts), so re-submitting the exact same topic needs a
+  // different attempt number to actually get a different result —
+  // otherwise "click Generate again" silently returns the same text.
+  // Resets to 0 whenever the topic itself changes, since that's already
+  // a genuinely different input with no repetition risk. Plain refs
+  // (not state) and a direct DOM write in onSubmit — a setState here
+  // would only reach the hidden input on the NEXT render, one
+  // submission too late for a native (non-preventDefault'd) form
+  // submit, which serializes FormData from the current DOM immediately
+  // after synchronous submit handlers finish.
+  const attemptRef = useRef(0);
+  const lastSubmittedTopicRef = useRef<string | null>(null);
+  const attemptInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex w-full max-w-lg flex-col gap-4">
-      <form action={action} className="flex flex-col gap-2">
+      <form
+        action={action}
+        onSubmit={() => {
+          attemptRef.current = lastSubmittedTopicRef.current === topic ? attemptRef.current + 1 : 0;
+          lastSubmittedTopicRef.current = topic;
+          if (attemptInputRef.current) attemptInputRef.current.value = String(attemptRef.current);
+        }}
+        className="flex flex-col gap-2"
+      >
+        <input ref={attemptInputRef} type="hidden" name="attempt" defaultValue={0} />
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"

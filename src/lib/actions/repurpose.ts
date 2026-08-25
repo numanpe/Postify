@@ -102,12 +102,22 @@ export async function repurposeContent(
     }
 
     if (formats.includes("CAPTIONS")) {
+      // Real bug fixed here (2026-08-25): re-repurposing the identical
+      // source (same poster/video/manual text) always requested
+      // variantIndex 0/1/2 again — byte-identical captions on the free
+      // tier, since TemplateTextProvider is fully deterministic given
+      // identical inputs. `attempt` (how many times this exact source
+      // has already been repurposed this session) shifts the whole
+      // 3-slot window into fresh territory each time.
+      const attemptParsed = Number.parseInt(String(formData.get("attempt") ?? "0"), 10);
+      const attempt = Number.isFinite(attemptParsed) && attemptParsed >= 0 ? attemptParsed : 0;
+
       const captions: string[] = [];
       // 3 independent calls to the existing generateCaption, matching
       // the task's own "2-3 caption variants" — not a new variant-
       // generation feature, just calling the same function more than once.
       for (let i = 0; i < 3; i += 1) {
-        const captionResult = await textProvider.generateCaption({ context, topic, variantIndex: i });
+        const captionResult = await textProvider.generateCaption({ context, topic, variantIndex: attempt * 3 + i });
         captions.push(captionResult.text);
       }
       result.captions = captions;

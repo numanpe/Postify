@@ -44,9 +44,22 @@ export async function generateCaption(
   const context = await getCompanyContext(company.id);
   const provider = await getTextProviderForCompany(company.id);
 
+  // Real bug fixed here (2026-08-25): this never passed variantIndex,
+  // so on the free tier — fully deterministic given identical inputs,
+  // see template-provider.ts — clicking Generate again for the exact
+  // same topic silently returned byte-identical text every time. The
+  // form now sends how many times this topic has already been
+  // submitted in this session (attempt, a plain hidden counter, not
+  // persisted anywhere) so a repeat click actually produces a
+  // different pick. BYOK providers ignore variantIndex entirely (real
+  // LLM sampling already varies call to call), so this is a no-op for
+  // them, not a behavior change.
+  const attemptParsed = z.coerce.number().int().min(0).max(1000).safeParse(formData.get("attempt"));
+  const attempt = attemptParsed.success ? attemptParsed.data : 0;
+
   try {
     const guard = await guardTopic(parsed.data, provider, context);
-    const result = await provider.generateCaption({ context, topic: guard.topic });
+    const result = await provider.generateCaption({ context, topic: guard.topic, variantIndex: attempt });
     return {
       status: "success",
       text: result.text,

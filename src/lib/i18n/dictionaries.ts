@@ -65,7 +65,7 @@ export interface Dictionary {
   wizard: {
     stepOf: (step: number) => string;
     step1Title: string; step1Subtitle: (name: string) => string;
-    topicLabel: string; topicPlaceholder: string; autoGenerate: string;
+    topicLabel: string; topicPlaceholder: string; autoGenerate: string; autoGenerateHint: string; showAnotherIdea: string;
     generate: string; generating: string;
     chooseHint: string; hashtagsLabel: string; nextCreateAsset: string;
     step2Title: string; toggleStaticPoster: string; toggleMotionVideo: string; nextPreviewPublish: string;
@@ -352,6 +352,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicLabel: "Topic",
       topicPlaceholder: "What's this post about? e.g. our new spring menu",
       autoGenerate: "Auto-Generate Daily Idea",
+      autoGenerateHint: "Today's suggested idea — the same one all day by design. Want a different one right now?",
+      showAnotherIdea: "Show me another idea",
       generate: "Generate",
       generating: "Generating…",
       chooseHint: "Pick the caption you like best — you can still edit it in the next step.",
@@ -926,6 +928,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       topicLabel: "الموضوع",
       topicPlaceholder: "عن ماذا هذا المنشور؟ مثال: قائمة طعامنا الجديدة لفصل الربيع",
       autoGenerate: "اقترح فكرة اليوم تلقائيًا",
+      autoGenerateHint: "فكرة اليوم المقترحة — نفس الفكرة طوال اليوم بالتصميم. تريد فكرة مختلفة الآن؟",
+      showAnotherIdea: "أرني فكرة أخرى",
       generate: "إنشاء",
       generating: "جارٍ الإنشاء…",
       chooseHint: "اختر التسمية التوضيحية التي تفضلها — يمكنك تعديلها في الخطوة التالية.",

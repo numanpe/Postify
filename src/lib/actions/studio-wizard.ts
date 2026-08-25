@@ -48,8 +48,28 @@ export async function generateWizardStep1(
     // (industry-packs.ts) exists specifically for this: real
     // industry-relevant phrases actually checked against every
     // {{topic}} template slot.
+    //
+    // Working exactly as intended (confirmed 2026-08-25, real user
+    // complaint investigation): clicking this again the same day
+    // correctly shows the same idea, by design — one suggestion per
+    // day, not a shuffle button. "Show me another idea" below is the
+    // real, distinct escape hatch for on-demand variety instead.
     const dayIndex = Math.floor(Date.now() / 86_400_000);
     topic = context.pack.autoTopics[dayIndex % context.pack.autoTopics.length];
+  } else if (formData.get("showAnotherIdea") === "true") {
+    // Real fix (2026-08-25): genuinely random, not day-locked — draws
+    // from autoTopics ∪ topicSuggestions' real topic phrases (already
+    // vetted the same "grammatically safe noun phrase" way autoTopics
+    // is, see topicSuggestions' own doc comment in industry-packs.ts),
+    // excluding today's autoTopics pick so a click here is guaranteed
+    // to differ from what "Auto-Generate Daily Idea" would show right
+    // now, not just usually different by chance.
+    const dayIndex = Math.floor(Date.now() / 86_400_000);
+    const todaysAutoTopic = context.pack.autoTopics[dayIndex % context.pack.autoTopics.length];
+    const pool = [...context.pack.autoTopics, ...context.pack.topicSuggestions.map((s) => s.topic)].filter(
+      (t) => t !== todaysAutoTopic,
+    );
+    topic = pool[Math.floor(Math.random() * pool.length)] ?? todaysAutoTopic;
   } else {
     const parsed = TopicSchema.safeParse(formData.get("topic"));
     if (!parsed.success) {
@@ -67,13 +87,25 @@ export async function generateWizardStep1(
     }
   }
 
+  // Real bug fixed here (2026-08-25): variantIndex 0/1/2 gives 3
+  // distinct captions WITHIN one submission, but re-submitting the
+  // identical topic (clicking Generate again) always requested the same
+  // 0/1/2 again — byte-identical results on the free tier, since
+  // TemplateTextProvider is fully deterministic given identical inputs.
+  // `attempt` (how many times this exact topic has already been
+  // submitted this session) shifts the whole 3-slot window into fresh
+  // territory each time. BYOK providers ignore variantIndex entirely
+  // (real LLM sampling already varies call to call).
+  const attemptParsed = z.coerce.number().int().min(0).max(1000).safeParse(formData.get("attempt"));
+  const attempt = attemptParsed.success ? attemptParsed.data : 0;
+
   const captions: string[] = [];
   try {
     // 3 independent calls to the same real generateCaption used
     // everywhere else (Video Studio's caption step, Repurpose) — not a
     // new variant-generation feature.
     for (let i = 0; i < 3; i += 1) {
-      const result = await textProvider.generateCaption({ context, topic, variantIndex: i });
+      const result = await textProvider.generateCaption({ context, topic, variantIndex: attempt * 3 + i });
       captions.push(result.text);
     }
   } catch (error) {

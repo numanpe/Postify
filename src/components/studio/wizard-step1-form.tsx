@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -28,6 +28,20 @@ export function WizardStep1Form({
   const [state, action, pending] = useActionState(generateWizardStep1, undefined);
   const [chosenIndex, setChosenIndex] = useState(0);
   const [topic, setTopic] = useState(defaultTopic ?? "");
+  // Real fix, not cosmetic: the free tier's caption picker is fully
+  // deterministic given identical inputs (see studio-wizard.ts), so
+  // re-submitting the same topic (or clicking Auto-Generate again the
+  // same day, which is deliberately the same topic by design) needs a
+  // different attempt number to actually vary the 3 captions shown —
+  // otherwise repeat clicks silently returned the same 3 every time.
+  // Tracked by which submit control was used (manual topic text vs.
+  // Auto-Generate's day-locked topic), since those are two genuinely
+  // different "same input" cases. Plain refs + a direct DOM write in
+  // onSubmit, not state — state would only reach the hidden input one
+  // submission too late for a native (non-preventDefault'd) form submit.
+  const attemptRef = useRef(0);
+  const lastSubmissionKeyRef = useRef<string | null>(null);
+  const attemptInputRef = useRef<HTMLInputElement>(null);
   const [durationDismissed, setDurationDismissed] = useState(false);
   const dict = useDict().wizard;
   const voiceDict = useDict().voiceInput;
@@ -44,7 +58,28 @@ export function WizardStep1Form({
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.step1Subtitle(companyName)}</p>
       </div>
 
-      <form action={action} className="flex flex-col gap-2">
+      <form
+        action={action}
+        onSubmit={(e) => {
+          const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+          // "Show me another idea" is genuinely randomized server-side
+          // every call (see studio-wizard.ts) so it never needs an
+          // attempt bump to vary — a fresh key each time (Date.now())
+          // just keeps it from accidentally colliding with a real
+          // repeated key and skipping its own reset.
+          const key =
+            submitter?.name === "autoGenerate"
+              ? "AUTO_GENERATE"
+              : submitter?.name === "showAnotherIdea"
+                ? `ANOTHER:${Date.now()}`
+                : topic;
+          attemptRef.current = lastSubmissionKeyRef.current === key ? attemptRef.current + 1 : 0;
+          lastSubmissionKeyRef.current = key;
+          if (attemptInputRef.current) attemptInputRef.current.value = String(attemptRef.current);
+        }}
+        className="flex flex-col gap-2"
+      >
+        <input ref={attemptInputRef} type="hidden" name="attempt" defaultValue={0} />
         <label htmlFor="topic" className="text-sm font-medium">
           {dict.topicLabel}
         </label>
@@ -104,10 +139,11 @@ export function WizardStep1Form({
           <Button type="submit" pending={pending} pendingLabel={dict.generating}>
             {dict.generate}
           </Button>
-          {/* Two submit buttons, same form/action — the clicked button's
+          {/* Three submit buttons, same form/action — the clicked button's
               own name/value pair (or its absence) is what the server
-              action reads via formData.get("autoGenerate"), standard
-              HTML behavior, no extra client JS needed to distinguish them. */}
+              action reads via formData.get("autoGenerate")/("showAnotherIdea"),
+              standard HTML behavior, no extra client JS needed to
+              distinguish them. */}
           <button
             type="submit"
             name="autoGenerate"
@@ -117,7 +153,21 @@ export function WizardStep1Form({
           >
             {dict.autoGenerate}
           </button>
+          {/* Real, distinct escape hatch (2026-08-25): Auto-Generate
+              deliberately shows the same idea all day (see
+              studio-wizard.ts) — this is the genuinely-random on-demand
+              alternative, not a rename of the same button. */}
+          <button
+            type="submit"
+            name="showAnotherIdea"
+            value="true"
+            disabled={pending}
+            className="rounded-lg border border-paper-border px-4 py-2 text-base font-medium text-ink hover:bg-paper-card disabled:cursor-not-allowed disabled:opacity-60 dark:border-night-border dark:text-ink-dark dark:hover:bg-night-card"
+          >
+            {dict.showAnotherIdea}
+          </button>
         </div>
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.autoGenerateHint}</p>
       </form>
 
       {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
