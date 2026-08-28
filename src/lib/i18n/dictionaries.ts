@@ -26,6 +26,12 @@ export interface Dictionary {
     save: string; cancel: string; remove: string; delete: string; retry: string;
     regenerate: string; approve: string; processNow: string; manage: string; optional: string;
   };
+  errorBoundary: {
+    title: string;
+    message: string;
+    tryAgain: string;
+    goToStudio: string;
+  };
   voiceInput: {
     startLabel: string; listeningLabel: string;
     errorNotAllowed: string; errorNoSpeech: string; errorNetwork: string; errorGeneric: string;
@@ -266,6 +272,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "Process now",
       manage: "Manage",
       optional: "(optional)",
+    },
+    errorBoundary: {
+      title: "Something went wrong",
+      message:
+        "This page hit a real error and couldn't finish — this can happen when a request (like a narrated video render) takes too long or the connection drops partway through. Your other work is safe.",
+      tryAgain: "Try again",
+      goToStudio: "Go to Content Studio",
     },
     voiceInput: {
       startLabel: "Speak instead of typing",
@@ -855,6 +868,13 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "معالجة الآن",
       manage: "إدارة",
       optional: "(اختياري)",
+    },
+    errorBoundary: {
+      title: "حدث خطأ ما",
+      message:
+        "واجهت هذه الصفحة خطأً حقيقيًا ولم تكتمل — قد يحدث هذا عندما يستغرق طلب ما (مثل إنتاج فيديو بتعليق صوتي) وقتًا طويلاً جدًا أو ينقطع الاتصال في منتصف الطريق. عملك الآخر بأمان.",
+      tryAgain: "حاول مجددًا",
+      goToStudio: "الذهاب إلى استوديو المحتوى",
     },
     voiceInput: {
       startLabel: "تحدّث بدلاً من الكتابة",
