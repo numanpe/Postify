@@ -163,7 +163,7 @@ export interface Dictionary {
   };
   media: {
     title: string; subtitle: (name: string) => string; noMedia: string; noMediaHint: string; uploadHint: string;
-    upload: string; uploading: string;
+    upload: string; uploading: string; noLongerAvailable: string;
   };
   brandKit: {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
@@ -613,6 +613,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       noMediaHint: "Add your logo, product photos, or site footage — they'll show up here and become real building blocks for your posters and videos.",
       uploadHint: "Photos, videos, or audio — up to 25MB each.",
       upload: "Upload",
+      noLongerAvailable: "No longer available",
       uploading: "Uploading…",
     },
     brandKit: {
@@ -1213,6 +1214,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       uploadHint: "صور أو فيديوهات أو ملفات صوتية — بحد أقصى 25 ميغابايت لكل ملف.",
       upload: "رفع",
       uploading: "جارٍ الرفع…",
+      noLongerAvailable: "لم يعد متاحًا",
     },
     brandKit: {
       title: "هوية العلامة",

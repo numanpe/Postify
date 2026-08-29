@@ -36,7 +36,16 @@ export default async function MediaPage() {
           {assets.map((asset) => (
             <li key={asset.id} className="flex flex-col gap-2 rounded-lg border border-paper-border dark:border-night-border p-2">
               <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-paper-card dark:bg-night-card">
-                {asset.mimeType.startsWith("image/") ? (
+                {asset.storageDeletedAt ? (
+                  // The real file is gone (cleanupMediaStorage ran after
+                  // a re-render superseded it, or after a confirmed
+                  // publish) — never attempt storage.url() on it, and
+                  // never show the raw mimeType, which looks identical
+                  // to a live asset's.
+                  <span className="px-2 text-center text-xs text-ink-soft dark:text-ink-soft-dark">
+                    {dict.media.noLongerAvailable}
+                  </span>
+                ) : asset.mimeType.startsWith("image/") ? (
                   <Image
                     src={storage.url(asset.storageKey)}
                     alt={asset.fileName}
