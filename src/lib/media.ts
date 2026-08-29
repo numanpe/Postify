@@ -4,6 +4,25 @@ import sharp from "sharp";
 import { db } from "@/lib/db";
 import { storage, buildStorageKey } from "@/lib/storage";
 
+// Shared with any upload entry point (Media Library's own form, the
+// video Scene Editor's inline upload) so the real limit only lives in
+// one place — createMediaAssetFromFile reads the whole file into memory
+// before writing, so this is a real ceiling, not just a UX nicety.
+export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+// Image/video only — the subset relevant to video scene media (no
+// audio, unlike the general Media Library upload's full allow-list in
+// src/lib/actions/media.ts).
+export const ALLOWED_SCENE_MEDIA_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+
 // Structural metadata only — mime type, dimensions, orientation. No AI
 // involved. Semantic tags (subject/objects/people/category) require a
 // vision provider, which doesn't exist until Phase 2's provider

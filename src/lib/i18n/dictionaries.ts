@@ -123,6 +123,7 @@ export interface Dictionary {
     sceneMediaSwap: string; sceneMediaSwapPickTitle: string; sceneMediaSwapChooseAsset: string;
     sceneMediaSwapGenerateAi: string; sceneMediaSwapSave: string; sceneMediaSwapSaving: string;
     sceneMediaSwapCancel: string; sceneMediaSwapSaved: string;
+    sceneMediaUploadLabel: string; sceneMediaUploading: string; sceneMediaUploadError: string;
     sceneReorderDisabledNarrated: string; sceneDurationDisabledNarrated: string;
     sceneRemoveGuidanceNarrated: string;
     sceneMoveUp: string; sceneMoveDown: string; sceneDurationLabel: string; sceneOverlayTextLabel: string;
@@ -505,6 +506,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneMediaSwapSaving: "Re-rendering…",
       sceneMediaSwapCancel: "Cancel",
       sceneMediaSwapSaved: "Scene media updated.",
+      sceneMediaUploadLabel: "Upload a new photo/video",
+      sceneMediaUploading: "Uploading…",
+      sceneMediaUploadError: "Could not upload that file.",
       sceneReorderDisabledNarrated: "Not available for narrated videos — reordering would desync the voiceover from what's on screen.",
       sceneDurationDisabledNarrated: "Not available for narrated videos — a scene's length follows the real narration timing.",
       sceneRemoveGuidanceNarrated: "To remove this scene, delete its text in the script editor above.",
@@ -1101,6 +1105,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneMediaSwapSaving: "جارٍ إعادة الإنتاج…",
       sceneMediaSwapCancel: "إلغاء",
       sceneMediaSwapSaved: "تم تحديث وسائط المشهد.",
+      sceneMediaUploadLabel: "تحميل صورة/فيديو جديد",
+      sceneMediaUploading: "جارٍ التحميل…",
+      sceneMediaUploadError: "تعذّر تحميل هذا الملف.",
       sceneReorderDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — إعادة الترتيب ستُفقد تزامن التعليق الصوتي مع ما يظهر على الشاشة.",
       sceneDurationDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — مدة المشهد تتبع توقيت التعليق الصوتي الفعلي.",
       sceneRemoveGuidanceNarrated: "لحذف هذا المشهد، احذف نصه من محرّر النص أعلاه.",

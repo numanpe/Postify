@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { editVideoAsset, editVideoScript, swapVideoSceneMedia, editVideoScenes } from "@/lib/actions/video-edit";
+import {
+  editVideoAsset,
+  editVideoScript,
+  swapVideoSceneMedia,
+  editVideoScenes,
+  uploadSceneMediaAsset,
+  type SwapSceneMediaState,
+} from "@/lib/actions/video-edit";
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
 import { useDict } from "@/components/i18n/locale-provider";
@@ -336,11 +343,63 @@ function NarratedSceneList({
   );
 }
 
+// A real upload, immediately — not deferred to whatever "Save" the
+// caller submits later. Shared by both SceneMediaSwapButton modes so
+// there's one real upload path (uploadSceneMediaAsset,
+// src/lib/actions/video-edit.ts), not two.
+//
+// No <form> here on purpose: every caller already renders this inside
+// another <form> (the scene editor's own Save, or the narrated swap's
+// own submit) — a nested <form> is invalid HTML and browsers don't
+// define real nested-submit behavior. useActionState's dispatch works
+// the same way called directly with a FormData as it does bound to a
+// form's action, so a plain onChange building that FormData is enough.
+function SceneMediaUploadField({
+  onUploaded,
+}: {
+  onUploaded: (media: { assetId: string; fileName: string; mimeType: string }) => void;
+}) {
+  const dict = useDict().video;
+  const [state, action, pending] = useActionState(uploadSceneMediaAsset, undefined);
+
+  useEffect(() => {
+    if (state && "assetId" in state) onUploaded({ assetId: state.assetId, fileName: state.fileName, mimeType: state.mimeType });
+    // onUploaded intentionally excluded — callers pass a fresh closure
+    // each render; re-firing on identity change (not just a real new
+    // upload) would re-report the same upload repeatedly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="w-fit cursor-pointer text-start text-xs underline">
+        {pending ? dict.sceneMediaUploading : dict.sceneMediaUploadLabel}
+        <input
+          type="file"
+          accept="image/*,video/*"
+          disabled={pending}
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            const formData = new FormData();
+            formData.set("file", file);
+            startTransition(() => action(formData));
+          }}
+        />
+      </label>
+      {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
+    </div>
+  );
+}
+
 // Shared by both narrated (media-swap-only) and non-narrated (full
 // editor) scenes — a small inline picker: a real Media Library asset,
-// or a fresh AI background. Used directly with swapVideoSceneMedia for
-// narrated scenes; the non-narrated editor instead captures the pick
-// into its own local scene-row state (see NonNarratedSceneEditor).
+// a fresh upload, or a fresh AI background. Used directly with
+// swapVideoSceneMedia for narrated scenes; the non-narrated editor
+// instead captures the pick into its own local scene-row state (see
+// NonNarratedSceneEditor).
 //
 // Mounted only while open — the caller (NarratedSceneList /
 // NonNarratedSceneEditor) tracks which scene's picker is open and
@@ -398,6 +457,15 @@ function SceneMediaSwapButton({
             </button>
           </div>
         )}
+        {/* Uploading is itself the pick here — no separate "Save" step,
+            same as choosing an existing asset above then tapping the
+            row's own save button. */}
+        <SceneMediaUploadField
+          onUploaded={(media) => {
+            onPicked(media);
+            onClose();
+          }}
+        />
         <button
           type="button"
           onClick={() => {
@@ -416,9 +484,49 @@ function SceneMediaSwapButton({
   }
 
   return (
+    <SceneMediaSwapForm
+      dict={dict}
+      sceneMediaAssets={sceneMediaAssets}
+      selectedAssetId={selectedAssetId}
+      setSelectedAssetId={setSelectedAssetId}
+      action={action}
+      pending={pending}
+      state={state}
+      onClose={onClose}
+    />
+  );
+}
+
+// Narrated mode's real-form branch, split out only so the new upload
+// field can extend its own local copy of the asset list (the freshly
+// uploaded file needs to show up as a selectable option before the
+// user hits "Use this" — this component isn't the right place to keep
+// that extra state).
+function SceneMediaSwapForm({
+  dict,
+  sceneMediaAssets,
+  selectedAssetId,
+  setSelectedAssetId,
+  action,
+  pending,
+  state,
+  onClose,
+}: {
+  dict: ReturnType<typeof useDict>["video"];
+  sceneMediaAssets: SceneMediaAssetOption[];
+  selectedAssetId: string;
+  setSelectedAssetId: (id: string) => void;
+  action: (formData: FormData) => void;
+  pending: boolean;
+  state: SwapSceneMediaState;
+  onClose: () => void;
+}) {
+  const [assets, setAssets] = useState(sceneMediaAssets);
+
+  return (
     <form action={action} className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-xs">
       <p className="font-medium">{dict.sceneMediaSwapPickTitle}</p>
-      {sceneMediaAssets.length > 0 && (
+      {assets.length > 0 && (
         <div className="flex items-center gap-2">
           <select
             name="assetId"
@@ -426,7 +534,7 @@ function SceneMediaSwapButton({
             onChange={(e) => setSelectedAssetId(e.target.value)}
             className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
           >
-            {sceneMediaAssets.map((a) => (
+            {assets.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.fileName}
               </option>
@@ -437,6 +545,12 @@ function SceneMediaSwapButton({
           </Button>
         </div>
       )}
+      <SceneMediaUploadField
+        onUploaded={(media) => {
+          setAssets((prev) => [{ id: media.assetId, fileName: media.fileName, mimeType: media.mimeType }, ...prev]);
+          setSelectedAssetId(media.assetId);
+        }}
+      />
       <button
         type="submit"
         name="regenerateAi"

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { requireCompany } from "@/lib/session";
-import { createMediaAssetFromFile } from "@/lib/media";
+import { createMediaAssetFromFile, MAX_FILE_SIZE_BYTES } from "@/lib/media";
 import { recordSignal, fingerprintContent, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
 import { recomputeCreativeDnaPreferences } from "@/lib/creative-dna/aggregate";
 
@@ -29,12 +29,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "audio/mp4",
   "audio/ogg",
 ]);
-
-// Generous enough for real photos and short B-roll clips, bounded
-// enough that one upload can't exhaust server memory or storage —
-// createMediaAssetFromFile reads the whole file into memory before
-// writing, so this is a real ceiling, not just a UX nicety.
-const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
 export async function uploadMedia(
   _prevState: UploadMediaState,

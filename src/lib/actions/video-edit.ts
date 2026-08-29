@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { storage, buildStorageKey } from "@/lib/storage";
+import { createMediaAssetFromFile, ALLOWED_SCENE_MEDIA_MIME_TYPES, MAX_FILE_SIZE_BYTES } from "@/lib/media";
 import { editVideo } from "@/lib/video/edit";
 import { cleanupMediaStorage } from "@/lib/storage-cleanup";
 import {
@@ -178,6 +179,41 @@ export async function swapVideoSceneMedia(
     if (error instanceof VideoEditError) return { error: error.message };
     return { error: error instanceof Error ? error.message : "Could not re-render this video." };
   }
+}
+
+export type UploadSceneMediaState =
+  | { error: string }
+  | { assetId: string; fileName: string; mimeType: string }
+  | undefined;
+
+// Inline "upload a new photo/video" from the Scene Editor's swap picker
+// (video-edit-modal.tsx's SceneMediaSwapButton) — reuses the exact same
+// createMediaAssetFromFile real upload path as Media Library's own
+// upload form (src/lib/actions/media.ts), so the result is an ordinary
+// company-scoped MediaAsset row, indistinguishable from one picked out
+// of the library. Deliberately does NOT touch swapVideoSceneMedia /
+// editVideoScenes below — the caller treats the returned assetId
+// exactly like an existing-asset pick, so neither of those needs to
+// know a fresh upload happened.
+export async function uploadSceneMediaAsset(
+  _prevState: UploadSceneMediaState,
+  formData: FormData,
+): Promise<UploadSceneMediaState> {
+  const { user, company } = await requireCompany();
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose a photo or video to upload." };
+  }
+  if (!ALLOWED_SCENE_MEDIA_MIME_TYPES.has(file.type)) {
+    return { error: `"${file.name}" isn't a supported file type (photos or videos only).` };
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return { error: `"${file.name}" is too large — the limit is 25MB.` };
+  }
+
+  const asset = await createMediaAssetFromFile({ companyId: company.id, uploadedById: user.id, file });
+  return { assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType };
 }
 
 export type EditScenesState = { error: string } | { success: true } | undefined;
