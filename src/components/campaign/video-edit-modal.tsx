@@ -76,6 +76,7 @@ export function VideoEditModal({
   const [duration, setDuration] = useState(0);
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const [trimState, trimAction, trimPending] = useActionState(editVideoAsset.bind(null, videoId), undefined);
 
   return (
@@ -90,17 +91,30 @@ export function VideoEditModal({
       </button>
       <BottomSheet ref={sheetRef} title={dict.editVideo} closeLabel={dict.editVideoCancel}>
         <div className="flex flex-col gap-5 pb-3">
-          <video
-            src={videoUrl}
-            controls
-            className="w-full rounded bg-black"
-            onLoadedMetadata={(e) => {
-              const d = e.currentTarget.duration;
-              setDuration(d);
-              setTrimStart(0);
-              setTrimEnd(d);
-            }}
-          />
+          {/* max-h caps a tall 9:16 Story video so the trim controls
+              right below stay reachable without an extra scroll on a
+              phone-sized viewport — object-contain keeps the full frame
+              visible (letterboxed) rather than cropping it to fit. */}
+          <div className="relative">
+            <video
+              src={videoUrl}
+              controls
+              className="max-h-[38vh] w-full rounded bg-black object-contain"
+              onLoadedMetadata={(e) => {
+                const d = e.currentTarget.duration;
+                setDuration(d);
+                setTrimStart(0);
+                setTrimEnd(d);
+                setVideoLoaded(true);
+              }}
+            />
+            {!videoLoaded && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 rounded bg-black/40 text-xs font-medium text-white">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                {dict.editVideoLoading}
+              </div>
+            )}
+          </div>
 
           <form action={trimAction} className="flex flex-col gap-3">
             <input type="hidden" name="trimStart" value={trimStart} />
