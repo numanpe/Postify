@@ -164,6 +164,8 @@ export interface Dictionary {
   media: {
     title: string; subtitle: (name: string) => string; noMedia: string; noMediaHint: string; uploadHint: string;
     upload: string; uploading: string; noLongerAvailable: string;
+    activityTitle: string; activityPublished: (label: string) => string;
+    activityPublishFailed: (label: string) => string; activityGenerationFailed: (label: string) => string;
   };
   brandKit: {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
@@ -615,6 +617,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       upload: "Upload",
       noLongerAvailable: "No longer available",
       uploading: "Uploading…",
+      activityTitle: "Recent activity",
+      activityPublished: (label: string) => `Published: ${label}`,
+      activityPublishFailed: (label: string) => `Publish failed: ${label}`,
+      activityGenerationFailed: (label: string) => `${label} — a post failed to generate`,
     },
     brandKit: {
       title: "Brand Kit",
@@ -1215,6 +1221,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       upload: "رفع",
       uploading: "جارٍ الرفع…",
       noLongerAvailable: "لم يعد متاحًا",
+      activityTitle: "النشاط الأخير",
+      activityPublished: (label: string) => `تم النشر: ${label}`,
+      activityPublishFailed: (label: string) => `فشل النشر: ${label}`,
+      activityGenerationFailed: (label: string) => `${label} — فشل إنشاء أحد المنشورات`,
     },
     brandKit: {
       title: "هوية العلامة",
