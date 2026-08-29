@@ -56,6 +56,8 @@ export async function editVideo(input: EditVideoInput): Promise<EditVideoOutput>
         "aac",
         "-pix_fmt",
         "yuv420p",
+        "-movflags",
+        "+faststart",
         trimmedPath,
       ]);
       currentPath = trimmedPath;
@@ -84,6 +86,8 @@ export async function editVideo(input: EditVideoInput): Promise<EditVideoOutput>
         "aac",
         "-pix_fmt",
         "yuv420p",
+        "-movflags",
+        "+faststart",
         overlaidPath,
       ]);
       currentPath = overlaidPath;

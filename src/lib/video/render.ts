@@ -218,6 +218,8 @@ async function combineVideoAndAudio(
     "copy",
     "-c:a",
     "copy",
+    "-movflags",
+    "+faststart",
     outPath,
   ]);
   return outPath;
