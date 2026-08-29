@@ -10,6 +10,14 @@ import { storage } from "@/lib/storage";
 import { cleanupMediaStorage } from "@/lib/storage-cleanup";
 import { processSinglePublishJob } from "@/lib/jobs/process-publish-jobs";
 
+// A lock stuck this long (process killed mid-call) is treated as
+// abandoned and publishable again — same reasoning as
+// process-campaign-items.ts's STALE_GENERATING_MINUTES and
+// process-publish-jobs.ts's STALE_PUBLISHING_MINUTES. This path has no
+// PublishJob/status field of its own (see publishCampaignItemViaAggregator
+// below), hence the separate CampaignItem.publishingLockedAt lock.
+const STALE_PUBLISH_LOCK_MINUTES = 5;
+
 async function requireOwnedCampaignItemWithAssets(itemId: string, companyId: string) {
   const item = await db.campaignItem.findFirst({
     where: { id: itemId, campaign: { companyId } },
@@ -59,6 +67,7 @@ export async function publishCampaignItemViaAggregator(itemId: string): Promise<
     });
   };
 
+  let lockAcquired = false;
   try {
     if (!mediaAsset) {
       throw new Error("This item hasn't finished generating yet.");
@@ -69,6 +78,24 @@ export async function publishCampaignItemViaAggregator(itemId: string): Promise<
     if (!company.selectedAggregator) {
       throw new Error("No publishing provider selected — choose one in Settings.");
     }
+
+    // Real compare-and-swap lock: this path has no PublishJob/status
+    // field to guard against a concurrent double-publish (a double-click
+    // on the button below, or two open tabs) the way the GENERATING and
+    // PUBLISHING statuses already do elsewhere — see
+    // CampaignItem.publishingLockedAt's schema doc comment.
+    const staleLockThreshold = new Date(Date.now() - STALE_PUBLISH_LOCK_MINUTES * 60 * 1000);
+    const claim = await db.campaignItem.updateMany({
+      where: {
+        id: item.id,
+        OR: [{ publishingLockedAt: null }, { publishingLockedAt: { lt: staleLockThreshold } }],
+      },
+      data: { publishingLockedAt: new Date() },
+    });
+    if (claim.count === 0) {
+      throw new Error("This item is already being published — please wait for it to finish.");
+    }
+    lockAcquired = true;
 
     const credential = await db.aggregatorCredential.findUnique({
       where: { companyId_provider: { companyId: company.id, provider: company.selectedAggregator } },
@@ -121,6 +148,10 @@ export async function publishCampaignItemViaAggregator(itemId: string): Promise<
     const message =
       error instanceof AggregatorProviderError || error instanceof Error ? error.message : "Unknown error.";
     await logResult(false, undefined, message);
+  } finally {
+    if (lockAcquired) {
+      await db.campaignItem.update({ where: { id: item.id }, data: { publishingLockedAt: null } });
+    }
   }
 
   revalidatePath(`/campaigns/${item.campaignId}`);
@@ -162,10 +193,10 @@ export async function publishCampaignItemDirect(itemId: string, formData: FormDa
     },
   });
 
-  const succeeded = await processSinglePublishJob(job);
-  if (succeeded) {
+  const outcome = await processSinglePublishJob(job);
+  if (outcome === "succeeded") {
     // Strict trigger guarantee: only after processSinglePublishJob's
-    // awaited result confirms PUBLISHED — see its own return-true path.
+    // awaited result confirms PUBLISHED — see its own "succeeded" path.
     await cleanupMediaStorage(item.poster.asset.id);
   }
 

@@ -58,23 +58,37 @@ export async function processPublishJobs(batchSize = 3): Promise<ProcessResult> 
   let failedCount = 0;
 
   for (const job of dueJobs) {
-    const ok = await processSinglePublishJob(job);
-    if (ok) succeededCount += 1;
-    else failedCount += 1;
+    const outcome = await processSinglePublishJob(job);
+    if (outcome === "succeeded") succeededCount += 1;
+    else if (outcome === "failed") failedCount += 1;
+    // "skipped" (another concurrent caller already claimed this job)
+    // counts toward neither.
   }
 
   return { processedCount: dueJobs.length, succeededCount, failedCount };
 }
 
+export type PublishJobOutcome = "succeeded" | "failed" | "skipped";
+
 // Extracted so a single explicit publish attempt (the campaign card's
 // "Direct API Publish" button — src/lib/actions/campaign-publish.ts) can
 // await exactly one job's real outcome instead of a batch call that
 // might process a different, unrelated due job first — same reasoning as
-// processSingleCampaignItem in process-campaign-items.ts. Returns
-// true/false rather than throwing so callers can decide what to do next
-// (e.g. only run cleanupMediaStorage on a real true).
-export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
-  await db.publishJob.update({ where: { id: job.id }, data: { status: "PUBLISHING" } });
+// processSingleCampaignItem in process-campaign-items.ts. Returns an
+// outcome rather than throwing so callers can decide what to do next
+// (e.g. only run cleanupMediaStorage on a real "succeeded").
+export async function processSinglePublishJob(job: DueJob): Promise<PublishJobOutcome> {
+  // Compare-and-swap on the exact status this job had when fetched — a
+  // plain update() here means two overlapping callers (a stale-recovery
+  // batch run and a real-time "Direct API Publish" click, say) could both
+  // claim the same job and both post it live to the social platform.
+  const claim = await db.publishJob.updateMany({
+    where: { id: job.id, status: job.status },
+    data: { status: "PUBLISHING" },
+  });
+  if (claim.count === 0) {
+    return "skipped";
+  }
 
   try {
     if (!job.poster && !job.video) {
@@ -133,7 +147,7 @@ export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
       });
       await recomputeCreativeDnaPreferences(job.companyId);
 
-      return true;
+      return "succeeded";
     } finally {
       if (publicImageUrl && job.poster) {
         await revokePublicAssetLinksForAsset(job.poster.asset.id);
@@ -154,6 +168,6 @@ export async function processSinglePublishJob(job: DueJob): Promise<boolean> {
         nextAttemptAt: isPermanent ? job.nextAttemptAt : new Date(Date.now() + backoffSec * 1000),
       },
     });
-    return false;
+    return "failed";
   }
 }

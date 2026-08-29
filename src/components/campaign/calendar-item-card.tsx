@@ -3,14 +3,12 @@ import Image from "next/image";
 import { storage } from "@/lib/storage";
 import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from "@/lib/actions/campaign";
-import {
-  publishCampaignItemViaAggregator,
-  publishCampaignItemDirect,
-  extendMediaRetention,
-} from "@/lib/actions/campaign-publish";
+import { extendMediaRetention } from "@/lib/actions/campaign-publish";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { DownloadCopyButton } from "./download-copy-button";
+import { PublishViaAggregatorButton } from "./publish-via-aggregator-button";
+import { PublishDirectButton } from "./publish-direct-button";
 import { VideoEditModal, type VideoSceneForEdit, type SceneMediaAssetOption } from "./video-edit-modal";
 import { SocialPreviewModal } from "@/components/social-preview/social-preview-modal";
 import { ActionIcons, NavIcons } from "@/components/icons";
@@ -229,15 +227,7 @@ export async function CalendarItemCard({
 
           {fileAvailable &&
             (aggregatorConfigured && aggregatorProviderName ? (
-              <form action={publishCampaignItemViaAggregator.bind(null, item.id)}>
-                <button
-                  type="submit"
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5"
-                >
-                  <ActionIcons.publishProvider size={14} aria-hidden="true" />
-                  {pubDict.publishViaProvider(aggregatorProviderName)}
-                </button>
-              </form>
+              <PublishViaAggregatorButton itemId={item.id} providerName={aggregatorProviderName} />
             ) : (
               <a href="/settings" className="inline-flex items-center gap-1.5 text-ink-soft dark:text-ink-soft-dark underline">
                 <NavIcons.settings size={14} aria-hidden="true" />
@@ -247,23 +237,7 @@ export async function CalendarItemCard({
 
           {fileAvailable && item.assetType === "POSTER" && (
             eligibleAccounts.length > 0 ? (
-              <form action={publishCampaignItemDirect.bind(null, item.id)} className="flex flex-col gap-1">
-                <select
-                  name="socialAccountId"
-                  required
-                  className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5 text-base"
-                >
-                  {eligibleAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.displayName}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">
-                  <ActionIcons.publishDirect size={14} aria-hidden="true" />
-                  {pubDict.publishDirect}
-                </button>
-              </form>
+              <PublishDirectButton itemId={item.id} accounts={eligibleAccounts} />
             ) : (
               <p className="text-ink-soft dark:text-ink-soft-dark">{pubDict.noAccountsForDirect}</p>
             )

@@ -105,22 +105,38 @@ export async function processCampaignItems(batchSize = 3): Promise<ProcessResult
   let failedCount = 0;
 
   for (const item of dueItems) {
-    const ok = await processSingleCampaignItem(item);
-    if (ok) succeededCount += 1;
-    else failedCount += 1;
+    const outcome = await processSingleCampaignItem(item);
+    if (outcome === "succeeded") succeededCount += 1;
+    else if (outcome === "failed") failedCount += 1;
+    // "skipped" (another concurrent caller already claimed this item)
+    // counts toward neither — it isn't this invocation's work to report.
   }
 
   return { processedCount: dueItems.length, succeededCount, failedCount };
 }
 
+export type CampaignItemProcessOutcome = "succeeded" | "failed" | "skipped";
+
 // Extracted so a single explicit "Regenerate" click (campaign.ts) can
 // await exactly one item's real generation instead of relying on the
 // fire-and-forget trigger, which — like the stuck-video case above —
-// isn't a delivery guarantee on serverless. Returns true/false rather
+// isn't a delivery guarantee on serverless. Returns an outcome rather
 // than throwing so callers can decide what to do next without needing
 // their own try/catch around DB bookkeeping that already happened.
-export async function processSingleCampaignItem(item: DueItem): Promise<boolean> {
-  await db.campaignItem.update({ where: { id: item.id }, data: { status: "GENERATING" } });
+export async function processSingleCampaignItem(item: DueItem): Promise<CampaignItemProcessOutcome> {
+  // Compare-and-swap on the exact status this row had when fetched
+  // (PENDING, FAILED, or a stale GENERATING) — a plain update() here
+  // would let two overlapping callers (cron, the post-creation
+  // fire-and-forget trigger, and the manual "Process now" button, which
+  // is itself not scoped to a single company) both claim the same item
+  // and both pay for a real, duplicate generation.
+  const claim = await db.campaignItem.updateMany({
+    where: { id: item.id, status: item.status },
+    data: { status: "GENERATING" },
+  });
+  if (claim.count === 0) {
+    return "skipped";
+  }
 
   try {
     // Background jobs have no "current user" the way a request does —
@@ -190,7 +206,7 @@ export async function processSingleCampaignItem(item: DueItem): Promise<boolean>
         data: { status: "READY", posterId: result.posterId, errorMessage: null },
       });
     }
-    return true;
+    return "succeeded";
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
     const nextRetryCount = item.retryCount + 1;
@@ -206,7 +222,7 @@ export async function processSingleCampaignItem(item: DueItem): Promise<boolean>
         nextAttemptAt: isPermanent ? item.nextAttemptAt : new Date(Date.now() + backoffSec * 1000),
       },
     });
-    return false;
+    return "failed";
   }
 }
 

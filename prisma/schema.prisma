@@ -543,6 +543,16 @@ model CampaignItem {
   retryCount    Int      @default(0)
   nextAttemptAt DateTime @default(now())
 
+  // Real compare-and-swap lock for publishCampaignItemViaAggregator
+  // (campaign-publish.ts) — that path has no PublishJob/status field of
+  // its own to guard a concurrent double-publish the way GENERATING and
+  // PublishJob.PUBLISHING already do. null = not currently publishing;
+  // set right before the real aggregator call, cleared in a finally
+  // regardless of outcome. A lock older than the same stale-recovery
+  // window used elsewhere (STALE_PUBLISHING_MINUTES) is treated as
+  // abandoned (process killed mid-call), not a real block forever.
+  publishingLockedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
