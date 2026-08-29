@@ -230,6 +230,10 @@ export async function selectAutoAssetIds(companyId: string, attempt: number): Pr
       posterOutput: null,
       videoOutput: null,
       brandKitLogo: null,
+      // No human in the loop for this auto-select — see
+      // studio/[mode]/page.tsx's identical filter for why videoOutput:
+      // null alone isn't enough to mean "still a real, usable asset."
+      storageDeletedAt: null,
       OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
     },
     orderBy: { createdAt: "desc" },

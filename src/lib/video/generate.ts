@@ -141,7 +141,10 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   const selectedAssets =
     assetIds.length > 0
       ? await db.mediaAsset.findMany({
-          where: { id: { in: assetIds }, companyId, posterOutput: null, videoOutput: null },
+          // storageDeletedAt: null — see studio/[mode]/page.tsx's
+          // identical filter; a re-rendered video's old asset passes
+          // videoOutput:null too, even though its real file is gone.
+          where: { id: { in: assetIds }, companyId, posterOutput: null, videoOutput: null, storageDeletedAt: null },
         })
       : [];
   const orderedAssets = assetIds

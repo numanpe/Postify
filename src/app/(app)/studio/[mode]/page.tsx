@@ -213,6 +213,12 @@ async function VideoMode({
         posterOutput: null,
         videoOutput: null,
         brandKitLogo: null,
+        // A video that's since been re-rendered/edited reassigns
+        // Video.assetId away from its old asset, which makes
+        // videoOutput null again even though the real file was deleted
+        // (cleanupMediaStorage) — storageDeletedAt is the real signal
+        // this asset is gone, not "currently unused."
+        storageDeletedAt: null,
         OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
       },
       orderBy: { createdAt: "asc" },

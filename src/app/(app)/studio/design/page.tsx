@@ -33,6 +33,10 @@ export default async function StudioWizardStep2Page({
         posterOutput: null,
         videoOutput: null,
         brandKitLogo: null,
+        // See studio/[mode]/page.tsx's identical filter — a re-rendered
+        // video's old asset passes videoOutput:null too, even though
+        // its real file is gone.
+        storageDeletedAt: null,
         OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
       },
       orderBy: { createdAt: "asc" },
