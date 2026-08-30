@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { resolveActiveMembership } from "@/lib/session";
 import { db } from "@/lib/db";
 import { encryptSecret } from "@/lib/crypto";
 import {
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
-  const membership = await db.companyMember.findFirst({ where: { userId: session.user.id } });
+  // Real active-company resolution (src/lib/session.ts) — see the same
+  // fix in meta/callback/route.ts.
+  const membership = await resolveActiveMembership(session.user.id);
   if (!membership) {
     return NextResponse.redirect(new URL("/create-company", request.url));
   }

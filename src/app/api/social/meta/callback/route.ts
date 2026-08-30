@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { resolveActiveMembership } from "@/lib/session";
 import { encryptSecret } from "@/lib/crypto";
 import {
   buildAuthorizeUrl,
@@ -51,7 +52,11 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/login", request.url));
   }
 
-  const membership = await db.companyMember.findFirst({ where: { userId: session.user.id } });
+  // Real active-company resolution (src/lib/session.ts) — not an arbitrary
+  // findFirst — so a new connection always attaches to the company the
+  // user is actually viewing, not an undefined-order guess when they
+  // belong to more than one.
+  const membership = await resolveActiveMembership(session.user.id);
   if (!membership) {
     return NextResponse.redirect(new URL("/create-company", request.url));
   }

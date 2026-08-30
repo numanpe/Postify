@@ -37,6 +37,7 @@ import {
   Repeat2,
   Music2,
   Eye,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const NavIcons = {
   brandKit: Palette,
   settings: Settings,
   signOut: LogOut,
+  addCompany: Building2,
 } satisfies Record<string, LucideIcon>;
 
 export const ActionIcons = {

@@ -1,9 +1,42 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+
+// Shared by requireCompany() below, get-locale.ts, and the OAuth callback
+// routes (src/app/api/social/*/callback/route.ts) — one real cookie name,
+// not a string repeated at every read/write site.
+export const ACTIVE_COMPANY_COOKIE = "active_company_id";
+
+// Multi-company support: a user's CompanyMember rows are the real list of
+// companies they belong to (already many-to-many, no schema change needed
+// here); this resolves which ONE is currently active. A stale/invalid
+// cookie (a removed membership, a company that no longer exists) silently
+// falls back to the oldest membership — the app's exact pre-multi-company
+// behavior — never an error, since a bad cookie value should never lock a
+// real user out of their own company.
+//
+// cache()-wrapped for the same reason requireUser()/requireCompany() below
+// already are — requireCompany() and getLocale() (and, per-request, the
+// OAuth callback routes) all call this independently; without cache() that
+// would reintroduce the exact "N un-deduplicated round trips per request"
+// bug this file's requireUser() comment already documents fixing once.
+export const resolveActiveMembership = cache(async function resolveActiveMembership(userId: string) {
+  const [cookieStore, memberships] = await Promise.all([
+    cookies(),
+    db.companyMember.findMany({
+      where: { userId },
+      include: { company: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+  if (memberships.length === 0) return null;
+  const activeId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value;
+  return memberships.find((m) => m.companyId === activeId) ?? memberships[0];
+});
 
 // Real perf bug found while diagnosing slow /studio loads: every
 // (app)/ page calls requireCompany() itself, AND the (app) layout
@@ -56,11 +89,7 @@ export const requireUser = cache(async function requireUser() {
 export const requireCompany = cache(async function requireCompany() {
   const user = await requireUser();
 
-  const membership = await db.companyMember.findFirst({
-    where: { userId: user.id },
-    include: { company: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const membership = await resolveActiveMembership(user.id);
 
   if (!membership) {
     redirect("/create-company");

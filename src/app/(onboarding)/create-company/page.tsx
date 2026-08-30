@@ -4,13 +4,23 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { WebsiteFirstOnboarding } from "@/components/onboarding/website-first-onboarding";
 
-export default async function CreateCompanyPage() {
+export default async function CreateCompanyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string }>;
+}) {
   const user = await requireUser();
+  const { new: isAddingAnother } = await searchParams;
 
   const existingMembership = await db.companyMember.findFirst({
     where: { userId: user.id },
   });
-  if (existingMembership) {
+  // Multi-company support: an existing member is normally bounced back to
+  // /media (this page is onboarding, not something a returning user should
+  // land on by accident) — except when they arrived via the real "Add
+  // another company" entry point (?new=1), which explicitly wants this
+  // exact flow to run again for a genuinely new company.
+  if (existingMembership && !isAddingAnother) {
     redirect("/media");
   }
 

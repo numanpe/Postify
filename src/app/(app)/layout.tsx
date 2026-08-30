@@ -1,8 +1,10 @@
 import { requireCompany } from "@/lib/session";
+import { db } from "@/lib/db";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { AppNav } from "@/components/app-nav";
 import { BottomNav } from "@/components/bottom-nav";
+import { CompanySwitcher } from "@/components/company-switcher";
 
 // The one place LocaleProvider renders — see the root layout's doc
 // comment for why it moved here instead of wrapping every route.
@@ -14,8 +16,18 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { company } = await requireCompany();
+  const { user, company } = await requireCompany();
   const locale = await getLocale();
+
+  // Cheap on top of requireCompany()'s own membership lookup (id/name
+  // only, no include) — only used to decide whether a switcher is worth
+  // showing at all. Most users have exactly one company; the plain
+  // company-name label below stays the only thing rendered for them.
+  const memberships = await db.companyMember.findMany({
+    where: { userId: user.id },
+    select: { company: { select: { id: true, name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
 
   return (
     <LocaleProvider locale={locale}>
@@ -23,7 +35,11 @@ export default async function AppLayout({
         <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-paper-border dark:border-night-border px-4 py-3">
           <div className="flex items-center gap-4">
             <span className="font-semibold">Postify</span>
-            <span className="text-sm text-ink-soft dark:text-ink-soft-dark">{company.name}</span>
+            {memberships.length > 1 ? (
+              <CompanySwitcher companies={memberships.map((m) => m.company)} activeCompanyId={company.id} />
+            ) : (
+              <span className="text-sm text-ink-soft dark:text-ink-soft-dark">{company.name}</span>
+            )}
           </div>
           <AppNav />
         </header>

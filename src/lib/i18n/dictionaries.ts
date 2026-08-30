@@ -26,6 +26,9 @@ export interface Dictionary {
     save: string; cancel: string; remove: string; delete: string; retry: string;
     regenerate: string; approve: string; processNow: string; manage: string; optional: string;
   };
+  company: {
+    switcherLabel: string; addAnother: string; switchError: string;
+  };
   errorBoundary: {
     title: string;
     message: string;
@@ -275,6 +278,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "Process now",
       manage: "Manage",
       optional: "(optional)",
+    },
+    company: {
+      switcherLabel: "Switch company",
+      addAnother: "Add another company",
+      switchError: "Couldn't switch companies — please try again.",
     },
     errorBoundary: {
       title: "Something went wrong",
@@ -880,6 +888,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "معالجة الآن",
       manage: "إدارة",
       optional: "(اختياري)",
+    },
+    company: {
+      switcherLabel: "تبديل الشركة",
+      addAnother: "إضافة شركة أخرى",
+      switchError: "تعذّر تبديل الشركة — يرجى المحاولة مرة أخرى.",
     },
     errorBoundary: {
       title: "حدث خطأ ما",

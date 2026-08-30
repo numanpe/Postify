@@ -2,13 +2,27 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 import { db } from "@/lib/db";
-import { requireUser, requireCompany } from "@/lib/session";
+import { requireUser, requireCompany, ACTIVE_COMPANY_COOKIE } from "@/lib/session";
 import { INDUSTRIES } from "@/lib/industries";
 import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+
+// Shared by createCompany and switchActiveCompany below — one real place
+// for the cookie's write options.
+async function setActiveCompanyCookie(companyId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_COMPANY_COOKIE, companyId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+}
 
 export type CreateCompanyState = { error: string } | { success: true } | undefined;
 
@@ -46,7 +60,7 @@ export async function createCompany(
 
   const { name, primaryIndustry, secondaryNiches, locale } = parsed.data;
 
-  await db.$transaction(async (tx) => {
+  const company = await db.$transaction(async (tx) => {
     const company = await tx.company.create({
       data: { name, primaryIndustry, secondaryNiches, locale },
     });
@@ -58,7 +72,16 @@ export async function createCompany(
     await tx.creativeDna.create({
       data: { companyId: company.id },
     });
+
+    return company;
   });
+
+  // Makes the just-created company active — otherwise resolveActiveMembership
+  // (src/lib/session.ts) falls back to the OLDEST membership when no cookie
+  // is set, and a second/third company would silently never become active
+  // on its own. Real for multi-company users; a no-op in effect for a
+  // brand-new user's first company (there's nothing else to fall back to).
+  await setActiveCompanyCookie(company.id);
 
   // No next/navigation redirect() here on purpose: that triggers a soft
   // client-router transition, which does NOT re-run the root layout —
@@ -66,6 +89,36 @@ export async function createCompany(
   // would keep showing whatever locale was current before this company
   // (and its locale) existed. The client form does a hard navigation on
   // success instead, which re-resolves everything fresh.
+  return { success: true };
+}
+
+export type SwitchCompanyState = { error: string } | { success: true } | undefined;
+
+// Backs the company switcher (src/components/company-switcher.tsx). Never
+// trusts the client-supplied companyId blindly — re-verifies real
+// membership server-side first, the same multi-tenant isolation boundary
+// requireCompany() enforces everywhere else. Like createCompany above, the
+// client does a hard navigation on success rather than a soft router
+// refresh, so <html lang/dir> and LocaleProvider correctly re-resolve for
+// the newly-active company's own locale.
+export async function switchActiveCompany(
+  _prevState: SwitchCompanyState,
+  formData: FormData,
+): Promise<SwitchCompanyState> {
+  const user = await requireUser();
+
+  const companyId = formData.get("companyId");
+  if (typeof companyId !== "string" || !companyId) {
+    return { error: "Invalid company." };
+  }
+
+  const membership = await db.companyMember.findFirst({ where: { userId: user.id, companyId } });
+  if (!membership) {
+    return { error: "You don't have access to that company." };
+  }
+
+  await setActiveCompanyCookie(companyId);
+
   return { success: true };
 }
 

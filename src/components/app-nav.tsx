@@ -46,6 +46,7 @@ export function AppNav() {
     { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
     { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
     { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
+    { href: "/create-company?new=1", label: dict.company.addAnother, icon: NavIcons.addCompany },
   ];
 
   return (
