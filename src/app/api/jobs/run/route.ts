@@ -40,25 +40,39 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   "process-publish-jobs": () => processPublishJobs(5),
   "flag-stale-media": () => flagStaleMedia(),
   "pull-engagement": () => pullEngagementData(),
-  "diag-shared-credential-schema": () => diagSharedCredentialSchema(),
 };
 
 // Same CRON_SECRET-gated pattern every job route already used — refuses
 // to run at all if CRON_SECRET isn't configured, rather than falling
 // back to an unauthenticated open endpoint.
+//
+// TEMPORARY: the diag job is gated on its own separate DIAG_SECRET
+// instead of CRON_SECRET — deliberately not reusing/rotating the real
+// CRON_SECRET for a one-off manual check, since that would risk a real
+// scheduled cron invocation failing with 401 during the window it's
+// changed. Remove this branch together with diagSharedCredentialSchema.
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const job = searchParams.get("job");
+  const authHeader = request.headers.get("authorization");
+
+  if (job === "diag-shared-credential-schema") {
+    const diagSecret = process.env.DIAG_SECRET;
+    if (!diagSecret || authHeader !== `Bearer ${diagSecret}`) {
+      return new NextResponse(null, { status: 401 });
+    }
+    return NextResponse.json(await diagSharedCredentialSchema());
+  }
+
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return new NextResponse(null, { status: 503 });
   }
 
-  const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${secret}`) {
     return new NextResponse(null, { status: 401 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const job = searchParams.get("job");
   const handler = job ? JOBS[job] : undefined;
   if (!handler) {
     return NextResponse.json({ error: `Unknown job: ${job ?? "(missing)"}` }, { status: 400 });
