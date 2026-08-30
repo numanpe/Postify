@@ -194,7 +194,17 @@ export class GeminiTextProvider implements TextProvider {
       console.error(
         `[GeminiTextProvider.generateScript] JSON.parse failed — finishReason=${finishReason ?? "(none)"}, contentLength=${content.length}, content=${content.slice(0, 2000)}`,
       );
-      throw new ProviderError(this.name, "Google Gemini returned malformed script JSON.", error);
+      // finishReason folded into the message itself (not just the
+      // console.error above) so it's captured durably too, via the
+      // fallback chain's ProviderFallbackEvent log (text/resolver.ts) —
+      // real visibility that survives past Vercel's short-lived log
+      // retention, not dependent on catching a live --follow stream at
+      // the exact right moment.
+      throw new ProviderError(
+        this.name,
+        `Google Gemini returned malformed script JSON (finishReason=${finishReason ?? "none"}, length=${content.length}).`,
+        error,
+      );
     }
 
     if (typeof parsed !== "object" || parsed === null) {

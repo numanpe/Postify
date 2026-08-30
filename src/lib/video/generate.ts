@@ -12,6 +12,7 @@ import { ProviderError } from "@/lib/providers/text/types";
 import { VoiceProviderError } from "@/lib/providers/voice/types";
 import type { WordTimestamp } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
+import { IMAGE_SHARED_POOL_NAME } from "@/lib/providers/image/shared-image-pool";
 import { getMusicForIndustry } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
 import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
@@ -171,6 +172,14 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   // degraded/fake output.
   const MAX_FREE_AI_STILLS_PER_VIDEO = 2;
   const freeAiStills: { buffer: Buffer; mimeType: string; thumbnailStorageKey: string | null }[] = [];
+  // Real count of calls that actually used the shared pool this video —
+  // driven by each result's own providerName, not the resolver's
+  // upfront `source` hint. A company's BYOK credential can now silently
+  // fall through to the shared pool mid-generation (image/resolver.ts's
+  // fallback chain), so `source === "BYOK"` no longer guarantees every
+  // call in this loop stayed on the company's own uncapped quota —
+  // only checking the real per-call result keeps this cap honest.
+  let freePoolCallsUsed = 0;
 
   const { width, height } = POSTER_DIMENSIONS[aspectRatio];
   const scenes: VideoSceneInput[] = [];
@@ -195,8 +204,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       continue;
     }
 
-    const atFreePoolCap =
-      imageResolution?.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_VIDEO;
+    const atFreePoolCap = freePoolCallsUsed >= MAX_FREE_AI_STILLS_PER_VIDEO;
 
     if (imageResolution && !atFreePoolCap) {
       try {
@@ -209,7 +217,8 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           heightPx: height,
         });
         const thumbnailStorageKey = await captureSceneThumbnail(companyId, "AI_STILL", result.buffer, result.mimeType);
-        if (imageResolution.source === "SHARED_POOL") {
+        if (result.providerName === IMAGE_SHARED_POOL_NAME) {
+          freePoolCallsUsed += 1;
           freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType, thumbnailStorageKey });
         }
         scenes.push({ section, kind: "AI_STILL", buffer: result.buffer, mimeType: result.mimeType });
@@ -230,7 +239,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       continue;
     }
 
-    if (imageResolution?.source === "SHARED_POOL" && freeAiStills.length > 0) {
+    if (freeAiStills.length > 0) {
       const reused = freeAiStills[i % freeAiStills.length];
       scenes.push({ section, kind: "AI_STILL", buffer: reused.buffer, mimeType: reused.mimeType });
       sceneProvenance.push({

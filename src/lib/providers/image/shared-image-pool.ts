@@ -11,6 +11,13 @@ import {
 
 const SHARED_POOL_PROVIDER = "CLOUDFLARE" as const;
 
+// Matches CloudflareFluxImageProvider/CloudflareSdxlImageProvider's own
+// `name` field — exported so callers (image/resolver.ts,
+// video/generate.ts) can recognize "this result actually came from the
+// shared pool" from a GenerateBackgroundOutput.providerName without
+// hardcoding the string twice.
+export const IMAGE_SHARED_POOL_NAME = "Free AI";
+
 function todayUtcDateOnly(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

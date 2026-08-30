@@ -1,3 +1,5 @@
+import type { FallbackInfo } from "../fallback-log";
+
 export interface GenerateBackgroundInput {
   companyName: string;
   industry: string;
@@ -19,6 +21,7 @@ export interface GenerateBackgroundOutput {
   buffer: Buffer;
   mimeType: string;
   providerName: string;
+  fallbackFrom?: FallbackInfo[];
 }
 
 export interface ImageProvider {

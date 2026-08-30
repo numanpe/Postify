@@ -71,6 +71,7 @@ export interface Dictionary {
     generate: string; generating: string;
     geminiNudgeText: string; geminiNudgeDismiss: string;
     sharedAiExhaustedText: string;
+    fallbackNotice: (currentProvider: string, originalProvider: string) => string;
   };
   wizard: {
     stepOf: (step: number) => string;
@@ -392,6 +393,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       geminiNudgeDismiss: "Dismiss",
       sharedAiExhaustedText:
         "Today's free AI quota is used up — templates still work, or connect your own free Gemini key in Settings for unlimited access.",
+      fallbackNotice: (currentProvider: string, originalProvider: string) =>
+        `Generated using ${currentProvider} — your ${originalProvider} had an issue this time.`,
     },
     wizard: {
       stepOf: (step: number) => `Step ${step} of 3`,
@@ -1024,6 +1027,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       geminiNudgeDismiss: "إغلاق",
       sharedAiExhaustedText:
         "انتهت حصة الذكاء الاصطناعي المجاني لهذا اليوم — القوالب لا تزال تعمل، أو اربط مفتاح Gemini المجاني الخاص بك في الإعدادات للوصول غير المحدود.",
+      fallbackNotice: (currentProvider: string, originalProvider: string) =>
+        `تم الإنشاء باستخدام ${currentProvider} — واجه ${originalProvider} مشكلة هذه المرة.`,
     },
     wizard: {
       stepOf: (step: number) => `الخطوة ${step} من 3`,

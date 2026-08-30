@@ -1,3 +1,5 @@
+import type { FallbackInfo } from "../fallback-log";
+
 export interface WordTimestamp {
   word: string;
   startSec: number;
@@ -17,6 +19,7 @@ export interface GenerateNarrationOutput {
   // captions genuinely "word-level" rather than approximate.
   words: WordTimestamp[];
   providerName: string;
+  fallbackFrom?: FallbackInfo[];
 }
 
 export interface VoiceProvider {

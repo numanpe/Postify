@@ -79,6 +79,18 @@ export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: To
               ? ` · ~$${state.estimatedCostUsd.toFixed(4)}`
               : ""}
           </p>
+          {/* Real disclosure, not cosmetic — only rendered when the
+              resolver's runtime-failure fallback chain actually kicked
+              in (text/resolver.ts), never for a first-choice provider
+              succeeding normally. Names the ORIGINAL (first failed)
+              provider, not every intermediate hop — that's the one
+              piece of information the user can actually act on (go
+              check that key in Settings). */}
+          {state.fallbackFrom && state.fallbackFrom.length > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {dict.fallbackNotice(state.providerName, state.fallbackFrom[0].fromProvider)}
+            </p>
+          )}
         </div>
       )}
     </div>

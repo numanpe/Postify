@@ -14,6 +14,18 @@ export default async function AdminPage() {
     take: 14,
   });
 
+  // Real, per-event record of the runtime-failure fallback chain
+  // (src/lib/providers/fallback-log.ts) actually kicking in — makes a
+  // provider that's failing frequently discoverable here instead of
+  // silently absorbed forever, per Part 4 of the resilient-fallback
+  // work. Most recent first; company name (not raw id) for a real
+  // admin to actually recognize at a glance.
+  const fallbackEvents = await db.providerFallbackEvent.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { company: { select: { name: true } } },
+  });
+
   const companies = await db.company.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -60,6 +72,51 @@ export default async function AdminPage() {
                     <td className="py-2 pr-4">
                       {row.exhaustedAt ? `Yes, at ${row.exhaustedAt.toLocaleTimeString()}` : "No"}
                     </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl font-semibold">Provider fallback events</h1>
+        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">
+          Real runtime failures where a configured provider failed and generation automatically fell through to the next
+          option — most recent 50. A provider showing up here repeatedly is a real signal worth investigating, not just
+          a one-off blip.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-paper-border dark:border-night-border">
+                <th className="py-2 pr-4 font-medium">When</th>
+                <th className="py-2 pr-4 font-medium">Company</th>
+                <th className="py-2 pr-4 font-medium">Capability</th>
+                <th className="py-2 pr-4 font-medium">Method</th>
+                <th className="py-2 pr-4 font-medium">From → To</th>
+                <th className="py-2 pr-4 font-medium">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fallbackEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-3 text-ink-soft dark:text-ink-soft-dark">
+                    No fallback events recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                fallbackEvents.map((event) => (
+                  <tr key={event.id} className="border-b border-paper-border dark:border-night-border align-top">
+                    <td className="py-2 pr-4 whitespace-nowrap">{event.createdAt.toLocaleString()}</td>
+                    <td className="py-2 pr-4">{event.company.name}</td>
+                    <td className="py-2 pr-4">{event.capability}</td>
+                    <td className="py-2 pr-4">{event.method}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {event.fromProvider} → {event.toProvider ?? <span className="text-red-600 dark:text-red-400">exhausted</span>}
+                    </td>
+                    <td className="py-2 pr-4 max-w-[420px]">{event.reason}</td>
                   </tr>
                 ))
               )}

@@ -7,6 +7,7 @@ import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 export type GenerateCaptionState =
   | { status: "error"; error: string }
@@ -21,6 +22,11 @@ export type GenerateCaptionState =
       // topic-guard.ts. Lets the UI show what was actually used rather
       // than silently swapping the user's input.
       usedTopic?: string;
+      // Only set when the resolver's runtime-failure fallback chain
+      // (text/resolver.ts) actually kicked in — real disclosure per
+      // this project's no-hidden-failures principle, never shown for a
+      // company's own first-choice provider succeeding normally.
+      fallbackFrom?: FallbackInfo[];
     }
   | undefined;
 
@@ -67,6 +73,7 @@ export async function generateCaption(
       model: result.model,
       estimatedCostUsd: result.estimatedCostUsd,
       usedTopic: guard.wasClarified ? guard.topic : undefined,
+      fallbackFrom: result.fallbackFrom,
     };
   } catch (error) {
     if (error instanceof TopicGuardError) {

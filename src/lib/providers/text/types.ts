@@ -1,5 +1,6 @@
 import type { CompanyContext } from "@/lib/company-context";
 import type { SocialPlatform } from "@prisma/client";
+import type { FallbackInfo } from "../fallback-log";
 
 export interface GenerateCaptionInput {
   context: CompanyContext;
@@ -20,6 +21,7 @@ export interface GenerateCaptionOutput {
   providerName: string;
   model?: string;
   estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
 }
 
 // Real backstop for malformed topic input (see topic-validation.ts /
@@ -64,6 +66,7 @@ export interface GenerateScriptOutput {
   providerName: string;
   model?: string;
   estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
 }
 
 // The AI Creative Director (src/lib/campaign/creative-director.ts) —
@@ -124,6 +127,7 @@ export interface GenerateCampaignBriefOutput {
   providerName: string;
   model?: string;
   estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
 }
 
 // Stage 2 (Visual Prompt Engineer) of the poster AI-background pipeline
@@ -157,6 +161,7 @@ export interface ExpandBackgroundPromptOutput {
     compositionStyle: "Minimalist" | "Bold Geometric" | "Organic";
   };
   providerName: string;
+  fallbackFrom?: FallbackInfo[];
 }
 
 // Real business-context derivation from a website extraction (see
@@ -184,6 +189,7 @@ export interface SummarizeBusinessContextOutput {
   products: string[];
   tone: string;
   providerName: string;
+  fallbackFrom?: FallbackInfo[];
 }
 
 export interface TextProvider {

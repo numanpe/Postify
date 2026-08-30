@@ -183,6 +183,7 @@ model Company {
   aggregatorPublishLogs AggregatorPublishLog[]
   engagementSnapshots   EngagementSnapshot[]
   creativeSignals       CreativeSignal[]
+  providerFallbackEvents ProviderFallbackEvent[]
 }
 
 enum PublishingMode {
@@ -699,6 +700,34 @@ model SharedAiUsage {
   exhaustedAt  DateTime?
 
   @@unique([provider, date])
+}
+
+// Real, per-event record of the runtime-failure fallback chain
+// (src/lib/providers/fallback-log.ts) actually kicking in — distinct
+// from SharedAiUsage above, which only tracks the shared pool's own
+// daily success/exhaustion counters. This is what makes "one provider
+// is failing frequently" discoverable from the admin panel instead of
+// silently absorbed forever, per this app's own no-hidden-failures
+// principle. Append-only, never updated — a real audit trail, not a
+// live-state table.
+model ProviderFallbackEvent {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  capability   String // "TEXT" | "VOICE" | "IMAGE"
+  method       String // e.g. "generateScript" — which capability method failed
+  fromProvider String // the provider that actually failed
+  // null means every remaining option in the chain also failed — a
+  // real, full exhaustion event, worth distinguishing from "recovered
+  // via fallback" at a glance in the admin view.
+  toProvider String?
+  reason     String
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([createdAt])
 }
 
 // FREE (default) uses the bundled edge-tts community engine — no key,
