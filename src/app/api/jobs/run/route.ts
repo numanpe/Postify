@@ -4,6 +4,27 @@ import { processCampaignItems } from "@/lib/jobs/process-campaign-items";
 import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
 import { flagStaleMedia } from "@/lib/jobs/flag-stale-media";
 import { pullEngagementData } from "@/lib/jobs/pull-engagement";
+import { db } from "@/lib/db";
+
+// TEMPORARY — real, direct confirmation that the SharedProviderCredential
+// migration applied to whatever DATABASE_URL production actually runs
+// on at runtime (not inferred from local/prod behaving the same way
+// historically). Remove this job entry once confirmed one way or the
+// other; it's a one-time diagnostic, not a permanent job.
+async function diagSharedCredentialSchema() {
+  const columns = await db.$queryRaw`
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_name = 'SharedProviderCredential'
+    ORDER BY ordinal_position
+  `;
+  const indexes = await db.$queryRaw`
+    SELECT indexname, indexdef
+    FROM pg_indexes
+    WHERE tablename = 'SharedProviderCredential'
+  `;
+  return { columns, indexes };
+}
 
 // One dispatcher route for every scheduled job, not four separate
 // route.ts files — Vercel's Hobby plan caps a deployment at 12
@@ -19,6 +40,7 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   "process-publish-jobs": () => processPublishJobs(5),
   "flag-stale-media": () => flagStaleMedia(),
   "pull-engagement": () => pullEngagementData(),
+  "diag-shared-credential-schema": () => diagSharedCredentialSchema(),
 };
 
 // Same CRON_SECRET-gated pattern every job route already used — refuses
