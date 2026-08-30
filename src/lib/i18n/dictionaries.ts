@@ -221,6 +221,22 @@ export interface Dictionary {
     deleteCompanySubmit: string; deleteCompanyDeleting: string; deleteCompanyCancel: string;
     deleteCompanyMismatch: string;
     deleteCompanyNotOwner: string;
+    scopeSectionLabel: string;
+    scopeSharedOption: string; scopeSharedOptionHint: string;
+    scopeCompanyOnlyOption: string; scopeCompanyOnlyOptionHint: string;
+    scopeSharedBadge: string;
+    scopeCompanyOnlyBadge: (companyName: string) => string;
+    shareCredentialButton: string;
+    shareCredentialConfirmTitle: string;
+    shareCredentialConfirmBody: (provider: string) => string;
+    shareCredentialConfirmSubmit: string;
+    shareCredentialCancel: string;
+    stopSharingButton: string;
+    stopSharingConfirmTitle: string;
+    stopSharingImpactBody: (companyNames: string) => string;
+    stopSharingNoImpactBody: string;
+    stopSharingConfirmSubmit: string;
+    stopSharingCancel: string;
   };
   repurpose: {
     title: string; subtitle: string;
@@ -788,6 +804,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       deleteCompanyCancel: "Cancel",
       deleteCompanyMismatch: "That doesn't match the company name.",
       deleteCompanyNotOwner: "Only the account that created this company can delete it.",
+      scopeSectionLabel: "Where should this key work?",
+      scopeSharedOption: "Use this key for all my companies",
+      scopeSharedOptionHint: "Any company you own can use it — you won't have to paste it in again.",
+      scopeCompanyOnlyOption: "Just this company",
+      scopeCompanyOnlyOptionHint: "Your other companies won't have access to this key.",
+      scopeSharedBadge: "Shared across all your companies",
+      scopeCompanyOnlyBadge: (companyName: string) => `Only used for ${companyName}`,
+      shareCredentialButton: "Share across my companies",
+      shareCredentialConfirmTitle: "Share this key with all your companies?",
+      shareCredentialConfirmBody: (provider: string) =>
+        `Every company you own will be able to use this ${provider} key. You can stop sharing it again at any time.`,
+      shareCredentialConfirmSubmit: "Share it",
+      shareCredentialCancel: "Cancel",
+      stopSharingButton: "Stop sharing",
+      stopSharingConfirmTitle: "Stop sharing this key?",
+      stopSharingImpactBody: (companyNames: string) =>
+        `These companies are currently using this shared key and will lose access immediately: ${companyNames}. They can add their own key afterward.`,
+      stopSharingNoImpactBody: "No other company of yours is currently using this shared key.",
+      stopSharingConfirmSubmit: "Stop sharing",
+      stopSharingCancel: "Cancel",
     },
     repurpose: {
       title: "Repurpose This",
@@ -1397,6 +1433,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       deleteCompanyCancel: "إلغاء",
       deleteCompanyMismatch: "هذا لا يطابق اسم الشركة.",
       deleteCompanyNotOwner: "فقط الحساب الذي أنشأ هذه الشركة يمكنه حذفها.",
+      scopeSectionLabel: "أين يجب أن يعمل هذا المفتاح؟",
+      scopeSharedOption: "استخدم هذا المفتاح لكل شركاتي",
+      scopeSharedOptionHint: "يمكن لأي شركة تملكها استخدامه — لن تحتاج إلى لصقه مرة أخرى.",
+      scopeCompanyOnlyOption: "لهذه الشركة فقط",
+      scopeCompanyOnlyOptionHint: "لن يكون لشركاتك الأخرى إمكانية الوصول إلى هذا المفتاح.",
+      scopeSharedBadge: "مشترك بين جميع شركاتك",
+      scopeCompanyOnlyBadge: (companyName: string) => `يُستخدم فقط لـ ${companyName}`,
+      shareCredentialButton: "مشاركته بين شركاتي",
+      shareCredentialConfirmTitle: "هل تريد مشاركة هذا المفتاح مع جميع شركاتك؟",
+      shareCredentialConfirmBody: (provider: string) =>
+        `ستتمكن كل شركة تملكها من استخدام مفتاح ${provider} هذا. يمكنك إيقاف مشاركته في أي وقت.`,
+      shareCredentialConfirmSubmit: "شارِكه",
+      shareCredentialCancel: "إلغاء",
+      stopSharingButton: "إيقاف المشاركة",
+      stopSharingConfirmTitle: "هل تريد إيقاف مشاركة هذا المفتاح؟",
+      stopSharingImpactBody: (companyNames: string) =>
+        `هذه الشركات تستخدم هذا المفتاح المشترك حاليًا وستفقد الوصول إليه فورًا: ${companyNames}. يمكنها إضافة مفتاحها الخاص لاحقًا.`,
+      stopSharingNoImpactBody: "لا توجد شركة أخرى تابعة لك تستخدم هذا المفتاح المشترك حاليًا.",
+      stopSharingConfirmSubmit: "إيقاف المشاركة",
+      stopSharingCancel: "إلغاء",
     },
     repurpose: {
       title: "إعادة توظيف المحتوى",

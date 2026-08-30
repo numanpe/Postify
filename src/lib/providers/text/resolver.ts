@@ -9,6 +9,7 @@ import { AnthropicTextProvider } from "./anthropic-provider";
 import { GeminiTextProvider } from "./gemini-provider";
 import { resolveSharedOrTemplateTextProvider } from "./shared-pool";
 import { withDeletionAvoidance } from "@/lib/creative-dna/deletion-avoidance";
+import { findSharedProviderCredential } from "../shared-provider-credential";
 
 // The two-click rule: callers never choose a provider, they just ask
 // for "the" provider for a company. BYOK wins when configured; the free
@@ -36,10 +37,15 @@ export async function getTextProviderForCompany(companyId: string): Promise<Text
   // keeps winning even after a later Gemini key is added for images
   // only, and a Gemini key added first (e.g. via onboarding) becomes
   // the text default same as any other provider would.
-  const credential = await db.providerCredential.findFirst({
-    where: { companyId, provider: { in: ["OPENAI", "ANTHROPIC", "GEMINI"] } },
-    orderBy: { createdAt: "asc" },
-  });
+  // Company-owned credential first, then this user's opt-in shared
+  // credential (Part 3 of the shared-credentials feature) — never the
+  // other way around, so a company that saved its own key is never
+  // silently switched onto a shared one.
+  const credential =
+    (await db.providerCredential.findFirst({
+      where: { companyId, provider: { in: ["OPENAI", "ANTHROPIC", "GEMINI"] } },
+      orderBy: { createdAt: "asc" },
+    })) ?? (await findSharedProviderCredential(companyId, ["OPENAI", "ANTHROPIC", "GEMINI"], "asc"));
 
   // No BYOK: try the platform-held, zero-setup "Free AI" shared pool
   // first (falls back to the deterministic template per-call on any

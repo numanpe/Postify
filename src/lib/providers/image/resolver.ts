@@ -7,16 +7,20 @@ import { GradientBackgroundProvider, type GradientColors } from "./gradient-prov
 import { OpenAIImageProvider } from "./openai-image-provider";
 import { GeminiImageProvider } from "./gemini-image-provider";
 import { resolveSharedImagePool, resolveSharedImagePoolForVideo } from "./shared-image-pool";
+import { findSharedProviderCredential } from "../shared-provider-credential";
 
 // No explicit "which BYOK image provider is active" selector exists on
 // Company — same real, pre-existing pattern the voice resolver already
 // has with 3 options. `desc` breaks ties in favor of whichever was
 // saved/updated most recently if a company somehow has both.
 async function getByokImageCredential(companyId: string): Promise<ImageProvider | null> {
-  const credential = await db.providerCredential.findFirst({
-    where: { companyId, provider: { in: ["OPENAI", "GEMINI"] } },
-    orderBy: { createdAt: "desc" },
-  });
+  // Company-owned credential first, then this user's opt-in shared
+  // credential — same priority order every resolver uses.
+  const credential =
+    (await db.providerCredential.findFirst({
+      where: { companyId, provider: { in: ["OPENAI", "GEMINI"] } },
+      orderBy: { createdAt: "desc" },
+    })) ?? (await findSharedProviderCredential(companyId, ["OPENAI", "GEMINI"], "desc"));
   if (!credential) return null;
 
   const apiKey = decryptSecret(credential.encryptedKey);

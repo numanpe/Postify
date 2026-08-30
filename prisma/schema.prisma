@@ -48,6 +48,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   sentAdminInvites     AdminInvite[]    @relation("AdminInviteSender")
   adminActions         AdminActionLog[] @relation("AdminActionActor")
+  sharedProviderCredentials SharedProviderCredential[]
 }
 
 enum AdminRole {
@@ -735,6 +736,36 @@ model ProviderCredential {
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, provider])
+}
+
+// Opt-in, user-owned counterpart to ProviderCredential. A company-scoped
+// row always wins in resolution (see each resolver's getByok*Credential
+// helper) — this is only ever consulted as a fallback, and only for
+// companies the owning user is actually a member of (never global). Kept
+// as its own table rather than making ProviderCredential.companyId
+// nullable: zero migration risk to that table's existing rows, unique
+// constraint, and the 3 resolvers already built against it.
+//
+// Scope explicitly limited to the 5 AI providers (ProviderCredential's
+// AiProviderKind) for now — AggregatorCredential (Zernio/PostProxy/
+// Upload-Post/Buffer) also carries a per-company accountMap (which
+// social account on the aggregator's own dashboard THIS company
+// connected) that can't be shared the same way even when the API key
+// is identical, so sharing that credential type needs its own design,
+// not a rushed version bolted onto this one.
+model SharedProviderCredential {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider     AiProviderKind
+  encryptedKey String
+  keyPreview   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
 }
 
 enum SocialPlatform {

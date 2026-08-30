@@ -1,9 +1,10 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
-import { removeProviderCredential } from "@/lib/actions/provider-credentials";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getCompaniesRelyingOnSharedCredential } from "@/lib/providers/shared-provider-credential";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
+import { ProviderCredentialRow } from "@/components/settings/provider-credential-row";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { MusicCredits } from "@/components/settings/music-credits";
@@ -13,9 +14,12 @@ import { CreativeDnaPreferencesPanel, type Dimension, type PreferenceRow } from 
 import { DeleteCompanySection } from "@/components/settings/delete-company-section";
 import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import { ActionIcons } from "@/components/icons";
+import type { AiProviderKind } from "@prisma/client";
 
-// Brand names — not translated regardless of locale.
-const PROVIDER_LABELS: Record<string, string> = {
+// Brand names — not translated regardless of locale. CLOUDFLARE
+// excluded on purpose: it's the platform-held free pool, never a BYOK
+// credential a user can save (see AiProviderKind's own schema comment).
+const PROVIDER_LABELS: Record<Exclude<AiProviderKind, "CLOUDFLARE">, string> = {
   OPENAI: "OpenAI",
   ANTHROPIC: "Anthropic",
   ELEVENLABS: "ElevenLabs",
@@ -24,14 +28,19 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 export default async function SettingsPage() {
-  const { company, role } = await requireCompany();
+  const { user, company, role } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [credentials, aggregatorCredentials, creativeDna] = await Promise.all([
+  const [credentials, sharedCredentials, companyCount, aggregatorCredentials, creativeDna] = await Promise.all([
     db.providerCredential.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "asc" },
     }),
+    db.sharedProviderCredential.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.companyMember.count({ where: { userId: user.id } }),
     db.aggregatorCredential.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "asc" },
@@ -43,6 +52,34 @@ export default async function SettingsPage() {
     }),
   ]);
   const scores = creativeDna?.confidenceScores as Partial<CreativeDnaConfidenceScores> | undefined;
+
+  // Per provider, show whichever credential is actually active for this
+  // company — same company-first-then-shared priority the resolvers use
+  // (src/lib/providers/shared-provider-credential.ts) — never both, so
+  // the list never implies two keys are in play when only one is used.
+  const sharedByProvider = new Map(sharedCredentials.map((c) => [c.provider, c]));
+  const activeRows = await Promise.all(
+    (Object.keys(PROVIDER_LABELS) as (keyof typeof PROVIDER_LABELS)[])
+      .map((provider) => {
+        const companyOwned = credentials.find((c) => c.provider === provider);
+        if (companyOwned) {
+          return { provider, id: companyOwned.id, keyPreview: companyOwned.keyPreview, scope: "COMPANY_ONLY" as const };
+        }
+        const shared = sharedByProvider.get(provider);
+        if (shared) {
+          return { provider, id: shared.id, keyPreview: shared.keyPreview, scope: "SHARED" as const };
+        }
+        return null;
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .map(async (row) => ({
+        ...row,
+        impactCompanyNames:
+          row.scope === "SHARED"
+            ? (await getCompaniesRelyingOnSharedCredential(user.id, row.provider, company.id)).map((c) => c.companyName)
+            : [],
+      })),
+  );
 
   // Built server-side, not passed as a live dict lookup into the client
   // panel below — dict.settings.preferencesPositive/Negative are
@@ -81,30 +118,24 @@ export default async function SettingsPage() {
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.settings.subtitle}</p>
       </div>
 
-      {credentials.length > 0 && (
+      {activeRows.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {credentials.map((credential) => (
-            <li
-              key={credential.id}
-              className="flex items-center justify-between rounded-md border border-paper-border dark:border-night-border px-3 py-2 text-sm"
-            >
-              <span>
-                {PROVIDER_LABELS[credential.provider] ?? credential.provider} — •••• {credential.keyPreview}
-              </span>
-              <form action={removeProviderCredential.bind(null, credential.id)}>
-                <button
-                  type="submit"
-                  className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark"
-                >
-                  {dict.common.remove}
-                </button>
-              </form>
-            </li>
+          {activeRows.map((row) => (
+            <ProviderCredentialRow
+              key={row.id}
+              id={row.id}
+              providerLabel={PROVIDER_LABELS[row.provider] ?? row.provider}
+              keyPreview={row.keyPreview}
+              scope={row.scope}
+              companyName={company.name}
+              canShare={companyCount > 1}
+              impactCompanyNames={row.impactCompanyNames}
+            />
           ))}
         </ul>
       )}
 
-      <ProviderCredentialForm />
+      <ProviderCredentialForm showScopeChoice={companyCount > 1} />
 
       <VoiceEngineToggle currentEngine={company.voiceEngine} />
 

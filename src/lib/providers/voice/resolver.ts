@@ -7,6 +7,7 @@ import { OpenAIVoiceProvider } from "./openai-voice-provider";
 import { ElevenLabsVoiceProvider } from "./elevenlabs-voice-provider";
 import { FishAudioVoiceProvider } from "./fish-audio-voice-provider";
 import { EdgeVoiceProvider } from "./edge-voice-provider";
+import { findSharedProviderCredential } from "../shared-provider-credential";
 
 // Unlike the text/image resolvers, this is an explicit per-company
 // choice (Company.voiceEngine), not "BYOK wins if a key exists" —
@@ -32,10 +33,13 @@ export async function getVoiceProviderForCompany(companyId: string): Promise<Voi
   // switching, so at most one of these three normally exists at a
   // time; `desc` breaks ties in favor of whichever was saved/updated
   // most recently if more than one somehow does.
-  const credential = await db.providerCredential.findFirst({
-    where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
-    orderBy: { createdAt: "desc" },
-  });
+  // Company-owned credential first, then this user's opt-in shared
+  // credential — same priority order every resolver uses.
+  const credential =
+    (await db.providerCredential.findFirst({
+      where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
+      orderBy: { createdAt: "desc" },
+    })) ?? (await findSharedProviderCredential(companyId, ["OPENAI", "ELEVENLABS", "FISH_AUDIO"], "desc"));
   if (!credential) return null;
 
   const apiKey = decryptSecret(credential.encryptedKey);
