@@ -25,6 +25,7 @@ export interface Dictionary {
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
     regenerate: string; approve: string; processNow: string; manage: string; optional: string;
+    skipToContent: string;
   };
   company: {
     switcherLabel: string; addAnother: string; switchError: string;
@@ -149,6 +150,7 @@ export interface Dictionary {
     durationApply: string;
     previewSingle: string; previewMulti: (days: number) => string;
     useAiBackgrounds: string; useAiBackgroundsDisclosure: string;
+    angleLabel: string;
   };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
@@ -169,6 +171,7 @@ export interface Dictionary {
     upload: string; uploading: string; noLongerAvailable: string;
     activityTitle: string; activityPublished: (label: string) => string;
     activityPublishFailed: (label: string) => string; activityGenerationFailed: (label: string) => string;
+    uploadFilesLabel: string;
   };
   brandKit: {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
@@ -278,6 +281,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "Process now",
       manage: "Manage",
       optional: "(optional)",
+      skipToContent: "Skip to content",
     },
     company: {
       switcherLabel: "Switch company",
@@ -570,6 +574,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       useAiBackgrounds: "Use AI backgrounds for this campaign's posters",
       useAiBackgroundsDisclosure:
         "Uses today's shared free AI quota — if it runs out partway through a large campaign, remaining posts automatically use your brand style instead. Off by default; your brand gradient always works with zero limits.",
+      angleLabel: "Angle",
     },
     publish: {
       title: "Publish",
@@ -629,6 +634,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       activityPublished: (label: string) => `Published: ${label}`,
       activityPublishFailed: (label: string) => `Publish failed: ${label}`,
       activityGenerationFailed: (label: string) => `${label} — a post failed to generate`,
+      uploadFilesLabel: "Choose photos, videos, or audio files to upload",
     },
     brandKit: {
       title: "Brand Kit",
@@ -888,6 +894,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       processNow: "معالجة الآن",
       manage: "إدارة",
       optional: "(اختياري)",
+      skipToContent: "تخطَّ إلى المحتوى",
     },
     company: {
       switcherLabel: "تبديل الشركة",
@@ -1179,6 +1186,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       useAiBackgrounds: "استخدام خلفيات بالذكاء الاصطناعي لمنشورات هذه الحملة",
       useAiBackgroundsDisclosure:
         "يستخدم حصة الذكاء الاصطناعي المجانية المشتركة لليوم — إذا نفدت في منتصف حملة كبيرة، ستستخدم المنشورات المتبقية أسلوب علامتك التجارية تلقائيًا. معطّل افتراضيًا؛ التدرج اللوني لعلامتك يعمل دائمًا بلا حدود.",
+      angleLabel: "الزاوية",
     },
     publish: {
       title: "النشر",
@@ -1238,6 +1246,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       activityPublished: (label: string) => `تم النشر: ${label}`,
       activityPublishFailed: (label: string) => `فشل النشر: ${label}`,
       activityGenerationFailed: (label: string) => `${label} — فشل إنشاء أحد المنشورات`,
+      uploadFilesLabel: "اختر صورًا أو فيديوهات أو ملفات صوتية لرفعها",
     },
     brandKit: {
       title: "هوية العلامة",

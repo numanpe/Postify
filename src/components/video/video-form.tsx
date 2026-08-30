@@ -203,15 +203,27 @@ export function VideoForm({
       </div>
 
       {pending && longWaitLevel === "slow" && (
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.generatingSlowNotice}</p>
+        <p role="status" className="text-sm text-ink-soft dark:text-ink-soft-dark">
+          {dict.generatingSlowNotice}
+        </p>
       )}
       {pending && longWaitLevel === "verySlow" && (
-        <p className="text-sm text-amber-600 dark:text-amber-400">{dict.generatingVerySlowWarning}</p>
+        <p role="status" className="text-sm text-amber-600 dark:text-amber-400">
+          {dict.generatingVerySlowWarning}
+        </p>
       )}
-      {silentFailure && <p className="text-sm text-red-600 dark:text-red-400">{dict.generatingSilentFailure}</p>}
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {silentFailure && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {dict.generatingSilentFailure}
+        </p>
+      )}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state?.status === "success" && (
-        <div className="flex flex-col gap-1">
+        <div role="status" className="flex flex-col gap-1">
           <p className="text-sm text-green-700 dark:text-green-400">{dict.generatedSuccess}</p>
           {state.usedTopic && (
             <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.usedTopic)}</p>

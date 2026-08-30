@@ -12,7 +12,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
   if (state?.status === "success") {
     return (
       <div className="flex w-full max-w-sm flex-col gap-4">
-        <p className="text-sm">Your password has been reset.</p>
+        <p role="status" className="text-sm">
+          Your password has been reset.
+        </p>
         <Link href="/auth/login" className="text-sm font-medium text-ink dark:text-ink-dark underline">
           Log in
         </Link>
@@ -39,7 +41,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
         />
       </div>
 
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
 
       <Button type="submit" pending={pending} pendingLabel="Resetting…">
         Reset password

@@ -29,6 +29,7 @@ export function PublishDirectButton({
         name="socialAccountId"
         required
         disabled={pending}
+        aria-label={dict.selectAccount}
         className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5 text-base disabled:opacity-60"
       >
         {accounts.map((a) => (

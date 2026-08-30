@@ -32,13 +32,16 @@ export function UploadMediaForm() {
         multiple
         required
         accept="image/*,video/*,audio/*"
+        aria-label={dict.uploadFilesLabel}
         className="text-sm"
       />
       <Button type="submit" pending={pending} pendingLabel={dict.uploading} size="sm" className="w-fit">
         {dict.upload}
       </Button>
       {state?.error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
       ) : (
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.uploadHint}</p>
       )}

@@ -170,7 +170,11 @@ export function WizardStep1Form({
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.autoGenerateHint}</p>
       </form>
 
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
 
       {state?.status === "success" && (
         <div className="flex flex-col gap-4 rounded-md border border-paper-border p-4 dark:border-night-border">

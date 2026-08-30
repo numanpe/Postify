@@ -48,6 +48,7 @@ export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: To
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder={dict.topicPlaceholder}
+            aria-label={dict.topicPlaceholder}
             required
             className="flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           />
@@ -59,7 +60,11 @@ export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: To
         <TopicSuggestions suggestions={topicSuggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
       </form>
 
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state?.status === "success" && state.usedTopic && (
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{topicGuardDict.clarifiedNotice(state.usedTopic)}</p>
       )}

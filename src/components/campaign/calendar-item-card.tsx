@@ -248,6 +248,7 @@ export async function CalendarItemCard({
               name="angle"
               defaultValue={item.angle}
               rows={2}
+              aria-label={dict.campaigns.angleLabel}
               className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-1 py-0.5 text-base"
             />
             <button type="submit" className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-paper-border dark:border-night-border px-1.5 py-0.5">

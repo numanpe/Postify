@@ -164,7 +164,11 @@ export function CampaignForm({
         {days > 1 ? dict.previewMulti(days) : dict.previewSingle}
       </p>
 
-      {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.submitPending}>
         {dict.submit}

@@ -70,7 +70,11 @@ export function DeleteCompanySection({ companyName }: { companyName: string }) {
             />
           </div>
 
-          {state && "error" in state && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+          {state && "error" in state && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {state.error}
+            </p>
+          )}
 
           <div className="flex gap-2">
             {/* Not the shared Button component — that's brand-red by

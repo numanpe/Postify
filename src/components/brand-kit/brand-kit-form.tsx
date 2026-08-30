@@ -161,7 +161,11 @@ export function BrandKitForm({ brandKit }: { brandKit: BrandKitDefaults }) {
           />
         </div>
 
-        {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+        {state?.error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {state.error}
+          </p>
+        )}
 
         <Button type="submit" pending={pending} pendingLabel={dict.saving}>
           {dict.save}
@@ -205,7 +209,11 @@ function WebsiteImportPanel({
         </Button>
       </form>
 
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
 
       {state?.status === "success" && (
         <div className="flex flex-col gap-4 border-t border-paper-border dark:border-night-border pt-3">
@@ -372,8 +380,16 @@ function BusinessContextReview({
         <input type="hidden" name="businessDescription" value={description} />
         <input type="hidden" name="tone" value={tone} />
         <input type="hidden" name="additionalNiches" value={addedNiches.join(",")} />
-        {state && "error" in state && <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>}
-        {state && "success" in state && <p className="text-xs text-green-700 dark:text-green-400">{dict.importApplied}</p>}
+        {state && "error" in state && (
+          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+            {state.error}
+          </p>
+        )}
+        {state && "success" in state && (
+          <p role="status" className="text-xs text-green-700 dark:text-green-400">
+            {dict.importApplied}
+          </p>
+        )}
         <Button type="submit" size="sm" pending={pending} pendingLabel={dict.saving}>
           {dict.importApplyContext}
         </Button>

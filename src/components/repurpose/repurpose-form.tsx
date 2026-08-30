@@ -199,7 +199,11 @@ export function RepurposeForm({
           </label>
         </div>
 
-        {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+        {state?.status === "error" && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {state.error}
+          </p>
+        )}
 
         <Button type="submit" pending={pending} pendingLabel={dict.generating}>
           {dict.generate}

@@ -195,7 +195,7 @@ export default async function MediaPage() {
                 ) : asset.mimeType.startsWith("image/") ? (
                   <Image
                     src={storage.url(asset.storageKey)}
-                    alt={asset.fileName}
+                    alt={asset.posterOutput?.headline ?? asset.videoOutput?.topic ?? asset.fileName}
                     width={asset.width ?? 300}
                     height={asset.height ?? 300}
                     className="h-full w-full object-cover"

@@ -58,6 +58,7 @@ export function WebsiteFirstOnboarding() {
             name="websiteUrl"
             type="text"
             placeholder={dict.websiteUrlPlaceholder}
+            aria-label={dict.websiteUrlPlaceholder}
             required
             className={`${fieldClass} flex-1`}
           />
@@ -66,7 +67,9 @@ export function WebsiteFirstOnboarding() {
           </Button>
         </form>
         {extractState?.status === "error" && (
-          <p className="text-sm text-red-600 dark:text-red-400">{extractState.error}</p>
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {extractState.error}
+          </p>
         )}
         <button
           type="button"
@@ -313,7 +316,11 @@ function OnboardingReview({
         </div>
       </div>
 
-      {state && "error" in state && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state && "error" in state && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.creating}>
         {dict.createAndContinue}

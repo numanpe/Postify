@@ -173,9 +173,15 @@ export function VideoEditModal({
               />
             </div>
 
-            {trimState && "error" in trimState && <p className="text-red-600 dark:text-red-400">{trimState.error}</p>}
+            {trimState && "error" in trimState && (
+              <p role="alert" className="text-red-600 dark:text-red-400">
+                {trimState.error}
+              </p>
+            )}
             {trimState && "success" in trimState && (
-              <p className="text-green-700 dark:text-green-400">{dict.editVideoSaved}</p>
+              <p role="status" className="text-green-700 dark:text-green-400">
+                {dict.editVideoSaved}
+              </p>
             )}
 
             <Button type="submit" size="sm" pending={trimPending} pendingLabel={dict.editVideoSaving}>
@@ -255,9 +261,13 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
       })}
 
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.editReRendersWholeVideo}</p>
-      {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
+      {state && "error" in state && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state && "success" in state && (
-        <p className="text-green-700 dark:text-green-400">
+        <p role="status" className="text-green-700 dark:text-green-400">
           {dict.scriptEditorSaved} {dict.editSuccessPreview}
         </p>
       )}
@@ -389,7 +399,11 @@ function SceneMediaUploadField({
           }}
         />
       </label>
-      {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
+      {state && "error" in state && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
     </div>
   );
 }
@@ -436,6 +450,7 @@ function SceneMediaSwapButton({
             <select
               value={selectedAssetId}
               onChange={(e) => setSelectedAssetId(e.target.value)}
+              aria-label={dict.sceneMediaSwapPickTitle}
               className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
             >
               {sceneMediaAssets.map((a) => (
@@ -532,6 +547,7 @@ function SceneMediaSwapForm({
             name="assetId"
             value={selectedAssetId}
             onChange={(e) => setSelectedAssetId(e.target.value)}
+            aria-label={dict.sceneMediaSwapPickTitle}
             className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
           >
             {assets.map((a) => (
@@ -563,8 +579,16 @@ function SceneMediaSwapForm({
       <button type="button" onClick={() => onClose()} className="text-start text-ink-soft dark:text-ink-soft-dark">
         {dict.sceneMediaSwapCancel}
       </button>
-      {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
-      {state && "success" in state && <p className="text-green-700 dark:text-green-400">{dict.sceneMediaSwapSaved}</p>}
+      {state && "error" in state && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
+      {state && "success" in state && (
+        <p role="status" className="text-green-700 dark:text-green-400">
+          {dict.sceneMediaSwapSaved}
+        </p>
+      )}
     </form>
   );
 }
@@ -726,9 +750,13 @@ function NonNarratedSceneEditor({
           );
         })()}
 
-      {state && "error" in state && <p className="text-red-600 dark:text-red-400">{state.error}</p>}
+      {state && "error" in state && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state && "success" in state && (
-        <p className="text-green-700 dark:text-green-400">
+        <p role="status" className="text-green-700 dark:text-green-400">
           {dict.sceneEditorSaved} {dict.editSuccessPreview}
         </p>
       )}

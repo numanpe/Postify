@@ -28,7 +28,10 @@ export function LoginForm({ googleConfigured, status }: { googleConfigured: bool
   return (
     <div className="flex w-full max-w-sm flex-col gap-4">
       {statusMessage && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <p
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
+        >
           {statusMessage}
         </p>
       )}
@@ -80,7 +83,11 @@ export function LoginForm({ googleConfigured, status }: { googleConfigured: bool
           />
         </div>
 
-        {state?.error && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+        {state?.error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {state.error}
+          </p>
+        )}
 
         <Button type="submit" pending={pending} pendingLabel="Logging in…">
           Log in

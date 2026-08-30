@@ -198,16 +198,22 @@ export function PosterForm({
         </div>
       )}
 
-      {state?.status === "error" && <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state?.status === "success" && state.warnings.length > 0 && (
-        <ul className="flex flex-col gap-1 text-sm text-amber-600 dark:text-amber-400">
+        <ul role="status" className="flex flex-col gap-1 text-sm text-amber-600 dark:text-amber-400">
           {state.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
         </ul>
       )}
       {state?.status === "success" && (
-        <p className="text-sm text-green-700 dark:text-green-400">{dict.generatedSuccess}</p>
+        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+          {dict.generatedSuccess}
+        </p>
       )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.generating}>

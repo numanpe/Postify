@@ -34,9 +34,15 @@ export function RegenerateBackgroundButton({ posterId }: { posterId: string }) {
       >
         {pending ? dict.regeneratingBackground : dict.regenerateBackground}
       </button>
-      {state?.status === "error" && <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>}
+      {state?.status === "error" && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
       {state?.status === "success" && (
-        <p className="text-xs text-green-700 dark:text-green-400">{dict.regenerateBackgroundSuccess}</p>
+        <p role="status" className="text-xs text-green-700 dark:text-green-400">
+          {dict.regenerateBackgroundSuccess}
+        </p>
       )}
     </form>
   );
