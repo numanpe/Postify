@@ -46,7 +46,12 @@ export default async function AppLayout({
             {memberships.length > 1 ? (
               <CompanySwitcher companies={memberships.map((m) => m.company)} activeCompanyId={company.id} />
             ) : (
-              <span className="text-sm text-ink-soft dark:text-ink-soft-dark">{company.name}</span>
+              <span
+                className="max-w-[140px] truncate text-sm text-ink-soft dark:text-ink-soft-dark sm:max-w-[280px] md:max-w-none"
+                title={company.name}
+              >
+                {company.name}
+              </span>
             )}
           </div>
           <AppNav />

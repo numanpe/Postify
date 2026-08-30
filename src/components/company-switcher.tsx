@@ -37,7 +37,7 @@ export function CompanySwitcher({
         disabled={pending}
         aria-label={dict.switcherLabel}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
-        className="rounded border border-paper-border dark:border-night-border bg-paper text-sm text-ink dark:bg-night-card dark:text-ink-dark px-1.5 py-0.5 disabled:opacity-60"
+        className="max-w-[140px] truncate rounded border border-paper-border dark:border-night-border bg-paper text-sm text-ink dark:bg-night-card dark:text-ink-dark px-1.5 py-0.5 disabled:opacity-60 sm:max-w-[280px] md:max-w-none"
       >
         {companies.map((c) => (
           <option key={c.id} value={c.id}>
