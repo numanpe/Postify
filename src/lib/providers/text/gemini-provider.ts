@@ -67,6 +67,7 @@ const ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GeminiCandidate {
   content?: { parts?: { text?: string }[] };
+  finishReason?: string;
 }
 interface GeminiGenerateContentResponse {
   candidates?: GeminiCandidate[];
@@ -104,7 +105,7 @@ export class GeminiTextProvider implements TextProvider {
     system: string,
     user: string,
     options: { jsonMode?: boolean; maxTokens?: number } = {},
-  ): Promise<{ content: string; estimatedCostUsd?: number }> {
+  ): Promise<{ content: string; estimatedCostUsd?: number; finishReason?: string }> {
     let response: Response;
     try {
       response = await fetchWithRetry(
@@ -151,7 +152,8 @@ export class GeminiTextProvider implements TextProvider {
     }
 
     const data = (await response.json()) as GeminiGenerateContentResponse;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text?.trim();
     if (!text) {
       throw new ProviderError(this.name, "Google Gemini returned an empty response.");
     }
@@ -159,7 +161,7 @@ export class GeminiTextProvider implements TextProvider {
     // Free tier by default (the whole point of Part 3's pitch) — see
     // this file's model-constant comment above for why no specific
     // quota/cost figure is quoted anywhere in this app's UI.
-    return { content: stripCodeFence(text), estimatedCostUsd: 0 };
+    return { content: stripCodeFence(text), estimatedCostUsd: 0, finishReason: candidate?.finishReason };
   }
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
@@ -170,7 +172,7 @@ export class GeminiTextProvider implements TextProvider {
 
   async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
     const { system, user } = buildScriptPrompt(context, topic);
-    const { content, estimatedCostUsd } = await this.generateContent(system, user, {
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
       maxTokens: 500,
     });
@@ -179,6 +181,19 @@ export class GeminiTextProvider implements TextProvider {
     try {
       parsed = JSON.parse(content);
     } catch (error) {
+      // Real diagnostic, not a guess: a parse failure with zero
+      // visibility into what Gemini actually sent back is exactly what
+      // made the 2026-08-31 gemini-3.6-flash migration issue hard to
+      // pin down. finishReason === "MAX_TOKENS" specifically means the
+      // response was cut off mid-JSON by maxOutputTokens — a real,
+      // plausible cause if the new model is more verbose per section
+      // than the old one was, independent of any code-fence change.
+      // Content logged raw (no redaction needed — this is generated
+      // marketing copy, never a secret) but capped to keep log volume
+      // sane.
+      console.error(
+        `[GeminiTextProvider.generateScript] JSON.parse failed — finishReason=${finishReason ?? "(none)"}, contentLength=${content.length}, content=${content.slice(0, 2000)}`,
+      );
       throw new ProviderError(this.name, "Google Gemini returned malformed script JSON.", error);
     }
 
