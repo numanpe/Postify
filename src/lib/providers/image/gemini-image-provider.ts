@@ -3,6 +3,7 @@ import "server-only";
 import type { ImageProvider, GenerateBackgroundInput, GenerateBackgroundOutput } from "./types";
 import { ImageProviderError } from "./types";
 import { fetchWithRetry } from "../http";
+import { GEMINI_IMAGE_MODEL } from "../gemini-models";
 
 // BYOK. Verified directly against Google's official docs (ai.google.dev)
 // before writing this, same discipline as Upload-Post/Fish Audio.
@@ -12,17 +13,18 @@ import { fetchWithRetry } from "../http";
 // text) doesn't document image-generation model support.
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
-// gemini-3.1-flash-lite-image ("Nano Banana 2 Lite" in Google's own
-// community naming): the current (not legacy — gemini-2.5-flash-image
-// is explicitly marked for migration away from), cheapest real option
+// "Nano Banana 2 Lite": cheapest real image-generation option
 // confirmed via Google's pricing docs (~$0.034/image at 1K), and
 // Google's own description — "cost-effective... high-volume
 // interactive use cases" — matches this app's poster-background job
 // exactly. 1K resolution only, which is what a poster background needs
 // anyway (this app's own POSTER_DIMENSIONS tops out at 1920px on the
 // long edge, well within 1K-class output before the existing
-// composite/overlay pipeline resizes it).
-const MODEL = "gemini-3.1-flash-lite-image";
+// composite/overlay pipeline resizes it). Re-verified live 2026-08-31
+// during the gemini-2.5-flash text-model outage — still current, not
+// in Google's deprecated/shut-down table, no change needed. Model ID
+// now lives in gemini-models.ts (GEMINI_IMAGE_MODEL) — see that file's
+// comment for the re-check cadence.
 
 // Real, confirmed via Google's official pricing docs: there is NO free
 // tier for any Gemini image-generation model — billing must be enabled
@@ -92,7 +94,7 @@ export class GeminiImageProvider implements ImageProvider {
             "x-goog-api-key": this.apiKey,
           },
           body: JSON.stringify({
-            model: MODEL,
+            model: GEMINI_IMAGE_MODEL,
             input: [{ type: "text", text: prompt }],
             response_format: {
               type: "image",

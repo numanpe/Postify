@@ -30,6 +30,7 @@ import {
   parseClarifyTopicResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
+import { GEMINI_TEXT_MODEL } from "../gemini-models";
 
 // Verified against Google's real official docs (ai.google.dev) before
 // writing this, same discipline as the Gemini image provider.
@@ -50,16 +51,19 @@ import { fetchWithRetry } from "../http";
 // response_format schema shape for no real benefit here.
 const ENDPOINT_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// gemini-2.5-flash: confirmed free-tier-eligible (ai.google.dev/gemini-api/docs/pricing,
-// checked live), stable and fully supported (not a preview model, and
-// not gemini-2.0-flash, which Google's pricing page marks deprecated /
-// shut down June 1 2026). The free tier's exact daily request quota is
-// NOT a stable number to hardcode anywhere in this app — real 2026
-// sources disagree by an order of magnitude (public reports range from
-// ~20 to ~1,500 requests/day depending on account/date), and Google's
-// own docs no longer publish a fixed table, just "check AI Studio."
-// Settings/onboarding copy must not quote a specific figure.
-const MODEL = "gemini-2.5-flash";
+// Real prod outage fixed 2026-08-31: gemini-2.5-flash started returning
+// a real 404 ("This model ... is no longer available to new users")
+// for BYOK companies creating a fresh Google API key — a narrower
+// "new-user-only" restriction that Google's deprecations page doesn't
+// list (it shows no shutdown date for gemini-2.5-flash even now), so
+// don't treat that page as the sole source of truth next time. Model ID
+// now lives in gemini-models.ts (GEMINI_TEXT_MODEL) — see that file's
+// comment for the full verification trail and re-check cadence. The
+// free tier's exact daily request quota is still NOT a stable number to
+// hardcode anywhere in this app — real 2026 sources disagree by an
+// order of magnitude, and Google's own docs no longer publish a fixed
+// table, just "check AI Studio." Settings/onboarding copy must not
+// quote a specific figure.
 
 interface GeminiCandidate {
   content?: { parts?: { text?: string }[] };
@@ -104,7 +108,7 @@ export class GeminiTextProvider implements TextProvider {
     let response: Response;
     try {
       response = await fetchWithRetry(
-        `${ENDPOINT_BASE}/${MODEL}:generateContent`,
+        `${ENDPOINT_BASE}/${GEMINI_TEXT_MODEL}:generateContent`,
         {
           method: "POST",
           headers: {
@@ -153,15 +157,15 @@ export class GeminiTextProvider implements TextProvider {
     }
 
     // Free tier by default (the whole point of Part 3's pitch) — see
-    // this file's MODEL comment on why no specific quota/cost figure
-    // is quoted anywhere in this app's UI.
+    // this file's model-constant comment above for why no specific
+    // quota/cost figure is quoted anywhere in this app's UI.
     return { content: stripCodeFence(text), estimatedCostUsd: 0 };
   }
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { system, user } = buildCaptionPrompt(context, topic);
     const { content, estimatedCostUsd } = await this.generateContent(system, user);
-    return { text: content, providerName: this.name, model: MODEL, estimatedCostUsd };
+    return { text: content, providerName: this.name, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 
   async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
@@ -189,7 +193,7 @@ export class GeminiTextProvider implements TextProvider {
     }
 
     const script = record as unknown as VideoScriptSections;
-    return { script, providerName: this.name, model: MODEL, estimatedCostUsd };
+    return { script, providerName: this.name, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 
   async generateCampaignBrief(input: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
@@ -213,7 +217,7 @@ export class GeminiTextProvider implements TextProvider {
     }
 
     const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
-    return { ...brief, model: MODEL, estimatedCostUsd };
+    return { ...brief, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 
   async expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput> {
