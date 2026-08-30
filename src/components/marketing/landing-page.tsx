@@ -59,7 +59,7 @@ const capabilities: Capability[] = [
   {
     icon: Send,
     title: "Publish where customers already are",
-    body: "Connect Facebook, Instagram, LinkedIn, or TikTok and post directly — no exporting, re-uploading, or resizing by hand.",
+    body: "Connect Facebook and Instagram and post directly — no exporting, re-uploading, or resizing by hand. LinkedIn and TikTok connect too, currently in limited/private mode pending platform review.",
   },
 ];
 
