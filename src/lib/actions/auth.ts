@@ -6,6 +6,8 @@ import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export type AuthFormState = { error: string } | undefined;
 
@@ -38,6 +40,16 @@ export async function signUp(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const rateLimit = await checkRateLimit("signup");
+  if (!rateLimit.allowed) {
+    return { error: "Too many signup attempts. Please try again later." };
+  }
+
+  const turnstileOk = await verifyTurnstile(formData.get("cf-turnstile-response") as string | null);
+  if (!turnstileOk) {
+    return { error: "CAPTCHA verification failed. Please try again." };
+  }
+
   const parsed = SignUpSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -77,6 +89,11 @@ export async function login(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const rateLimit = await checkRateLimit("login");
+  if (!rateLimit.allowed) {
+    return { error: "Too many login attempts. Please try again in a minute." };
+  }
+
   const parsed = LoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),

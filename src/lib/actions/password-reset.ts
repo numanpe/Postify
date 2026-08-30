@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/password";
 import { hashToken } from "@/lib/token";
 import { createPasswordResetToken } from "@/lib/password-reset-tokens";
 import { sendEmail, EmailNotConfiguredError } from "@/lib/email";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function getAppUrl(): string {
   const url = process.env.APP_URL;
@@ -32,6 +33,14 @@ export async function requestPasswordReset(
   _prevState: PasswordResetRequestState,
   formData: FormData,
 ): Promise<PasswordResetRequestState> {
+  // IP-keyed, not email-keyed — checking it before the enumeration-safe
+  // "always sent" logic below is fine precisely because it never depends
+  // on whether the account exists.
+  const rateLimit = await checkRateLimit("password-reset");
+  if (!rateLimit.allowed) {
+    return { status: "error", error: "Too many reset requests. Please try again later." };
+  }
+
   const parsed = RequestSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
     return { status: "error", error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -57,13 +66,14 @@ export async function requestPasswordReset(
       });
     } catch (error) {
       if (error instanceof EmailNotConfiguredError) {
-        // Server-side log only, never sent to the browser — logging
-        // here doesn't reopen the enumeration gap the generic "sent"
-        // response above exists to close. Without this, a real reset
-        // request would be genuinely unrecoverable while RESEND_API_KEY
-        // is unset, which is a real usability dead end, not just an
-        // honesty issue — this is the honest middle ground.
-        console.warn(`[password-reset] Email not configured — reset link for ${parsed.data.email}: ${resetUrl}`);
+        // Never log the token/URL — it's a live, unhashed credential
+        // that grants account takeover to anyone who can read server
+        // logs. This does mean a real reset request is genuinely
+        // unrecoverable while RESEND_API_KEY is unset (an admin has to
+        // fix the config and have the user retry, not read the link out
+        // of logs) — a deliberate security-over-convenience tradeoff,
+        // not an oversight.
+        console.warn(`[password-reset] Email not configured — reset request for user ${user.id} could not be delivered.`);
       } else {
         console.error("[password-reset] sendEmail failed:", error);
       }

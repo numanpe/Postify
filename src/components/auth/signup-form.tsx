@@ -2,10 +2,20 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 
 import { signUp, signInWithGoogle } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/google-icon";
+
+// NEXT_PUBLIC_ vars are inlined at build time — safe to reference
+// directly here, no need to prop-drill it down from the server page the
+// way googleConfigured is. Absent entirely (not just empty) when
+// Turnstile hasn't been configured yet — same "never a broken state
+// without the optional key" pattern as this app's other platform keys —
+// so the widget/script simply don't render rather than showing a broken
+// CAPTCHA box.
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export function SignupForm({ googleConfigured }: { googleConfigured: boolean }) {
   const [state, action, pending] = useActionState(signUp, undefined);
@@ -73,6 +83,13 @@ export function SignupForm({ googleConfigured }: { googleConfigured: boolean }) 
             className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
           />
         </div>
+
+        {TURNSTILE_SITE_KEY && (
+          <>
+            <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" async defer />
+            <div className="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} />
+          </>
+        )}
 
         {state?.error && (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">

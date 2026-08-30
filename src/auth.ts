@@ -5,11 +5,17 @@ import Google from "next-auth/providers/google";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 
-const PUBLIC_PATHS = new Set(["/", "/auth/login", "/auth/signup"]);
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/auth/login" },
+  // Explicit, not left to Auth.js's default (which is already correct —
+  // secure only over HTTPS) so a future change can't silently weaken it
+  // unnoticed. Deliberately NOT a full manual `cookies: {...}` override:
+  // Auth.js's own docs flag that as an advanced option that opts out of
+  // its built-in per-cookie httpOnly/sameSite/name-prefix policy, which
+  // is already correct today — reimplementing it by hand would be new
+  // risk for no real gain over this single, purpose-built flag.
+  useSecureCookies: process.env.NODE_ENV === "production",
   providers: [
     Credentials({
       credentials: {
@@ -93,13 +99,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id;
       }
       return session;
-    },
-    // Optimistic check only (per Next.js auth guidance: proxy/middleware
-    // should not hit the database). Company membership is enforced in
-    // requireCompany() at the data-access layer, not here.
-    authorized({ auth: session, request }) {
-      if (PUBLIC_PATHS.has(request.nextUrl.pathname)) return true;
-      return !!session?.user;
     },
   },
 });
