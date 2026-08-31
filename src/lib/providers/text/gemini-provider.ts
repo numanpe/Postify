@@ -164,6 +164,37 @@ export class GeminiTextProvider implements TextProvider {
     return { content: stripCodeFence(text), estimatedCostUsd: 0, finishReason: candidate?.finishReason };
   }
 
+  // Real diagnostic, not a guess: a parse failure with zero visibility
+  // into what Gemini actually sent back is exactly what made the
+  // 2026-08-31 gemini-3.6-flash migration issue hard to pin down —
+  // confirmed live 2026-08-31 to also hit expandBackgroundPrompt (a
+  // real "Graze Market" company's poster generation), not just
+  // generateScript, so this is shared across every JSON-mode method
+  // rather than a one-off fix. finishReason === "MAX_TOKENS"
+  // specifically means the response was cut off mid-JSON by
+  // maxOutputTokens; content logged raw (no redaction needed — this is
+  // generated marketing copy, never a secret) but capped to keep log
+  // volume sane. finishReason is folded into the thrown message itself
+  // (not just the console.error) so it's captured durably too, via the
+  // fallback chain's ProviderFallbackEvent log (fallback-log.ts) — real
+  // visibility that survives past Vercel's short-lived log retention,
+  // not dependent on catching a live --follow stream at the exact right
+  // moment.
+  private parseJsonOrThrow(methodLabel: string, userFacingLabel: string, content: string, finishReason?: string): unknown {
+    try {
+      return JSON.parse(content);
+    } catch (error) {
+      console.error(
+        `[GeminiTextProvider.${methodLabel}] JSON.parse failed — finishReason=${finishReason ?? "(none)"}, contentLength=${content.length}, content=${content.slice(0, 2000)}`,
+      );
+      throw new ProviderError(
+        this.name,
+        `Google Gemini returned malformed ${userFacingLabel} JSON (finishReason=${finishReason ?? "none"}, length=${content.length}).`,
+        error,
+      );
+    }
+  }
+
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { system, user } = buildCaptionPrompt(context, topic);
     const { content, estimatedCostUsd } = await this.generateContent(system, user);
@@ -177,35 +208,7 @@ export class GeminiTextProvider implements TextProvider {
       maxTokens: 500,
     });
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      // Real diagnostic, not a guess: a parse failure with zero
-      // visibility into what Gemini actually sent back is exactly what
-      // made the 2026-08-31 gemini-3.6-flash migration issue hard to
-      // pin down. finishReason === "MAX_TOKENS" specifically means the
-      // response was cut off mid-JSON by maxOutputTokens — a real,
-      // plausible cause if the new model is more verbose per section
-      // than the old one was, independent of any code-fence change.
-      // Content logged raw (no redaction needed — this is generated
-      // marketing copy, never a secret) but capped to keep log volume
-      // sane.
-      console.error(
-        `[GeminiTextProvider.generateScript] JSON.parse failed — finishReason=${finishReason ?? "(none)"}, contentLength=${content.length}, content=${content.slice(0, 2000)}`,
-      );
-      // finishReason folded into the message itself (not just the
-      // console.error above) so it's captured durably too, via the
-      // fallback chain's ProviderFallbackEvent log (text/resolver.ts) —
-      // real visibility that survives past Vercel's short-lived log
-      // retention, not dependent on catching a live --follow stream at
-      // the exact right moment.
-      throw new ProviderError(
-        this.name,
-        `Google Gemini returned malformed script JSON (finishReason=${finishReason ?? "none"}, length=${content.length}).`,
-        error,
-      );
-    }
+    const parsed = this.parseJsonOrThrow("generateScript", "script", content, finishReason);
 
     if (typeof parsed !== "object" || parsed === null) {
       throw new ProviderError(this.name, "Google Gemini returned an unexpected script format.");
@@ -229,17 +232,12 @@ export class GeminiTextProvider implements TextProvider {
       scheduledDates: input.scheduledDates,
       connectedPlatforms: input.connectedPlatforms,
     });
-    const { content, estimatedCostUsd } = await this.generateContent(system, user, {
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
       maxTokens: 1500,
     });
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      throw new ProviderError(this.name, "Google Gemini returned malformed campaign brief JSON.", error);
-    }
+    const parsed = this.parseJsonOrThrow("generateCampaignBrief", "campaign brief", content, finishReason);
 
     const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
     return { ...brief, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
@@ -247,28 +245,18 @@ export class GeminiTextProvider implements TextProvider {
 
   async expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput> {
     const { system, user } = buildBackgroundExpansionPrompt(input);
-    const { content } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
+    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      throw new ProviderError(this.name, "Google Gemini returned malformed background-prompt JSON.", error);
-    }
+    const parsed = this.parseJsonOrThrow("expandBackgroundPrompt", "background-prompt", content, finishReason);
 
     return parseExpandedPromptResponse(parsed, this.name);
   }
 
   async summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
     const { system, user } = buildBusinessContextPrompt(input);
-    const { content } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
+    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      throw new ProviderError(this.name, "Google Gemini returned malformed business-context JSON.", error);
-    }
+    const parsed = this.parseJsonOrThrow("summarizeBusinessContext", "business-context", content, finishReason);
 
     const result = parseBusinessContextResponse(parsed, this.name);
     return { ...result, providerName: this.name };
@@ -276,14 +264,9 @@ export class GeminiTextProvider implements TextProvider {
 
   async clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput> {
     const { system, user } = buildClarifyTopicPrompt(input);
-    const { content } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 60 });
+    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 60 });
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch (error) {
-      throw new ProviderError(this.name, "Google Gemini returned malformed clarify-topic JSON.", error);
-    }
+    const parsed = this.parseJsonOrThrow("clarifyTopic", "clarify-topic", content, finishReason);
 
     const clarifiedTopic = parseClarifyTopicResponse(parsed, this.name);
     return { clarifiedTopic, providerName: this.name };
