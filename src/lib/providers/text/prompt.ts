@@ -20,7 +20,7 @@ export function buildCaptionPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches, businessDescription } = context;
+  const { name, industry, tone, secondaryNiches, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
@@ -30,6 +30,14 @@ export function buildCaptionPrompt(
   // business actually says about itself, not just its industry/tone
   // labels.
   const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
+  // Real, not decorative — see Company.targetMarket's own schema
+  // comment (Part A of the local-content-awareness work). "Where it
+  // fits naturally" deliberately doesn't demand every caption mention
+  // the market; forcing it into a 2-sentence caption every time would
+  // read as spammy, not local.
+  const marketLine = targetMarket
+    ? ` This company mainly serves ${targetMarket} — let that feel genuinely local where it fits naturally, don't force it into every sentence.`
+    : "";
 
   const system = [
     `You are a marketing copywriter for a company in the ${industry} industry.`,
@@ -39,7 +47,7 @@ export function buildCaptionPrompt(
     "Never invent specific facts (prices, dates, promises) that weren't given to you.",
   ].join(" ");
 
-  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nWrite a short social media caption about: ${topic}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nWrite a short social media caption about: ${topic}`;
 
   return { system, user };
 }
@@ -51,12 +59,15 @@ export function buildScriptPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches, businessDescription } = context;
+  const { name, industry, tone, secondaryNiches, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
     : "";
   const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
+  const marketLine = targetMarket
+    ? ` This company mainly serves ${targetMarket} — let that feel genuinely local where it fits naturally, don't force it into every sentence.`
+    : "";
 
   const system = [
     `You are a video creative director for a company in the ${industry} industry.`,
@@ -69,7 +80,7 @@ export function buildScriptPrompt(
     'Respond with ONLY a JSON object: {"hook": "...", "context": "...", "value": "...", "message": "...", "cta": "..."}',
   ].join(" ");
 
-  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nWrite a video script about: ${topic}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nWrite a video script about: ${topic}`;
 
   return { system, user };
 }
@@ -117,10 +128,16 @@ export function buildCampaignBriefPrompt(input: {
   connectedPlatforms: string[];
 }): { system: string; user: string } {
   const { context, objective, itemCount, scheduledDates, connectedPlatforms } = input;
-  const { name, industry, tone, secondaryNiches, locale, businessDescription } = context;
+  const { name, industry, tone, secondaryNiches, locale, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length ? ` The company also focuses on: ${secondaryNiches.join(", ")}.` : "";
   const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
+  const marketLine = targetMarket
+    ? ` This company mainly serves ${targetMarket} — let that feel genuinely local where it fits naturally, don't force it into every item.`
+    : "";
+  const marketHashtagInstruction = targetMarket
+    ? ` At least one of each item's hashtags should be a real, relevant local/regional tag for ${targetMarket} where that genuinely fits the item — never force one onto an item it doesn't fit.`
+    : "";
   const languageInstruction =
     locale === "AR"
       ? "Write all headline/topic, caption, and hashtag text in natural, culturally idiomatic Arabic — not a literal word-for-word translation of an English draft. Set every item's captionText to read naturally to a native Arabic speaker."
@@ -142,7 +159,7 @@ export function buildCampaignBriefPrompt(input: {
     'line, cta is a short action phrase. For a "VIDEO" item: videoTopic is a short topic description — NOT a',
     "full script; the video pipeline writes its own script from this topic.",
     "captionText is a natural, engaging post caption (emojis welcome where natural).",
-    `hashtags is 3-5 relevant tags. targetPlatforms must be a subset of exactly this list, never anything else:`,
+    `hashtags is 3-5 relevant tags.${marketHashtagInstruction} targetPlatforms must be a subset of exactly this list, never anything else:`,
     `${JSON.stringify(connectedPlatforms)} — if that list is empty, return an empty array, don't invent a platform.`,
     `suggestedPostAt is an ISO datetime on that item's scheduled date (use the date given for that item, any`,
     "reasonable time of day).",
@@ -158,7 +175,7 @@ export function buildCampaignBriefPrompt(input: {
   ].join(" ");
 
   const scheduleLines = scheduledDates.map((date, i) => `Item ${i + 1} scheduled date: ${date}`).join("\n");
-  const user = `Company: ${name}.${nicheLine}${descriptionLine}\n\nCampaign objective: ${objective}\n\n${scheduleLines}`;
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nCampaign objective: ${objective}\n\n${scheduleLines}`;
 
   return { system, user };
 }

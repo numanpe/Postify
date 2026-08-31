@@ -19,6 +19,12 @@ export interface CompanyContext {
   // BYOK prompts for real grounding; the free template tier doesn't
   // consume raw prose so this has no direct effect there.
   businessDescription: string | null;
+  // Free text, e.g. "Abu Dhabi & Al Ain" — not a geographic radius (see
+  // Company.targetMarket's own schema comment). Threaded into both BYOK
+  // prompts (prompt.ts) and the free template tier (template-provider.ts,
+  // where it also drives real region-derived hashtags) so generated
+  // content is genuinely aware of who the company is trying to reach.
+  targetMarket: string | null;
 }
 
 // Company-scoped by design — always called with a companyId already
@@ -49,5 +55,6 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
     pack,
     locale: company.locale,
     businessDescription: company.businessDescription,
+    targetMarket: company.targetMarket,
   };
 }

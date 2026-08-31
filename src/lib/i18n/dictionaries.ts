@@ -64,6 +64,7 @@ export interface Dictionary {
     title: string; subtitle: string; companyName: string; primaryIndustry: string;
     selectIndustry: string; secondaryNiches: string; secondaryNichesHint: string;
     secondaryNichesPlaceholder: string; language: string; languageHint: string;
+    targetMarket: string; targetMarketHint: string; targetMarketPlaceholder: string;
     submit: string; submitPending: string;
     websiteFirstTitle: string; websiteFirstSubtitle: string; websiteUrlPlaceholder: string;
     extractButton: string; extracting: string; skipManual: string; backToWebsite: string;
@@ -359,6 +360,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       secondaryNiches: "Secondary niches",
       secondaryNichesHint: "(optional, comma-separated)",
       secondaryNichesPlaceholder: "e.g. Livestock, B2B",
+      targetMarket: "Target market",
+      targetMarketHint: "(optional)",
+      targetMarketPlaceholder: "e.g. Abu Dhabi & Al Ain, or Nationwide B2B",
       language: "Language",
       languageHint: "You can change this later.",
       submit: "Create company",
@@ -996,6 +1000,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       secondaryNiches: "مجالات فرعية",
       secondaryNichesHint: "(اختياري، مفصولة بفواصل)",
       secondaryNichesPlaceholder: "مثال: الثروة الحيوانية، الأعمال بين الشركات",
+      targetMarket: "السوق المستهدف",
+      targetMarketHint: "(اختياري)",
+      targetMarketPlaceholder: "مثال: أبوظبي والعين، أو على مستوى الدولة (B2B)",
       language: "اللغة",
       languageHint: "يمكنك تغيير هذا لاحقًا.",
       submit: "إنشاء الشركة",

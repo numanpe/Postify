@@ -43,6 +43,37 @@ function pickIndex(seed: string, length: number): number {
   return hash % length;
 }
 
+// Real, deterministic text-to-hashtag derivation for the free tier —
+// Part A of the local-content-awareness work. Splits on common
+// separators ("&", ",", " and "), strips generic trailing words that
+// aren't real place names, then title-cases each remaining word and
+// joins with no spaces. Works for Arabic input too: .toUpperCase() is
+// a no-op on Arabic script, so an Arabic target market just gets "#"
+// prepended with spaces removed (a real, commonly-used hashtag form,
+// e.g. #أبوظبي) rather than anything Latin-script-specific. Capped at
+// 3 tags so a long free-text description doesn't flood the hashtag
+// list — this is a supplement to the industry pack's own real tags,
+// never a replacement for them.
+const GENERIC_MARKET_WORDS = new Set(["region", "area", "nationwide", "market", "b2b", "b2c"]);
+
+export function deriveMarketHashtags(targetMarket: string | null): string[] {
+  if (!targetMarket) return [];
+  return targetMarket
+    .split(/[,&]|\band\b/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) =>
+      part
+        .split(/\s+/)
+        .filter((word) => !GENERIC_MARKET_WORDS.has(word.toLowerCase()))
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(""),
+    )
+    .filter((tag) => tag.length > 1)
+    .slice(0, 3)
+    .map((tag) => `#${tag}`);
+}
+
 function hasCompanyToken(template: string): boolean {
   return template.includes("{{company}}");
 }
@@ -152,7 +183,7 @@ export class TemplateTextProvider implements TextProvider {
   readonly name = FREE_TEXT_PROVIDER_NAME;
 
   async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
-    const { pack, name, tone, secondaryNiches, companyId } = context;
+    const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
     // Same topic + same companyId is otherwise fully deterministic (see
     // GenerateCaptionInput.variantIndex's doc comment) — folding the
@@ -183,8 +214,12 @@ export class TemplateTextProvider implements TextProvider {
     const nicheLine = secondaryNiches.length
       ? ` Specializing in ${secondaryNiches.join(", ")}.`
       : "";
+    // Real, not decorative — see Company.targetMarket's own schema
+    // comment. Same "always the same sentence, never invented" honesty
+    // this deterministic system already applies everywhere else.
+    const marketLine = targetMarket ? ` Proudly serving ${targetMarket}.` : "";
 
-    const text = `${hook.text} ${valueProp.text}${nicheLine} ${cta.text}`.replace(/\s+/g, " ").trim();
+    const text = `${hook.text} ${valueProp.text}${nicheLine}${marketLine} ${cta.text}`.replace(/\s+/g, " ").trim();
 
     return { text, providerName: this.name };
   }
@@ -249,9 +284,13 @@ export class TemplateTextProvider implements TextProvider {
     scheduledDates,
     connectedPlatforms,
   }: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
-    const { pack, name, tone, secondaryNiches, companyId } = context;
+    const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;
     const vars = { company: name, objective, niches: secondaryNiches.join(", ") };
     const campaignType = inferCampaignType(objective);
+    // Real, not decorative — see deriveMarketHashtags's own comment.
+    // Appended to (never replacing) the industry pack's own real tags,
+    // so every item keeps its genuinely industry-relevant hashtags too.
+    const marketHashtags = deriveMarketHashtags(targetMarket);
 
     const items: CampaignBriefItem[] = [];
     for (let i = 0; i < itemCount; i += 1) {
@@ -301,7 +340,7 @@ export class TemplateTextProvider implements TextProvider {
           ? { headline: shortHeadline(`${seed}:headline`, pack.shortHeadlines), subhead: valueProp.text, cta: cta.text }
           : { videoTopic: angle }),
         captionText,
-        hashtags: pack.hashtags,
+        hashtags: [...pack.hashtags, ...marketHashtags],
         suggestedPostAt,
         targetPlatforms: connectedPlatforms,
       });

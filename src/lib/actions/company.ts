@@ -163,6 +163,46 @@ export async function updateCompanyNiches(
   return { success: true };
 }
 
+export type UpdateTargetMarketState = { error: string } | { success: true } | undefined;
+
+const UpdateTargetMarketSchema = z.object({
+  // Free text, not a geographic radius — see Company.targetMarket's
+  // own schema comment. Optional: an empty submission clears it back
+  // to null (a real, deliberate way to remove the field, not an error).
+  targetMarket: z
+    .string()
+    .trim()
+    .max(200, "Keep the target market under 200 characters.")
+    .transform((value) => value || null),
+});
+
+// Same "editable after the fact" pattern updateCompanyNiches above
+// already established — Part A of the local-content-awareness work.
+// Feeds directly into every generated caption/script/campaign-brief's
+// marketLine (prompt.ts) and the free tier's real marketLine/
+// deriveMarketHashtags (template-provider.ts).
+export async function updateTargetMarket(
+  _prevState: UpdateTargetMarketState,
+  formData: FormData,
+): Promise<UpdateTargetMarketState> {
+  const { company } = await requireCompany();
+
+  const parsed = UpdateTargetMarketSchema.safeParse({
+    targetMarket: formData.get("targetMarket") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  await db.company.update({
+    where: { id: company.id },
+    data: { targetMarket: parsed.data.targetMarket },
+  });
+
+  revalidatePath("/brand-kit");
+  return { success: true };
+}
+
 export type ApplyBusinessContextState = { error: string } | { success: true } | undefined;
 
 const ApplyBusinessContextSchema = z.object({
