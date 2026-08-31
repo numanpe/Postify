@@ -143,6 +143,7 @@ export class OpenAITextProvider implements TextProvider {
       itemCount: input.itemCount,
       scheduledDates: input.scheduledDates,
       connectedPlatforms: input.connectedPlatforms,
+      itemAssetTypes: input.itemAssetTypes,
     });
     const { content, estimatedCostUsd } = await this.chatCompletion(system, user, {
       jsonMode: true,
@@ -156,7 +157,13 @@ export class OpenAITextProvider implements TextProvider {
       throw new ProviderError(this.name, "OpenAI returned malformed campaign brief JSON.", error);
     }
 
-    const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
+    const brief = parseCampaignBriefResponse(
+      parsed,
+      this.name,
+      input.itemCount,
+      input.connectedPlatforms,
+      input.itemAssetTypes,
+    );
     return { ...brief, model: MODEL, estimatedCostUsd };
   }
 

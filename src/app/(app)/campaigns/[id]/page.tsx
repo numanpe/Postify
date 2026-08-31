@@ -47,6 +47,7 @@ export default async function CampaignDetailPage({
           },
           orderBy: { scheduledDate: "asc" },
         },
+        recurringPlan: { select: { autoPublish: true, isPaused: true } },
       },
     }),
     db.socialAccount.findMany({
@@ -102,6 +103,8 @@ export default async function CampaignDetailPage({
     (item) => item.status === "PENDING" || item.status === "GENERATING",
   ).length;
 
+  const isAutoPublishManaged = !!campaign.recurringPlan?.autoPublish && !campaign.recurringPlan?.isPaused;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
@@ -150,6 +153,7 @@ export default async function CampaignDetailPage({
                     companyName={company.name}
                     companyLogoUrl={companyLogoUrl}
                     sceneMediaAssets={sceneMediaAssets}
+                    autoPublishAt={isAutoPublishManaged ? item.suggestedPostAt : null}
                   />
                 ))}
               </div>

@@ -148,6 +148,7 @@ export class AnthropicTextProvider implements TextProvider {
       itemCount: input.itemCount,
       scheduledDates: input.scheduledDates,
       connectedPlatforms: input.connectedPlatforms,
+      itemAssetTypes: input.itemAssetTypes,
     });
     const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 1500);
 
@@ -158,7 +159,13 @@ export class AnthropicTextProvider implements TextProvider {
       throw new ProviderError(this.name, "Anthropic returned malformed campaign brief JSON.", error);
     }
 
-    const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
+    const brief = parseCampaignBriefResponse(
+      parsed,
+      this.name,
+      input.itemCount,
+      input.connectedPlatforms,
+      input.itemAssetTypes,
+    );
     return { ...brief, model: MODEL, estimatedCostUsd };
   }
 

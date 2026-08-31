@@ -88,6 +88,12 @@ export interface GenerateCampaignBriefInput {
   // connection for — never a platform this app can't really publish to
   // (e.g. TikTok, which has no integration in this app at all).
   connectedPlatforms: SocialPlatform[];
+  // Optional explicit per-item mix, same length/order as itemCount —
+  // when given, this replaces the default "item 1 is VIDEO if itemCount
+  // > 1, every other item POSTER" rule (needed by the recurring daily
+  // content plan's own "N videos + M posts" config, see
+  // process-recurring-plans.ts). Omitted: unchanged existing behavior.
+  itemAssetTypes?: ("POSTER" | "VIDEO")[];
 }
 
 export interface CampaignBriefItem {

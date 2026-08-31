@@ -35,6 +35,9 @@ export default async function CampaignsPage({
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">{dict.campaigns.title}</h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.subtitle(company.name)}</p>
+        <Link href="/campaigns/recurring" className="w-fit text-sm font-medium text-primary underline dark:text-primary-dark">
+          {dict.recurringPlan.entryLinkLabel}
+        </Link>
       </div>
 
       <CampaignForm

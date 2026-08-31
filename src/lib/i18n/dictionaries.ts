@@ -164,6 +164,21 @@ export interface Dictionary {
     useAiBackgrounds: string; useAiBackgroundsDisclosure: string;
     angleLabel: string;
   };
+  recurringPlan: {
+    title: string; subtitle: string; entryLinkLabel: string;
+    postsPerDay: string; videosPerDay: string;
+    publishTimes: string; publishTimesHint: string; publishTimesPlaceholder: string;
+    targetPlatformsLabel: string;
+    objectiveHint: string; objectiveHintPlaceholder: string;
+    autoPublish: string; autoPublishWarning: string; autoPublishDisabledHint: string;
+    save: string; saving: string; saved: string;
+    pause: string; resume: string;
+    deleteButton: string; deleteConfirm: string; deleted: string;
+    activeBanner: string; pausedBanner: string; cronPrecisionNote: string;
+    activityTitle: string; noActivityYet: string;
+    errorLabel: (message: string) => string;
+    autoPublishItemLabel: (time: string) => string;
+  };
   publish: {
     title: string; subtitle: string; connectedSuccess: string;
     connectedError: (detail: string) => string; noPostersYetPrefix: string;
@@ -612,6 +627,38 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       useAiBackgroundsDisclosure:
         "Uses today's shared free AI quota — if it runs out partway through a large campaign, remaining posts automatically use your brand style instead. Off by default; your brand gradient always works with zero limits.",
       angleLabel: "Angle",
+    },
+    recurringPlan: {
+      title: "Recurring plan",
+      subtitle: "A standing rule that keeps generating and publishing content every day until you pause it.",
+      entryLinkLabel: "Set up a recurring plan →",
+      postsPerDay: "Posts per day",
+      videosPerDay: "Videos per day",
+      publishTimes: "Publish times",
+      publishTimesHint: "24-hour, comma-separated",
+      publishTimesPlaceholder: "e.g. 09:00, 17:00",
+      targetPlatformsLabel: "Publish to",
+      objectiveHint: "Topic hint (optional)",
+      objectiveHintPlaceholder: "Leave blank to auto-pick a fresh topic each day",
+      autoPublish: "Auto-publish — no approval needed",
+      autoPublishWarning: "Auto-publish is ON — new content goes live automatically at its scheduled time, with no review step.",
+      autoPublishDisabledHint: "Connect a publishing method (Settings → Publishing) to turn this on.",
+      save: "Save recurring plan",
+      saving: "Saving…",
+      saved: "Saved.",
+      pause: "Pause",
+      resume: "Resume",
+      deleteButton: "Delete recurring plan",
+      deleteConfirm: "Delete this recurring plan? Content it already generated stays — only future runs stop.",
+      deleted: "Recurring plan deleted.",
+      activeBanner: "Active — generating new content every day.",
+      pausedBanner: "Paused — no new content will be generated until you resume.",
+      cronPrecisionNote:
+        "Publish times are real targets, not guaranteed to the minute — this app checks once a day, so content publishes at the next check after its scheduled time.",
+      activityTitle: "Generated so far",
+      noActivityYet: "Nothing generated yet — the first batch appears after the next daily run.",
+      errorLabel: (message: string) => `Last run failed: ${message}`,
+      autoPublishItemLabel: (time: string) => `Will auto-publish at ${time}`,
     },
     publish: {
       title: "Publish",
@@ -1253,6 +1300,38 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       useAiBackgroundsDisclosure:
         "يستخدم حصة الذكاء الاصطناعي المجانية المشتركة لليوم — إذا نفدت في منتصف حملة كبيرة، ستستخدم المنشورات المتبقية أسلوب علامتك التجارية تلقائيًا. معطّل افتراضيًا؛ التدرج اللوني لعلامتك يعمل دائمًا بلا حدود.",
       angleLabel: "الزاوية",
+    },
+    recurringPlan: {
+      title: "الخطة المتكررة",
+      subtitle: "قاعدة ثابتة تستمر في إنشاء المحتوى ونشره كل يوم حتى توقفها.",
+      entryLinkLabel: "إعداد خطة متكررة ←",
+      postsPerDay: "منشورات يوميًا",
+      videosPerDay: "فيديوهات يوميًا",
+      publishTimes: "أوقات النشر",
+      publishTimesHint: "بصيغة 24 ساعة، مفصولة بفواصل",
+      publishTimesPlaceholder: "مثال: 09:00، 17:00",
+      targetPlatformsLabel: "النشر إلى",
+      objectiveHint: "تلميح الموضوع (اختياري)",
+      objectiveHintPlaceholder: "اتركه فارغًا لاختيار موضوع جديد تلقائيًا كل يوم",
+      autoPublish: "النشر التلقائي — بلا حاجة للموافقة",
+      autoPublishWarning: "النشر التلقائي مُفعّل — سيُنشر المحتوى الجديد تلقائيًا في موعده المحدد، دون مراجعة.",
+      autoPublishDisabledHint: "اربط طريقة نشر حقيقية (الإعدادات ← النشر) لتفعيل هذا الخيار.",
+      save: "حفظ الخطة المتكررة",
+      saving: "جارٍ الحفظ…",
+      saved: "تم الحفظ.",
+      pause: "إيقاف مؤقت",
+      resume: "استئناف",
+      deleteButton: "حذف الخطة المتكررة",
+      deleteConfirm: "حذف هذه الخطة المتكررة؟ المحتوى الذي أُنشئ بالفعل يبقى — فقط عمليات التشغيل المستقبلية تتوقف.",
+      deleted: "تم حذف الخطة المتكررة.",
+      activeBanner: "نشِطة — يُنشأ محتوى جديد كل يوم.",
+      pausedBanner: "متوقفة مؤقتًا — لن يُنشأ محتوى جديد حتى الاستئناف.",
+      cronPrecisionNote:
+        "أوقات النشر أهداف حقيقية وليست مضمونة إلى الدقيقة — يتحقق هذا التطبيق مرة واحدة يوميًا، فيُنشر المحتوى عند أول تحقق بعد موعده المحدد.",
+      activityTitle: "ما تم إنشاؤه حتى الآن",
+      noActivityYet: "لم يُنشأ شيء بعد — ستظهر أول دفعة بعد التشغيل اليومي التالي.",
+      errorLabel: (message: string) => `فشلت آخر عملية تشغيل: ${message}`,
+      autoPublishItemLabel: (time: string) => `سيُنشر تلقائيًا الساعة ${time}`,
     },
     publish: {
       title: "النشر",

@@ -71,6 +71,11 @@ interface CalendarItemCardProps {
   companyName: string;
   companyLogoUrl: string | null;
   sceneMediaAssets: SceneMediaAssetOption[];
+  // Set only when this item belongs to an active, auto-publish recurring
+  // plan (src/lib/jobs/process-recurring-plans.ts) — the "persistently
+  // visible, never something a user could forget is active" requirement
+  // for auto-publish, right on the item it actually applies to.
+  autoPublishAt?: Date | null;
 }
 
 // Server component — the "Manage" disclosure is a native <details>
@@ -89,6 +94,7 @@ export async function CalendarItemCard({
   companyName,
   companyLogoUrl,
   sceneMediaAssets,
+  autoPublishAt,
 }: CalendarItemCardProps) {
   const dict = getDictionary(await getLocale());
   const pubDict = dict.publishing;
@@ -113,6 +119,12 @@ export async function CalendarItemCard({
           {item.assetType === "VIDEO" ? dict.campaigns.assetTypeVideo : dict.campaigns.assetTypePoster}
         </span>
       </div>
+
+      {autoPublishAt && (item.status === "READY" || item.status === "APPROVED") && (
+        <p className="text-amber-700 dark:text-amber-400">
+          {dict.recurringPlan.autoPublishItemLabel(autoPublishAt.toISOString().slice(11, 16))}
+        </p>
+      )}
 
       {fileAvailable && item.poster?.asset && (
         <Image

@@ -231,6 +231,7 @@ export class GeminiTextProvider implements TextProvider {
       itemCount: input.itemCount,
       scheduledDates: input.scheduledDates,
       connectedPlatforms: input.connectedPlatforms,
+      itemAssetTypes: input.itemAssetTypes,
     });
     const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
@@ -239,7 +240,13 @@ export class GeminiTextProvider implements TextProvider {
 
     const parsed = this.parseJsonOrThrow("generateCampaignBrief", "campaign brief", content, finishReason);
 
-    const brief = parseCampaignBriefResponse(parsed, this.name, input.itemCount, input.connectedPlatforms);
+    const brief = parseCampaignBriefResponse(
+      parsed,
+      this.name,
+      input.itemCount,
+      input.connectedPlatforms,
+      input.itemAssetTypes,
+    );
     return { ...brief, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 

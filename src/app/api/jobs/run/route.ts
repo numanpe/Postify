@@ -4,6 +4,7 @@ import { processCampaignItems } from "@/lib/jobs/process-campaign-items";
 import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
 import { flagStaleMedia } from "@/lib/jobs/flag-stale-media";
 import { pullEngagementData } from "@/lib/jobs/pull-engagement";
+import { processRecurringPlans } from "@/lib/jobs/process-recurring-plans";
 
 // One dispatcher route for every scheduled job, not four separate
 // route.ts files — Vercel's Hobby plan caps a deployment at 12
@@ -19,6 +20,7 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   "process-publish-jobs": () => processPublishJobs(5),
   "flag-stale-media": () => flagStaleMedia(),
   "pull-engagement": () => pullEngagementData(),
+  "process-recurring-plans": () => processRecurringPlans(),
 };
 
 // Same CRON_SECRET-gated pattern every job route already used — refuses

@@ -283,6 +283,7 @@ export class TemplateTextProvider implements TextProvider {
     itemCount,
     scheduledDates,
     connectedPlatforms,
+    itemAssetTypes,
   }: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
     const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;
     const vars = { company: name, objective, niches: secondaryNiches.join(", ") };
@@ -325,8 +326,11 @@ export class TemplateTextProvider implements TextProvider {
       // A multi-day campaign opens with a video (a stronger first
       // impression) and fills the rest with posters (cheaper, faster,
       // always free-tier viable) — a deliberate, deterministic mix, not
-      // every item defaulting to the slower/heavier asset type.
-      const assetType: CampaignBriefItem["assetType"] = i === 0 && itemCount > 1 ? "VIDEO" : "POSTER";
+      // every item defaulting to the slower/heavier asset type. An
+      // explicit itemAssetTypes (the recurring daily content plan's own
+      // "N videos + M posts" config) overrides this default entirely.
+      const assetType: CampaignBriefItem["assetType"] =
+        itemAssetTypes?.[i] ?? (i === 0 && itemCount > 1 ? "VIDEO" : "POSTER");
 
       // A single, honest constant post time rather than a fake
       // "AI-optimized" claim — this app has no real engagement

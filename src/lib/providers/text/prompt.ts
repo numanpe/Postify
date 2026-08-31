@@ -126,8 +126,9 @@ export function buildCampaignBriefPrompt(input: {
   itemCount: number;
   scheduledDates: string[];
   connectedPlatforms: string[];
+  itemAssetTypes?: ("POSTER" | "VIDEO")[];
 }): { system: string; user: string } {
-  const { context, objective, itemCount, scheduledDates, connectedPlatforms } = input;
+  const { context, objective, itemCount, scheduledDates, connectedPlatforms, itemAssetTypes } = input;
   const { name, industry, tone, secondaryNiches, locale, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length ? ` The company also focuses on: ${secondaryNiches.join(", ")}.` : "";
@@ -152,9 +153,11 @@ export function buildCampaignBriefPrompt(input: {
     "Infer a short, free-text campaign_type label from the objective (e.g. \"Product Launch\", \"Seasonal Sale\",",
     "\"Educational\", \"Flash Promo\", \"Customer Story\", or another label if none of those fit — these are examples,",
     "not a fixed list).",
-    `Item 1's assetType must be "VIDEO" if there is more than one item, otherwise "POSTER"; every other item's`,
-    'assetType must be "POSTER" — this app\'s video pipeline is slower and heavier, so only the campaign-opening',
-    "asset uses it.",
+    itemAssetTypes
+      ? `Item assetType is fixed, in this exact order — don't choose it yourself: ${JSON.stringify(itemAssetTypes)}.`
+      : `Item 1's assetType must be "VIDEO" if there is more than one item, otherwise "POSTER"; every other item's` +
+        ' assetType must be "POSTER" — this app\'s video pipeline is slower and heavier, so only the campaign-opening' +
+        " asset uses it.",
     'For a "POSTER" item: headline is a punchy 2-5 word hook (not a full sentence), subhead is a short supporting',
     'line, cta is a short action phrase. For a "VIDEO" item: videoTopic is a short topic description — NOT a',
     "full script; the video pipeline writes its own script from this topic.",
@@ -274,6 +277,7 @@ export function parseCampaignBriefResponse(
   providerName: string,
   itemCount: number,
   connectedPlatforms: SocialPlatform[],
+  itemAssetTypes?: ("POSTER" | "VIDEO")[],
 ): GenerateCampaignBriefOutput {
   if (typeof parsed !== "object" || parsed === null) {
     throw new ProviderError(providerName, "Unexpected campaign-brief response format.");
@@ -290,6 +294,18 @@ export function parseCampaignBriefResponse(
     const item = raw as Record<string, unknown>;
     if (item.assetType !== "POSTER" && item.assetType !== "VIDEO") {
       throw new ProviderError(providerName, `Item ${index + 1} has an invalid assetType.`);
+    }
+    if (itemAssetTypes && item.assetType !== itemAssetTypes[index]) {
+      // Surfaced as a real error, not silently overridden — forcing the
+      // requested type without the model's matching fields (a VIDEO item
+      // needs videoTopic, a POSTER item needs headline/subhead/cta) would
+      // just move the fake-functionality problem one step later. A real
+      // mismatch here is genuine BYOK misbehavior, which the existing
+      // fallback chain (resolver.ts) already recovers from.
+      throw new ProviderError(
+        providerName,
+        `Item ${index + 1} was supposed to be "${itemAssetTypes[index]}" but the response used "${item.assetType}".`,
+      );
     }
     if (typeof item.angle !== "string" || !item.angle) {
       throw new ProviderError(providerName, `Item ${index + 1} is missing angle.`);

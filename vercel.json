@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/jobs/run?job=process-recurring-plans",
+      "schedule": "50 2 * * *"
+    },
+    {
       "path": "/api/jobs/run?job=process-campaign-items",
       "schedule": "0 3 * * *"
     },
