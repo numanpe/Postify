@@ -5,8 +5,8 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
-import { processPublishJobs } from "@/lib/jobs/process-publish-jobs";
-import { triggerPublishProcessing } from "@/lib/jobs/trigger";
+import { processPublishJobs, processSinglePublishJob } from "@/lib/jobs/process-publish-jobs";
+import { cleanupMediaStorage } from "@/lib/storage-cleanup";
 import { suggestPeakPublishTime, formatForDatetimeLocalInput } from "@/lib/scheduling/smart-scheduler";
 import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
 import { recordSignal, SIGNAL_STRENGTH } from "@/lib/creative-dna/signals";
@@ -115,7 +115,7 @@ export async function createPublishJob(
     }
   }
 
-  await db.publishJob.create({
+  const job = await db.publishJob.create({
     data: {
       companyId: company.id,
       socialAccountId: account.id,
@@ -126,14 +126,32 @@ export async function createPublishJob(
       scheduledFor: scheduledDate,
       nextAttemptAt: scheduledDate,
     },
+    include: {
+      socialAccount: true,
+      poster: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
+      video: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
+    },
   });
 
   if (recordedEdit) {
     await recomputeCreativeDnaPreferences(company.id);
   }
 
+  // "Now" means now: a real, awaited publish attempt within this same
+  // request, exactly like the campaign card's Direct/Aggregator publish
+  // buttons (campaign-publish.ts) — not the old fire-and-forget
+  // triggerPublishProcessing(), which trigger.ts's own doc comment
+  // already flags as a best-effort optimization Vercel's serverless
+  // runtime can freeze before it finishes. That left a real gap: a job
+  // created with an empty "publish at" field could silently sit
+  // SCHEDULED until the once-daily cron or a manual "Process now" click,
+  // even though the user asked for it to go out immediately.
   if (scheduledDate <= new Date()) {
-    triggerPublishProcessing();
+    const outcome = await processSinglePublishJob(job);
+    const assetId = job.poster?.asset.id ?? job.video?.asset.id;
+    if (outcome === "succeeded" && assetId) {
+      await cleanupMediaStorage(assetId);
+    }
   }
 
   revalidatePath("/publish");
@@ -153,12 +171,25 @@ export async function retryPublishJob(jobId: string): Promise<void> {
 
   if (job.status !== "FAILED") return;
 
-  await db.publishJob.update({
+  // Same real, awaited retry as createPublishJob's "now" path above —
+  // a user clicking Retry expects it to actually retry, not wait for
+  // the next cron tick or a separate manual "Process now" click.
+  const updated = await db.publishJob.update({
     where: { id: job.id },
     data: { status: "SCHEDULED", retryCount: 0, nextAttemptAt: new Date(), errorMessage: null },
+    include: {
+      socialAccount: true,
+      poster: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
+      video: { include: { asset: true, campaignItem: { include: { campaign: true } } } },
+    },
   });
 
-  triggerPublishProcessing();
+  const outcome = await processSinglePublishJob(updated);
+  const assetId = updated.poster?.asset.id ?? updated.video?.asset.id;
+  if (outcome === "succeeded" && assetId) {
+    await cleanupMediaStorage(assetId);
+  }
+
   revalidatePath("/publish");
 }
 

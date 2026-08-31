@@ -1,7 +1,6 @@
 import "server-only";
 
 import { processCampaignItems } from "./process-campaign-items";
-import { processPublishJobs } from "./process-publish-jobs";
 
 // Best-effort: kicks off processing without the caller waiting for it.
 // In a long-running Node process (local dev, a persistent host) this
@@ -14,17 +13,15 @@ import { processPublishJobs } from "./process-publish-jobs";
 // README.md. Folded into one shared route rather than one per job — a
 // real deploy failure ("No more than 12 Serverless Functions... on the
 // Hobby plan") is why this isn't four separate route.ts files anymore.
+//
+// publish.ts's equivalent (triggerPublishProcessing) was removed: its
+// two callers (createPublishJob's "now" path, retryPublishJob) both
+// switched to a real, awaited processSinglePublishJob call instead,
+// after this same fire-and-forget pattern turned out to be a real gap
+// for immediate publishing on serverless — see publish.ts's own comment
+// at those call sites.
 export function triggerCampaignProcessing(): void {
   void processCampaignItems().catch((error: unknown) => {
     console.error("Background campaign processing failed:", error);
-  });
-}
-
-// Same reasoning as triggerCampaignProcessing — see
-// src/app/api/jobs/run/route.ts (?job=process-publish-jobs) for the real
-// reliability mechanism.
-export function triggerPublishProcessing(): void {
-  void processPublishJobs().catch((error: unknown) => {
-    console.error("Background publish processing failed:", error);
   });
 }
