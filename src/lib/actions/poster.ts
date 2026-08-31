@@ -5,10 +5,17 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 export type GeneratePosterState =
   | { status: "error"; error: string }
-  | { status: "success"; posterId: string; warnings: string[] }
+  | {
+      status: "success";
+      posterId: string;
+      warnings: string[];
+      backgroundProviderName?: string;
+      fallbackFrom?: FallbackInfo[];
+    }
   | undefined;
 
 // Max lengths are sized to the render pipeline's own worst-case
@@ -83,7 +90,7 @@ export async function generatePoster(
     // Poster list refresh happens client-side (poster-form.tsx's
     // router.refresh() on success) instead of here — avoids a metered
     // ISR write on every single generation. See README's ISR Writes note.
-    return { status: "success", posterId: result.posterId, warnings: result.warnings };
+    return { status: "success", posterId: result.posterId, warnings: result.warnings, backgroundProviderName: result.backgroundProviderName, fallbackFrom: result.fallbackFrom };
   } catch (error) {
     if (error instanceof PosterGenerationError) {
       return { status: "error", error: error.message };
@@ -138,7 +145,7 @@ export async function regeneratePosterBackground(
       template: source.template,
       backgroundSource: "AI",
     });
-    return { status: "success", posterId: result.posterId, warnings: result.warnings };
+    return { status: "success", posterId: result.posterId, warnings: result.warnings, backgroundProviderName: result.backgroundProviderName, fallbackFrom: result.fallbackFrom };
   } catch (error) {
     if (error instanceof PosterGenerationError) {
       return { status: "error", error: error.message };

@@ -15,6 +15,7 @@ import { getBrandGradientProvider, getAiImageProviderForPoster } from "@/lib/pro
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 const ASPECT_RATIO_LABEL: Record<AspectRatio, "1:1" | "9:16" | "16:9"> = {
   SQUARE: "1:1",
@@ -37,6 +38,18 @@ export interface GeneratePosterCoreInput {
 export interface GeneratePosterCoreResult {
   posterId: string;
   warnings: string[];
+  // Both only set for the AI background path. backgroundProviderName is
+  // the real provider that actually generated the background (from the
+  // image call's own providerName — "Free AI"/"Free (brand gradient)"
+  // if it fell all the way through, not a guessed label). fallbackFrom
+  // is only populated when a real runtime-failure fallback actually
+  // happened (text's expandBackgroundPrompt and/or image's
+  // generateBackground) — real disclosure per Part 3 of the
+  // resilient-fallback-chain work, never shown for BRAND/PHOTO
+  // backgrounds (no AI provider call at all) or a first-choice provider
+  // succeeding normally.
+  backgroundProviderName?: string;
+  fallbackFrom?: FallbackInfo[];
 }
 
 // Thrown for any user-facing failure (quality gate fail, missing photo
@@ -77,6 +90,8 @@ export async function generatePosterCore(
   let backgroundBuffer: Buffer;
   let backgroundMimeType: string;
   let resolvedBackgroundAssetId: string | undefined;
+  let backgroundProviderName: string | undefined;
+  const fallbackFrom: FallbackInfo[] = [];
 
   if (input.backgroundSource === "BRAND") {
     const provider = getBrandGradientProvider({
@@ -155,6 +170,7 @@ export async function generatePosterCore(
       }
       throw error;
     }
+    if (expanded.fallbackFrom) fallbackFrom.push(...expanded.fallbackFrom);
 
     // Never null and never throws for the free-tier case — the shared
     // Cloudflare pool (no key) falls through to the brand gradient
@@ -178,6 +194,8 @@ export async function generatePosterCore(
       });
       backgroundBuffer = result.buffer;
       backgroundMimeType = result.mimeType;
+      backgroundProviderName = result.providerName;
+      if (result.fallbackFrom) fallbackFrom.push(...result.fallbackFrom);
     } catch (error) {
       if (error instanceof ImageProviderError) {
         throw new PosterGenerationError(`${error.providerName}: ${error.message}`);
@@ -241,5 +259,10 @@ export async function generatePosterCore(
     },
   });
 
-  return { posterId: poster.id, warnings };
+  return {
+    posterId: poster.id,
+    warnings,
+    backgroundProviderName,
+    fallbackFrom: fallbackFrom.length > 0 ? fallbackFrom : undefined,
+  };
 }

@@ -26,6 +26,16 @@ export interface Dictionary {
     save: string; cancel: string; remove: string; delete: string; retry: string;
     regenerate: string; approve: string; processNow: string; manage: string; optional: string;
     skipToContent: string;
+    // Shared across every generation surface (captions/poster/video) —
+    // real disclosure when the runtime-failure fallback chain actually
+    // kicked in, never shown for a first-choice provider succeeding
+    // normally. See fallback-log.ts's FallbackInfo.
+    fallbackNotice: (currentProvider: string, originalProvider: string) => string;
+    // Video-specific: script/narration/each B-roll still can each fall
+    // back independently, so there's no single clean "current provider"
+    // the way captions/poster have — this states what failed without
+    // guessing a specific replacement for the whole video.
+    fallbackNoticeGeneric: (originalProvider: string) => string;
   };
   company: {
     switcherLabel: string; addAnother: string; switchError: string;
@@ -71,7 +81,6 @@ export interface Dictionary {
     generate: string; generating: string;
     geminiNudgeText: string; geminiNudgeDismiss: string;
     sharedAiExhaustedText: string;
-    fallbackNotice: (currentProvider: string, originalProvider: string) => string;
   };
   wizard: {
     stepOf: (step: number) => string;
@@ -299,6 +308,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       manage: "Manage",
       optional: "(optional)",
       skipToContent: "Skip to content",
+      fallbackNotice: (currentProvider: string, originalProvider: string) =>
+        `Generated using ${currentProvider} — your ${originalProvider} had an issue this time.`,
+      fallbackNoticeGeneric: (originalProvider: string) =>
+        `Your ${originalProvider} had an issue during this generation — a free fallback was used for that part automatically.`,
     },
     company: {
       switcherLabel: "Switch company",
@@ -393,8 +406,6 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       geminiNudgeDismiss: "Dismiss",
       sharedAiExhaustedText:
         "Today's free AI quota is used up — templates still work, or connect your own free Gemini key in Settings for unlimited access.",
-      fallbackNotice: (currentProvider: string, originalProvider: string) =>
-        `Generated using ${currentProvider} — your ${originalProvider} had an issue this time.`,
     },
     wizard: {
       stepOf: (step: number) => `Step ${step} of 3`,
@@ -934,6 +945,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       manage: "إدارة",
       optional: "(اختياري)",
       skipToContent: "تخطَّ إلى المحتوى",
+      fallbackNotice: (currentProvider: string, originalProvider: string) =>
+        `تم الإنشاء باستخدام ${currentProvider} — واجه ${originalProvider} مشكلة هذه المرة.`,
+      fallbackNoticeGeneric: (originalProvider: string) =>
+        `واجه ${originalProvider} مشكلة أثناء هذا الإنشاء — تم استخدام بديل مجاني لهذا الجزء تلقائيًا.`,
     },
     company: {
       switcherLabel: "تبديل الشركة",
@@ -1027,8 +1042,6 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       geminiNudgeDismiss: "إغلاق",
       sharedAiExhaustedText:
         "انتهت حصة الذكاء الاصطناعي المجاني لهذا اليوم — القوالب لا تزال تعمل، أو اربط مفتاح Gemini المجاني الخاص بك في الإعدادات للوصول غير المحدود.",
-      fallbackNotice: (currentProvider: string, originalProvider: string) =>
-        `تم الإنشاء باستخدام ${currentProvider} — واجه ${originalProvider} مشكلة هذه المرة.`,
     },
     wizard: {
       stepOf: (step: number) => `الخطوة ${step} من 3`,

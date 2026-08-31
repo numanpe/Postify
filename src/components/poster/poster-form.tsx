@@ -215,6 +215,15 @@ export function PosterForm({
           {dict.generatedSuccess}
         </p>
       )}
+      {/* Real disclosure, not cosmetic — see generate-caption-form.tsx's
+          identical block for the full reasoning. Only ever set for the
+          AI background path when a runtime-failure fallback actually
+          happened. */}
+      {state?.status === "success" && state.fallbackFrom && state.fallbackFrom.length > 0 && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          {common.fallbackNotice(state.backgroundProviderName ?? dict.backgroundAI, state.fallbackFrom[0].fromProvider)}
+        </p>
+      )}
 
       <Button type="submit" pending={pending} pendingLabel={dict.generating}>
         <NavIcons.poster size={18} aria-hidden="true" />

@@ -11,6 +11,7 @@ import { NavIcons } from "@/components/icons";
 export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: TopicSuggestion[] }) {
   const [state, action, pending] = useActionState(generateCaption, undefined);
   const dict = useDict().studio;
+  const common = useDict().common;
   const topicGuardDict = useDict().topicGuard;
   const [topic, setTopic] = useState("");
   // Real fix, not cosmetic: the free tier's caption picker is fully
@@ -88,7 +89,7 @@ export function GenerateCaptionForm({ topicSuggestions }: { topicSuggestions: To
               check that key in Settings). */}
           {state.fallbackFrom && state.fallbackFrom.length > 0 && (
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              {dict.fallbackNotice(state.providerName, state.fallbackFrom[0].fromProvider)}
+              {common.fallbackNotice(state.providerName, state.fallbackFrom[0].fromProvider)}
             </p>
           )}
         </div>

@@ -34,6 +34,7 @@ export function VideoForm({
   const [state, action, pending] = useActionState(generateVideo, undefined);
   const dict = useDict().video;
   const topicGuardDict = useDict().topicGuard;
+  const common = useDict().common;
   const router = useRouter();
   const [topic, setTopic] = useState(defaultTopic ?? "");
   const [template, setTemplate] = useState<"STANDARD" | "LOWER_THIRD_PROMO" | "WAVEFORM_CAPTIONS">("STANDARD");
@@ -233,6 +234,18 @@ export function VideoForm({
               {warning}
             </p>
           ))}
+          {/* Real disclosure, not cosmetic — see generate-caption-form.tsx's
+              identical block for the full reasoning. Video's script/
+              narration/each B-roll still can each fall back
+              independently, so there's no single clean "current
+              provider" the way captions/poster have — only the first
+              real failure is named, using the generic (one-argument)
+              notice form instead. */}
+          {state.fallbackFrom && state.fallbackFrom.length > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {common.fallbackNoticeGeneric(state.fallbackFrom[0].fromProvider)}
+            </p>
+          )}
         </div>
       )}
 

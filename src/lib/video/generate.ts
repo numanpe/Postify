@@ -13,6 +13,7 @@ import { VoiceProviderError } from "@/lib/providers/voice/types";
 import type { WordTimestamp } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { IMAGE_SHARED_POOL_NAME } from "@/lib/providers/image/shared-image-pool";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 import { getMusicForIndustry } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
 import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
@@ -45,6 +46,13 @@ export interface GenerateVideoCoreInput {
 export interface GenerateVideoCoreResult {
   videoId: string;
   warnings: string[];
+  // Aggregated across every provider call this generation made (script,
+  // narration, each AI B-roll still) — only populated when a real
+  // runtime-failure fallback actually happened somewhere in the
+  // pipeline. Real disclosure per Part 3 of the resilient-fallback-
+  // chain work, never shown when every call succeeded on its
+  // first-choice provider.
+  fallbackFrom?: FallbackInfo[];
 }
 
 // Thrown for any user-facing failure (script/narration/image provider
@@ -82,6 +90,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   const template: VideoTemplate = input.template ?? "STANDARD";
 
   const context = await getCompanyContext(companyId);
+  const fallbackFrom: FallbackInfo[] = [];
 
   // 1. Script — hook/context/value/message/CTA, same TextProvider as
   // Phase 2's captions (free template or BYOK).
@@ -90,6 +99,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   try {
     const scriptResult = await textProvider.generateScript({ context, topic });
     script = scriptResult.script;
+    if (scriptResult.fallbackFrom) fallbackFrom.push(...scriptResult.fallbackFrom);
   } catch (error) {
     if (error instanceof ProviderError) {
       throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
@@ -117,6 +127,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       narrationBuffer = narrationResult.audioBuffer;
       narrationWords = narrationResult.words;
       hasNarration = true;
+      if (narrationResult.fallbackFrom) fallbackFrom.push(...narrationResult.fallbackFrom);
     } catch (error) {
       if (error instanceof VoiceProviderError) {
         throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
@@ -221,6 +232,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           freePoolCallsUsed += 1;
           freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType, thumbnailStorageKey });
         }
+        if (result.fallbackFrom) fallbackFrom.push(...result.fallbackFrom);
         scenes.push({ section, kind: "AI_STILL", buffer: result.buffer, mimeType: result.mimeType });
         sceneProvenance.push({
           order: i,
@@ -352,5 +364,5 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     },
   });
 
-  return { videoId: video.id, warnings };
+  return { videoId: video.id, warnings, fallbackFrom: fallbackFrom.length > 0 ? fallbackFrom : undefined };
 }

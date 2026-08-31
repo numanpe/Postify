@@ -7,10 +7,17 @@ import { generateVideoCore, VideoGenerationError } from "@/lib/video/generate";
 import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 export type GenerateVideoState =
   | { status: "error"; error: string }
-  | { status: "success"; videoId: string; warnings: string[]; usedTopic?: string }
+  | {
+      status: "success";
+      videoId: string;
+      warnings: string[];
+      usedTopic?: string;
+      fallbackFrom?: FallbackInfo[];
+    }
   | undefined;
 
 const VideoSchema = z.object({
@@ -69,6 +76,7 @@ export async function generateVideo(
       videoId: result.videoId,
       warnings: result.warnings,
       usedTopic: guard.wasClarified ? guard.topic : undefined,
+      fallbackFrom: result.fallbackFrom,
     };
   } catch (error) {
     if (error instanceof TopicGuardError) {
