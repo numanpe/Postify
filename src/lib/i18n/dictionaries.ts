@@ -147,6 +147,7 @@ export interface Dictionary {
     sceneNoPreview: string; sceneThumbnailAlt: (n: number) => string; sceneRemoveAria: (n: number) => string;
     sceneDragHandleAria: (n: number) => string; sceneAddAria: string;
     sceneJumpToScript: string; sceneJumpToScriptAria: (section: string) => string;
+    sceneMediaSwapUnavailableLegacy: string;
   };
   campaigns: {
     title: string; subtitle: (name: string) => string; yourCampaigns: string;
@@ -573,6 +574,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneAddAria: "Add a new scene at the end",
       sceneJumpToScript: "Go to script",
       sceneJumpToScriptAria: (section: string) => `Jump to the "${section}" section in the script editor`,
+      sceneMediaSwapUnavailableLegacy:
+        "This scene can't be swapped — it was rendered before per-scene editing existed. Edit the script above to regenerate it with full scene control.",
       sceneEditorSave: "Save scenes",
       sceneEditorSaving: "Re-rendering…",
       sceneEditorSaved: "Scenes updated.",
@@ -1212,6 +1215,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneAddAria: "إضافة مشهد جديد في النهاية",
       sceneJumpToScript: "الانتقال إلى النص",
       sceneJumpToScriptAria: (section: string) => `الانتقال إلى قسم "${section}" في محرّر النص`,
+      sceneMediaSwapUnavailableLegacy:
+        "لا يمكن تبديل وسائط هذا المشهد — تم إنشاؤه قبل إتاحة التعديل لكل مشهد على حدة. عدّل النص أعلاه لإعادة إنشائه بتحكم كامل بالمشاهد.",
       sceneEditorSave: "حفظ المشاهد",
       sceneEditorSaving: "جارٍ إعادة الإنتاج…",
       sceneEditorSaved: "تم تحديث المشاهد.",

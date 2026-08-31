@@ -335,20 +335,38 @@ function NarratedSceneList({
           durationSec: null,
           scriptLabel: scene.scriptKey ? (scriptLabels[scene.scriptKey] ?? scene.scriptKey) : null,
         }))}
-        onThumbnailClick={(i) => {
-          if (scenes[i].scriptKey) setOpenSwapIndex(i);
-        }}
+        onThumbnailClick={(i) => setOpenSwapIndex(i)}
         onJumpToScript={jumpToScript}
       />
 
-      {openSwapIndex !== null && scenes[openSwapIndex]?.scriptKey && (
-        <SceneMediaSwapButton
-          sceneMediaAssets={sceneMediaAssets}
-          videoId={videoId}
-          scriptKey={scenes[openSwapIndex].scriptKey}
-          onClose={() => setOpenSwapIndex(null)}
-        />
-      )}
+      {openSwapIndex !== null &&
+        (scenes[openSwapIndex]?.scriptKey ? (
+          <SceneMediaSwapButton
+            sceneMediaAssets={sceneMediaAssets}
+            videoId={videoId}
+            scriptKey={scenes[openSwapIndex].scriptKey}
+            onClose={() => setOpenSwapIndex(null)}
+          />
+        ) : (
+          // Real, honest dead end — not a silent no-op. A handful of
+          // narrated videos rendered before VideoScene.scriptKey existed
+          // have no way to identify which script section a scene belongs
+          // to (the swap action matches scenes to sections by that key),
+          // and there's no real data to backfill it from. Tapping such a
+          // scene used to do nothing at all; this at least explains why
+          // and offers the one real way out (re-rendering via a script
+          // edit gives every scene a real scriptKey again).
+          <div className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-xs">
+            <p className="text-ink-soft dark:text-ink-soft-dark">{dict.sceneMediaSwapUnavailableLegacy}</p>
+            <button
+              type="button"
+              onClick={() => setOpenSwapIndex(null)}
+              className="w-fit text-start text-ink-soft underline dark:text-ink-soft-dark"
+            >
+              {dict.sceneMediaSwapCancel}
+            </button>
+          </div>
+        ))}
     </div>
   );
 }
