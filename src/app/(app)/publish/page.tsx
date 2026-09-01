@@ -56,6 +56,7 @@ export default async function PublishPage({
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">{dict.publish.title}</h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.publish.subtitle}</p>
+        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">{dict.publish.zernioRecommendedNote}</p>
       </div>
 
       {connectStatus === "connected" && (

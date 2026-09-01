@@ -145,6 +145,7 @@ export function PublishingSettings({
           )}
         </div>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.modeAggregatorDescription}</p>
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.modeAggregatorConnectHint}</p>
 
         <AggregatorCredentialForm provider="ZERNIO" displayName="Zernio" existing={zernioCredential} />
 
@@ -159,36 +160,39 @@ export function PublishingSettings({
         )}
       </div>
 
-      {/* Direct API — Meta is real, TikTok is honestly not */}
-      <div className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 font-medium">
-            <ActionIcons.publishDirect size={16} aria-hidden="true" />
-            {dict.modeDirectApiTitle}
-          </span>
-          {publishingMode === "DIRECT_API" ? (
-            <span className="text-xs text-green-700 dark:text-green-400">{dict.currentMethod}</span>
-          ) : (
-            <form action={setPublishingMode}>
-              <input type="hidden" name="mode" value="DIRECT_API" />
-              <button type="submit" className="text-xs font-medium underline">
-                {dict.useThisMethod}
-              </button>
-            </form>
-          )}
-        </div>
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.modeDirectApiDescription}</p>
-        <a href="/publish" className="text-sm font-medium underline">
-          {dict.goToDirectMeta}
-        </a>
-        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.tiktokNotIntegrated}</p>
-      </div>
-
-      {/* Advanced — the rest of the real, verified providers, plus the
-          one honestly not implemented yet */}
+      {/* Advanced — direct platform connection (currently tester-gated
+          on our side, see directApiTesterNote) plus the rest of the
+          real, verified aggregator providers. Zernio above is the
+          primary path for real users precisely because this section
+          isn't — moved here, not removed, per the real distinction
+          between "developer/tester" and "real user" access. */}
       <details className="rounded-md border border-paper-border dark:border-night-border p-3">
         <summary className="cursor-pointer text-sm font-medium">{dict.advancedOptions}</summary>
         <ul className="mt-2 flex flex-col gap-3">
+          <li className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-2 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 font-medium">
+                <ActionIcons.publishDirect size={16} aria-hidden="true" />
+                {dict.modeDirectApiTitle}
+              </span>
+              {publishingMode === "DIRECT_API" ? (
+                <span className="text-xs text-green-700 dark:text-green-400">{dict.currentMethod}</span>
+              ) : (
+                <form action={setPublishingMode}>
+                  <input type="hidden" name="mode" value="DIRECT_API" />
+                  <button type="submit" className="text-xs font-medium underline">
+                    {dict.useThisMethod}
+                  </button>
+                </form>
+              )}
+            </div>
+            <p className="text-ink-soft dark:text-ink-soft-dark">{dict.modeDirectApiDescription}</p>
+            <p className="text-xs font-medium text-amber-600 dark:text-amber-400">{dict.directApiTesterNote}</p>
+            <a href="/publish" className="font-medium underline">
+              {dict.goToDirectMeta}
+            </a>
+            <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.tiktokNotIntegrated}</p>
+          </li>
           {AGGREGATOR_PROVIDERS.filter((p) => p.provider !== "ZERNIO").map((p) => (
             <li key={p.provider} className="flex flex-col gap-1 rounded-md border border-paper-border dark:border-night-border p-2 text-sm">
               <div className="flex items-center justify-between">

@@ -75,7 +75,7 @@ export const AGGREGATOR_PROVIDERS: AggregatorProviderInfo[] = [
     provider: "ZERNIO",
     displayName: "Zernio",
     homepage: "https://zernio.com",
-    pricingSummary: "First 2 accounts free, then $6/account (3-10), $3/account (11-100).",
+    pricingSummary: "First 2 accounts free, then $6/account (3-10), $3/account (11-100), $1/account (101+).",
     implemented: true,
   },
   {

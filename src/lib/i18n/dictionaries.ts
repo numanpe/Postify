@@ -185,6 +185,7 @@ export interface Dictionary {
     title: string; subtitle: string; connectedSuccess: string;
     connectedError: (detail: string) => string; noPostersYetPrefix: string;
     noPostersYetSuffix: string; connectFirst: string; processingHint: (n: number) => string;
+    zernioRecommendedNote: string;
     connectedAccounts: string; connectButton: string; noAccounts: string;
     reconnectNeeded: string; disconnect: string; publishTo: string; poster: string;
     caption: string; when: string; whenHint: string; queuePost: string; queuing: string;
@@ -297,6 +298,7 @@ export interface Dictionary {
     apiKeyLabel: string; accountMapLabel: string; accountMapHint: string; accountMapPlaceholder: string;
     saveAndUse: string; saving: string; savedCredential: (provider: string) => string;
     advancedOptions: string; comingSoon: string; goToDirectMeta: string; tiktokNotIntegrated: string;
+    modeAggregatorConnectHint: string; directApiTesterNote: string;
     downloadButton: string; downloadedToast: string;
     publishViaProvider: (provider: string) => string; publishing: string;
     publishDirect: string; selectAccount: string; noAccountsForDirect: string;
@@ -677,6 +679,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     publish: {
       title: "Publish",
       subtitle: "Post an existing poster or video directly to a connected Facebook, Instagram, LinkedIn, or TikTok account.",
+      zernioRecommendedNote: "Direct connection is currently limited to accounts approved as testers on our Meta app. Most real users should connect via Zernio instead — Settings → Publishing.",
       connectedSuccess: "Connected successfully.",
       connectedError: (detail: string) => `Couldn't connect: ${detail}`,
       noPostersYetPrefix: "No posters yet — generate one in the",
@@ -968,13 +971,16 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "Choose how your posters and videos get published from campaign cards. Manual download is always free and always works — the other options are optional.",
       modeManualTitle: "Manual Download & Copy",
       modeManualDescription: "Zero setup, 100% free. Download the file, paste the caption yourself.",
-      modeAggregatorTitle: "Zernio / Automated Social Router",
+      modeAggregatorTitle: "Zernio",
       modeAggregatorRecommended: "(Recommended)",
       modeAggregatorDescription:
-        "Paste your own Zernio API key — posts go out through your Zernio account, at Zernio's own pricing. Postify never charges for this.",
-      modeDirectApiTitle: "Direct Meta / TikTok API",
+        "Connect Facebook, Instagram, LinkedIn, and TikTok through Zernio's own established partnership with each platform — real accounts can connect right away, with no separate app review needed from us. Posts go out through your own Zernio account, at Zernio's own pricing (2 accounts free, then usage-based). Postify never charges for this.",
+      modeAggregatorConnectHint: "Connect your accounts on Zernio's own dashboard first, then paste your API key and the resulting account IDs below.",
+      modeDirectApiTitle: "Direct Meta API (advanced)",
       modeDirectApiDescription:
-        "Publish straight to a Facebook Page or Instagram account you connect below. TikTok isn't integrated yet.",
+        "Publish straight to a Facebook Page or Instagram account using this app's own Meta integration.",
+      directApiTesterNote:
+        "Currently limited to accounts approved as testers on our own Meta app — most real users should use Zernio above instead until that changes.",
       useThisMethod: "Use this method",
       currentMethod: "Currently in use",
       apiKeyLabel: "API key",
@@ -1374,6 +1380,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
     publish: {
       title: "النشر",
       subtitle: "انشر ملصقًا أو فيديو جاهزًا مباشرة إلى حساب فيسبوك أو إنستغرام أو لينكدإن أو تيك توك متصل.",
+      zernioRecommendedNote: "الاتصال المباشر يقتصر حاليًا على الحسابات المعتمدة كمختبِرين في تطبيق Meta الخاص بنا. يجب على معظم المستخدمين الحقيقيين الاتصال عبر Zernio بدلًا من ذلك — الإعدادات ← النشر.",
       connectedSuccess: "تم الربط بنجاح.",
       connectedError: (detail: string) => `تعذّر الربط: ${detail}`,
       noPostersYetPrefix: "لا توجد ملصقات بعد — أنشئ واحدًا في",
@@ -1662,13 +1669,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "اختر طريقة نشر ملصقاتك وفيديوهاتك من بطاقات الحملة. التنزيل اليدوي مجاني دائمًا ويعمل دائمًا — بقية الخيارات اختيارية.",
       modeManualTitle: "التنزيل اليدوي والنسخ",
       modeManualDescription: "بلا إعداد، مجاني 100%. نزّل الملف والصق التسمية التوضيحية بنفسك.",
-      modeAggregatorTitle: "Zernio / موجّه النشر الآلي",
+      modeAggregatorTitle: "Zernio",
       modeAggregatorRecommended: "(موصى به)",
       modeAggregatorDescription:
-        "الصق مفتاح Zernio الخاص بك — تُنشر المنشورات عبر حساب Zernio الخاص بك، وفق أسعار Zernio نفسها. بوستيفاي لا يفرض رسومًا على هذا مطلقًا.",
-      modeDirectApiTitle: "واجهة Meta / TikTok المباشرة",
-      modeDirectApiDescription:
-        "انشر مباشرة إلى صفحة فيسبوك أو حساب إنستغرام تربطه أدناه. TikTok غير مدمج بعد.",
+        "اربط فيسبوك وإنستغرام ولينكدإن وتيك توك عبر شراكة Zernio الراسخة مع كل منصة — يمكن للحسابات الحقيقية الاتصال فورًا، دون الحاجة إلى مراجعة تطبيق منفصلة من جانبنا. تُنشر المنشورات عبر حساب Zernio الخاص بك، وفق أسعار Zernio نفسها (أول حسابين مجانًا، ثم حسب الاستخدام). بوستيفاي لا يفرض رسومًا على هذا مطلقًا.",
+      modeAggregatorConnectHint: "اربط حساباتك أولًا من لوحة تحكم Zernio الخاصة بها، ثم الصق مفتاح API ومعرّفات الحسابات الناتجة أدناه.",
+      modeDirectApiTitle: "واجهة Meta المباشرة (متقدم)",
+      modeDirectApiDescription: "انشر مباشرة إلى صفحة فيسبوك أو حساب إنستغرام باستخدام تكامل Meta الخاص بهذا التطبيق.",
+      directApiTesterNote:
+        "يقتصر حاليًا على الحسابات المعتمدة كمختبِرين في تطبيق Meta الخاص بنا — يجب على معظم المستخدمين الحقيقيين استخدام Zernio أعلاه بدلًا من ذلك حتى يتغير هذا.",
       useThisMethod: "استخدام هذه الطريقة",
       currentMethod: "قيد الاستخدام حاليًا",
       apiKeyLabel: "مفتاح API",
