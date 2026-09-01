@@ -69,10 +69,14 @@ async function generateTodaysBatch(rule: RecurringPlan & { company: Company }, t
   // This is the real "Auto-Generate Daily Idea" mechanism — the same
   // industry-pack topic suggestions already shown as chips in Studio
   // forms (industry-packs.ts), rotated by how many days this rule has
-  // already run, not a new topic bank invented for this feature.
+  // already run, not a new topic bank invented for this feature. Widened
+  // with the company's own secondaryNiches when set (see
+  // getCompanyTopicPool's doc comment) — same real gap fix as
+  // studio-wizard.ts's autoGenerate/showAnotherIdea, 2026-09-01.
   const campaignsSoFar = await db.campaign.count({ where: { recurringPlanId: rule.id } });
-  const rotatingSuggestion = context.pack.topicSuggestions[campaignsSoFar % context.pack.topicSuggestions.length];
-  const objective = rule.objectiveHint?.trim() || rotatingSuggestion.topic;
+  const rotatingPool = [...context.pack.topicSuggestions.map((s) => s.topic), ...context.secondaryNiches];
+  const rotatingTopic = rotatingPool[campaignsSoFar % rotatingPool.length];
+  const objective = rule.objectiveHint?.trim() || rotatingTopic;
 
   const connectedAccounts = await db.socialAccount.findMany({
     where: { companyId: rule.companyId, platform: { in: rule.targetPlatforms } },

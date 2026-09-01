@@ -58,3 +58,28 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
     targetMarket: company.targetMarket,
   };
 }
+
+// Real per-company topic pool: the industry pack's generic autoTopics
+// widened with this company's own secondaryNiches (real extracted
+// product/service names from website onboarding, or short manually-
+// added niche labels) when the company has any set.
+//
+// Real, confirmed gap (2026-09-01): "Auto-Generate Daily Idea," "Show
+// me another idea," and the recurring daily plan's topic rotation
+// (studio-wizard.ts, process-recurring-plans.ts) only ever drew from
+// pack.autoTopics/topicSuggestions — never from secondaryNiches — so
+// two companies in the same industry always saw byte-identical
+// suggestions, even when one had real extracted business data and the
+// other didn't. secondaryNiches is safe to use in the same strict
+// {{topic}} noun-phrase slots as autoTopics (see its own doc comment)
+// since it's seeded from real extracted product names or short niche
+// labels, never full sentences.
+//
+// Companies with no secondaryNiches set (the common case for anyone
+// who onboarded manually rather than via website extraction) see
+// unchanged behavior — pack.autoTopics alone, exactly as before.
+export function getCompanyTopicPool(context: CompanyContext): string[] {
+  return context.secondaryNiches.length > 0
+    ? [...context.pack.autoTopics, ...context.secondaryNiches]
+    : context.pack.autoTopics;
+}

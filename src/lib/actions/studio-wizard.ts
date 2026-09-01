@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { requireCompany } from "@/lib/session";
-import { getCompanyContext } from "@/lib/company-context";
+import { getCompanyContext, getCompanyTopicPool } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
@@ -54,8 +54,15 @@ export async function generateWizardStep1(
     // correctly shows the same idea, by design — one suggestion per
     // day, not a shuffle button. "Show me another idea" below is the
     // real, distinct escape hatch for on-demand variety instead.
+    //
+    // Real fix (2026-09-01): the pool now widens with this company's
+    // own secondaryNiches when set, not just the generic industry pack
+    // — see getCompanyTopicPool's own doc comment for the confirmed gap
+    // this closes (two same-industry companies always seeing identical
+    // suggestions regardless of real per-company data).
     const dayIndex = Math.floor(Date.now() / 86_400_000);
-    topic = context.pack.autoTopics[dayIndex % context.pack.autoTopics.length];
+    const dailyPool = getCompanyTopicPool(context);
+    topic = dailyPool[dayIndex % dailyPool.length];
   } else if (formData.get("showAnotherIdea") === "true") {
     // Real fix (2026-08-25): genuinely random, not day-locked — draws
     // from autoTopics ∪ topicSuggestions' real topic phrases (already
@@ -65,8 +72,9 @@ export async function generateWizardStep1(
     // to differ from what "Auto-Generate Daily Idea" would show right
     // now, not just usually different by chance.
     const dayIndex = Math.floor(Date.now() / 86_400_000);
-    const todaysAutoTopic = context.pack.autoTopics[dayIndex % context.pack.autoTopics.length];
-    const pool = [...context.pack.autoTopics, ...context.pack.topicSuggestions.map((s) => s.topic)].filter(
+    const dailyPool = getCompanyTopicPool(context);
+    const todaysAutoTopic = dailyPool[dayIndex % dailyPool.length];
+    const pool = [...dailyPool, ...context.pack.topicSuggestions.map((s) => s.topic)].filter(
       (t) => t !== todaysAutoTopic,
     );
     topic = pool[Math.floor(Math.random() * pool.length)] ?? todaysAutoTopic;
