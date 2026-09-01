@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
+import { getCompanyTopicPool } from "@/lib/company-context";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -138,11 +139,11 @@ function pick(
 // line. Two variants per stage so a typical week (5-7 items) doesn't
 // repeat an exact angle; longer campaigns cycle back through the arc.
 const CAMPAIGN_ARC: string[][] = [
-  ["Introducing {{objective}}.", "Here's what's new: {{objective}}."],
-  ["What makes {{objective}} worth it.", "A closer look at {{objective}}."],
-  ["Why people are talking about {{objective}}.", "See what others are saying about {{objective}}."],
-  ["Don't miss out on {{objective}}.", "Time's running out for {{objective}}."],
-  ["One last look at {{objective}}.", "Before it's gone: {{objective}}."],
+  ["Introducing {{topic}}.", "Here's what's new: {{topic}}."],
+  ["What makes {{topic}} worth it.", "A closer look at {{topic}}."],
+  ["Why people are talking about {{topic}}.", "See what others are saying about {{topic}}."],
+  ["Don't miss out on {{topic}}.", "Time's running out for {{topic}}."],
+  ["One last look at {{topic}}.", "Before it's gone: {{topic}}."],
 ];
 
 // Real keyword matching against the objective text, not a random
@@ -290,38 +291,47 @@ export class TemplateTextProvider implements TextProvider {
     itemAssetTypes,
   }: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput> {
     const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;
-    const vars = { company: name, objective, niches: secondaryNiches.join(", ") };
+    const baseVars = { company: name, niches: secondaryNiches.join(", ") };
     const campaignType = inferCampaignType(objective);
     // Real, not decorative — see deriveMarketHashtags's own comment.
     // Appended to (never replacing) the industry pack's own real tags,
     // so every item keeps its genuinely industry-relevant hashtags too.
     const marketHashtags = deriveMarketHashtags(targetMarket);
+    // Real, confirmed-live bug (2026-09-01 acceptance test, all 3
+    // industries tested): every template below (CAMPAIGN_ARC included)
+    // assumes {{topic}} is a short noun phrase ("our new irrigation
+    // system"), but `objective` is free text from a "Describe the
+    // campaign's objective" field — almost always a full sentence or
+    // imperative ("Promote this week's heirloom apple harvest and
+    // Saturday farm stand"), not a noun phrase. Splicing that raw
+    // sentence into "Introducing {{topic}}." or "{{topic}} means
+    // quality you can taste and trust" produced real, visibly broken
+    // grammar in every generated item. `objective` still drives
+    // inferCampaignType's keyword match and the Campaign row's own
+    // internal name/objective fields — it's just never echoed verbatim
+    // into what a customer actually reads. getCompanyTopicPool gives a
+    // real, safe, per-company noun-phrase pool instead (same one
+    // "Auto-Generate Daily Idea" already uses), rotated per item so a
+    // multi-day campaign gets genuine day-to-day topic variety too,
+    // not the same phrase re-templated itemCount times.
+    const topicPool = getCompanyTopicPool(context);
 
     const items: CampaignBriefItem[] = [];
     for (let i = 0; i < itemCount; i += 1) {
+      const vars = { ...baseVars, topic: topicPool[i % topicPool.length] };
+
       const stage = CAMPAIGN_ARC[i % CAMPAIGN_ARC.length];
       const variant = stage[Math.floor(i / CAMPAIGN_ARC.length) % stage.length];
       const angle = capitalizeSentences(fillTemplate(variant, vars));
 
       const seed = `${companyId}:${tone}:${objective}:${i}`;
-      // {{topic}} here is the raw objective, not `angle` — `angle` is
-      // already a full sentence (CAMPAIGN_ARC wrapped it), and these
-      // hook/valueProp/cta templates ALSO wrap {{topic}} into a
-      // sentence ("{{topic}} — grown with care..."); splicing a
-      // sentence into a sentence produced real grammatically broken
-      // output ("We put the same care into What makes X worth it. That
-      // we put into..."), caught by generating and visually inspecting
-      // a real poster. Matches how generateCaption/generateScript
-      // already use their raw `topic` input directly, with no
-      // second wrapping layer.
-      const topicVars = { ...vars, topic: objective };
-      const hook = pick(seed, "h", pack.hooks, topicVars);
-      const valueProp = pick(seed, "v", pack.valueProps, topicVars, hook.usedCompany, hook.usedTopic);
+      const hook = pick(seed, "h", pack.hooks, vars);
+      const valueProp = pick(seed, "v", pack.valueProps, vars, hook.usedCompany, hook.usedTopic);
       const cta = pick(
         seed,
         "c",
         pack.ctas,
-        topicVars,
+        vars,
         hook.usedCompany || valueProp.usedCompany,
         hook.usedTopic || valueProp.usedTopic,
       );

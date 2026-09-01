@@ -34,33 +34,53 @@ export interface RenderedCaption extends CaptionChunk {
 // (a handful of words or ~2.5s of speech, whichever comes first) —
 // standard "karaoke-accurate" captioning: timed to word-level
 // precision without flashing one word at a time.
+//
+// sectionBoundaries: each script section's real endSec (from
+// computeSectionTimingsFromWords via each scene's own section) — a
+// chunk in progress is always flushed before crossing one, so a
+// caption never mixes the tail of one script section with the head of
+// the next. Real, confirmed-live bug (2026-09-01 acceptance test,
+// recurring across every industry tested): the narration for a whole
+// script is one flat word list (sections joined with " ... " before
+// TTS — see generateNarrationWithFallback's fullScriptText), and the
+// "..." itself gets no word-timestamp event, so a 4-word/2.5s window
+// could straddle that gap. The words ARE in real spoken order either
+// way (never scrambled) — the bug is a chunk like "to your family
+// Every" reading as a confusing non-sequitur because it silently
+// splices the end of one sentence to the start of an unrelated one.
 export function chunkWordsIntoCaptions(
   words: WordTimestamp[],
+  sectionBoundaries: number[] = [],
   maxWords = 4,
   maxDurationSec = 2.5,
 ): CaptionChunk[] {
   const chunks: CaptionChunk[] = [];
   let current: WordTimestamp[] = [];
+  let boundaryIndex = 0;
 
-  for (const word of words) {
-    current.push(word);
-    const duration = word.endSec - current[0].startSec;
-    if (current.length >= maxWords || duration >= maxDurationSec) {
-      chunks.push({
-        text: current.map((w) => w.word).join(" ").trim(),
-        startSec: current[0].startSec,
-        endSec: word.endSec,
-      });
-      current = [];
-    }
-  }
-  if (current.length > 0) {
+  const flush = () => {
+    if (current.length === 0) return;
     chunks.push({
       text: current.map((w) => w.word).join(" ").trim(),
       startSec: current[0].startSec,
       endSec: current[current.length - 1].endSec,
     });
+    current = [];
+  };
+
+  for (const word of words) {
+    while (boundaryIndex < sectionBoundaries.length && word.startSec >= sectionBoundaries[boundaryIndex]) {
+      flush();
+      boundaryIndex += 1;
+    }
+
+    current.push(word);
+    const duration = word.endSec - current[0].startSec;
+    if (current.length >= maxWords || duration >= maxDurationSec) {
+      flush();
+    }
   }
+  flush();
 
   return chunks;
 }

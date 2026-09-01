@@ -45,11 +45,25 @@ interface CloudflareErrorBody {
 }
 
 function buildBackgroundPrompt(input: GenerateBackgroundInput): string {
+  // Real, confirmed-live bug (2026-09-01 acceptance test): video B-roll
+  // passes a full script sentence as `topic` (e.g. "Straight from our
+  // farm to your family."), and the old "Context: {{topic}}." phrasing
+  // reads like a caption to display — the model rendered that exact
+  // sentence as garbled, edge-clipped on-image text, recurring across
+  // every industry tested, not a one-off. Posters (shorter, non-
+  // sentence topics) hit a milder version of the same failure. Framing
+  // the topic as something to depict rather than display, and naming
+  // the failure mode explicitly in the negative instruction, is a real
+  // targeted mitigation for the specific mechanism found — not a
+  // guaranteed fix (no prompt alone eliminates this for every model),
+  // so the existing one-click regenerate affordance stays the real
+  // safety net.
   const base = input.expandedPrompt
     ? `${input.expandedPrompt}${input.negativePrompt ? ` Avoid: ${input.negativePrompt}.` : ""}`
     : `A professional marketing background photo for a ${input.industry} business. ` +
-      `Mood/tone: ${input.tone}. Context: ${input.topic}. ` +
-      "No text, no logos, no watermarks — a clean background suitable for overlaying headline text.";
+      `Mood/tone: ${input.tone}. The scene should evoke: ${input.topic} ` +
+      "— depict this visually only, never as on-image text, captions, signage, or lettering. " +
+      "No text, no logos, no watermarks, no lettering of any kind — a clean background photo suitable for overlaying headline text separately.";
   return base;
 }
 

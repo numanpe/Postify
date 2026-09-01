@@ -395,7 +395,10 @@ export async function renderVideo(input: RenderVideoInput): Promise<RenderVideoO
 
     const captionChunks: CaptionChunk[] =
       input.narrationWords && input.narrationWords.length > 0
-        ? chunkWordsIntoCaptions(input.narrationWords)
+        ? chunkWordsIntoCaptions(
+            input.narrationWords,
+            input.scenes.map((scene) => scene.section.endSec),
+          )
         : input.scenes.map((scene) => ({
             text: scene.section.text,
             startSec: scene.section.startSec,
