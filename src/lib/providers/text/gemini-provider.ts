@@ -304,10 +304,15 @@ export class GeminiTextProvider implements TextProvider {
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { system, user } = buildCaptionPrompt(context, topic);
-    // 300, not the old default of 150 — a real caption cut off mid-
-    // sentence (see this method's thinkingConfig fix above) is worse
-    // than a slightly larger budget for "at most two short sentences."
-    const { content, estimatedCostUsd } = await this.generateContent(system, user, { maxTokens: 300 });
+    // 700, not 300 — 300 was still a guess and real production evidence
+    // proved it wrong: 4 separate real captions truncated mid-sentence,
+    // and a direct real API call with usageMetadata exposed the exact
+    // cause — this model spends 414 real thinking tokens on this exact
+    // prompt even at thinkingLevel:"low" (Gemini 3 Flash has no full
+    // thinking-off), which alone exceeded the old 300 budget before any
+    // visible answer text could complete. 700 leaves real, measured
+    // headroom (~280 tokens) above that 414, not just a bigger guess.
+    const { content, estimatedCostUsd } = await this.generateContent(system, user, { maxTokens: 700 });
     return { text: content, providerName: this.name, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 
