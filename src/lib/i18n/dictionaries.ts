@@ -20,7 +20,7 @@ export interface Dictionary {
   nav: {
     studio: string; poster: string; video: string; campaigns: string; publish: string;
     media: string; brandKit: string; settings: string; signOut: string; repurpose: string; menu: string;
-    createContent: string;
+    createContent: string; help: string;
   };
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
@@ -317,6 +317,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       repurpose: "Repurpose",
       menu: "Menu",
       createContent: "Create Content",
+      help: "Help",
     },
     common: {
       save: "Save",
@@ -1007,6 +1008,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       repurpose: "إعادة التوظيف",
       menu: "القائمة",
       createContent: "إنشاء محتوى",
+      help: "المساعدة",
     },
     common: {
       save: "حفظ",

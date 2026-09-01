@@ -38,6 +38,7 @@ import {
   Music2,
   Eye,
   Building2,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ export const NavIcons = {
   settings: Settings,
   signOut: LogOut,
   addCompany: Building2,
+  help: HelpCircle,
 } satisfies Record<string, LucideIcon>;
 
 export const ActionIcons = {
