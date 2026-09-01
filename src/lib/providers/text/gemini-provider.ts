@@ -210,21 +210,24 @@ export class GeminiTextProvider implements TextProvider {
             generationConfig: {
               temperature: 0.7,
               maxOutputTokens: options.maxTokens ?? 150,
+              // Real fix for a confirmed prod failure, not speculative: queried
+              // ProviderFallbackEvent directly and found every expandBackgroundPrompt
+              // MAX_TOKENS failure had only 54-70 chars of actual content — far too
+              // short to be real JSON truncated near the end. Gemini 3 Flash's
+              // "thinking" tokens count against maxOutputTokens and are on by default
+              // (verified against ai.google.dev/gemini-api/docs/generate-content/
+              // gemini-3), so a modest budget can be exhausted by hidden reasoning
+              // before any visible output escapes. Applied unconditionally, not just
+              // to jsonMode calls — caught live via this session's own testing:
+              // generateCaption (plain text, no jsonMode) produced a truncated,
+              // markdown-fragment caption for the exact same reason. None of these
+              // methods are reasoning tasks — "low" is the documented setting for
+              // that; Gemini 3 Flash doesn't support a full thinking-off.
+              thinkingConfig: { thinkingLevel: "low" },
               ...(options.jsonMode
                 ? {
                     responseMimeType: "application/json",
                     ...(options.responseSchema ? { responseSchema: options.responseSchema } : {}),
-                    // Real fix for a confirmed prod failure, not speculative: queried
-                    // ProviderFallbackEvent directly and found every expandBackgroundPrompt
-                    // MAX_TOKENS failure had only 54-70 chars of actual content — far too
-                    // short to be real JSON truncated near the end. Gemini 3 Flash's
-                    // "thinking" tokens count against maxOutputTokens and are on by default
-                    // (verified against ai.google.dev/gemini-api/docs/generate-content/
-                    // gemini-3), so a modest budget can be exhausted by hidden reasoning
-                    // before any visible JSON escapes. These 5 methods are structured
-                    // extraction, not reasoning tasks — "low" is the documented setting for
-                    // that; Gemini 3 Flash doesn't support a full thinking-off.
-                    thinkingConfig: { thinkingLevel: "low" },
                   }
                 : {}),
             },
@@ -301,7 +304,10 @@ export class GeminiTextProvider implements TextProvider {
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { system, user } = buildCaptionPrompt(context, topic);
-    const { content, estimatedCostUsd } = await this.generateContent(system, user);
+    // 300, not the old default of 150 — a real caption cut off mid-
+    // sentence (see this method's thinkingConfig fix above) is worse
+    // than a slightly larger budget for "at most two short sentences."
+    const { content, estimatedCostUsd } = await this.generateContent(system, user, { maxTokens: 300 });
     return { text: content, providerName: this.name, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 

@@ -34,7 +34,23 @@ export default async function StudioWizardStep1Page({
   // /create-company itself; see studio-gemini-gate.tsx's comment for
   // the real race-condition bug that choice avoids.
   if (showGeminiStep === "1") {
-    return <StudioGeminiGate dict={dict.onboarding} firstTopic={firstTopic} />;
+    // Narrow, explicit pick — never the whole dict.onboarding object —
+    // see GeminiStepDict's own doc comment for the real RSC-boundary
+    // crash this avoids (dict.onboarding now also holds a function-
+    // typed entry, extractionSourceAi, that can't cross into a Client
+    // Component as a prop).
+    const geminiStepDict = {
+      geminiStepTitle: dict.onboarding.geminiStepTitle,
+      geminiStepBody: dict.onboarding.geminiStepBody,
+      geminiStepDisclosure: dict.onboarding.geminiStepDisclosure,
+      geminiStepGetKeyLink: dict.onboarding.geminiStepGetKeyLink,
+      geminiStepApiKeyPlaceholder: dict.onboarding.geminiStepApiKeyPlaceholder,
+      geminiStepConnecting: dict.onboarding.geminiStepConnecting,
+      geminiStepConnect: dict.onboarding.geminiStepConnect,
+      geminiStepSkip: dict.onboarding.geminiStepSkip,
+      geminiStepConnected: dict.onboarding.geminiStepConnected,
+    };
+    return <StudioGeminiGate dict={geminiStepDict} firstTopic={firstTopic} />;
   }
 
   return (

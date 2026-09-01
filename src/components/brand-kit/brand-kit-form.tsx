@@ -331,6 +331,15 @@ function BusinessContextReview({
 
   return (
     <div className="flex flex-col gap-4 border-t border-paper-border dark:border-night-border pt-3">
+      {/* Honest disclosure of what actually produced this — literal-string
+          compared since template-provider.ts (FREE_TEXT_PROVIDER_NAME) is
+          server-only and can't be imported into this client component. */}
+      <p className="text-xs text-ink-soft dark:text-ink-soft-dark">
+        {businessContext.providerName === "Free (template)"
+          ? dict.extractionSourceHeuristic
+          : dict.extractionSourceAi(businessContext.providerName)}
+      </p>
+
       <div className="flex flex-col gap-1">
         <label htmlFor="importDescription" className="text-xs font-medium">
           {dict.importDescriptionFound}

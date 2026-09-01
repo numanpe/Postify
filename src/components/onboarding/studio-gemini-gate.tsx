@@ -2,8 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { GeminiOnboardingStep } from "@/components/onboarding/gemini-onboarding-step";
-import type { dictionaries } from "@/lib/i18n/dictionaries";
+import { GeminiOnboardingStep, type GeminiStepDict } from "@/components/onboarding/gemini-onboarding-step";
 
 // Hosts GeminiOnboardingStep on /studio (not /create-company — see that
 // page's own comment for the real race-condition bug this avoids) when
@@ -15,7 +14,7 @@ export function StudioGeminiGate({
   dict,
   firstTopic,
 }: {
-  dict: (typeof dictionaries)["en"]["onboarding"];
+  dict: GeminiStepDict;
   firstTopic?: string;
 }) {
   const router = useRouter();

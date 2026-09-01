@@ -6,6 +6,29 @@ import { saveProviderCredential } from "@/lib/actions/provider-credentials";
 import { Button } from "@/components/ui/button";
 import type { dictionaries } from "@/lib/i18n/dictionaries";
 
+// Deliberately a narrow Pick<...>, not the full onboarding dict
+// namespace — that namespace also holds function-typed entries
+// (extractionSourceAi), and this component (and its host,
+// StudioGeminiGate) is reached from studio/page.tsx, a real Server
+// Component. Passing the whole namespace as a prop would try to
+// serialize those functions across the server/client boundary, which
+// Next.js rejects at runtime ("Functions cannot be passed directly to
+// Client Components") — the exact real prod-500 class this app has hit
+// before (see creative-dna-preferences.tsx's own doc comment for the
+// prior incident). Every field here is a plain string.
+export type GeminiStepDict = Pick<
+  (typeof dictionaries)["en"]["onboarding"],
+  | "geminiStepTitle"
+  | "geminiStepBody"
+  | "geminiStepDisclosure"
+  | "geminiStepGetKeyLink"
+  | "geminiStepApiKeyPlaceholder"
+  | "geminiStepConnecting"
+  | "geminiStepConnect"
+  | "geminiStepSkip"
+  | "geminiStepConnected"
+>;
+
 // Part 3c: shown once, right after company creation succeeds (both the
 // website-first and manual onboarding paths render this the same way),
 // before landing in the main app. saveProviderCredential() is the exact
@@ -18,7 +41,7 @@ export function GeminiOnboardingStep({
   dict,
   onDone,
 }: {
-  dict: (typeof dictionaries)["en"]["onboarding"];
+  dict: GeminiStepDict;
   onDone: () => void;
 }) {
   const [state, action, pending] = useActionState(saveProviderCredential, undefined);

@@ -375,7 +375,12 @@ export function buildBusinessContextPrompt(
   ].join(" ");
 
   const description = ogDescription ?? metaDescription ?? "(none found)";
-  const user = `Company name: ${companyName}\n\nPage description: ${description}\n\nVisible homepage text:\n${visibleText.slice(0, 2500)}`;
+  // 6000, not the old 2500 — visibleText is now genuinely multi-page
+  // (brand-extract.ts's findSubpageLinks/fetchSubpageTexts fold in real
+  // About/Products/Services pages, each bracket-labeled), so truncating
+  // back down to homepage-only length would silently discard exactly
+  // the content this extension exists to capture.
+  const user = `Company name: ${companyName}\n\nPage description: ${description}\n\nVisible website text (may span multiple real pages, each labeled in [brackets]):\n${visibleText.slice(0, 6000)}`;
 
   return { system, user };
 }

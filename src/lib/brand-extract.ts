@@ -25,8 +25,16 @@ export interface ExtractedBrandAssets {
   // Cleaned, truncated visible body text — nav/footer/script/style
   // content stripped, not full page text (real pages often run tens of
   // thousands of characters, most of it chrome/boilerplate irrelevant
-  // to "what does this business actually do").
+  // to "what does this business actually do"). Now genuinely
+  // multi-page: the homepage's own text plus up to SUBPAGE_FETCH_LIMIT
+  // real About/Products/Services pages, each labeled by section so the
+  // LLM (brand-context.ts) can tell what it's reading — a homepage
+  // alone often doesn't mention real products/services at all.
   visibleText: string;
+  // Which real subpages (if any) actually got fetched and folded into
+  // visibleText above — surfaced for honest disclosure/debugging, not
+  // required by any current caller.
+  fetchedPageLabels: string[];
   // Part B2's onboarding flow needs a company-name guess so the review
   // screen isn't asking the user to retype something the page already
   // states. og:site_name is the real, purpose-built signal for this;
@@ -170,6 +178,106 @@ function resolveCustomProperties(styleText: string): Map<string, string> {
     props.set(match[1], match[2].trim());
   }
   return props;
+}
+
+// Real, common phrasings for the pages worth following — gathered the
+// same way NAV_LINK_BLOCKLIST was (inspecting real sites' nav bars),
+// not a guess. Matched against both link text AND the href path, since
+// some sites use icon-only or generically-labeled nav links ("Learn
+// more") whose href ("/about-us") is the only real signal.
+const SUBPAGE_KEYWORDS = [
+  "about", "our story", "who we are",
+  "product", "products", "our products",
+  "service", "services", "our services", "what we do", "solutions",
+];
+
+function textOrHrefMatchesSubpageKeyword(text: string, href: string): boolean {
+  const haystack = `${text.toLowerCase()} ${href.toLowerCase()}`;
+  return SUBPAGE_KEYWORDS.some((kw) => haystack.includes(kw));
+}
+
+const SUBPAGE_FETCH_LIMIT = 3;
+const SUBPAGE_TEXT_CHAR_CAP = 1500; // per page
+const COMBINED_TEXT_CHAR_CAP = 6000; // homepage + all subpages together
+
+// Same nav/header scope as extractNavLinkTexts (a site's real primary
+// navigation, not every link on the page) — found BEFORE that
+// function's own `.remove()` call strips those elements, since this
+// needs the real href, not just the text. Same-origin only: an "About"
+// link pointing at a different domain isn't this site's own content,
+// and following it would be a real, if minor, SSRF-adjacent surface
+// this app has no reason to open (fetchPublic's own safe-fetch guard
+// is defense in depth, not a reason to skip this check here too).
+function findSubpageLinks($: cheerio.CheerioAPI, base: URL): { url: string; label: string }[] {
+  const seen = new Set<string>();
+  const results: { url: string; label: string }[] = [];
+
+  $("nav a, header a")
+    .toArray()
+    .forEach((el) => {
+      if (results.length >= SUBPAGE_FETCH_LIMIT) return;
+      const $el = $(el);
+      const text = $el.text().replace(/\s+/g, " ").trim();
+      const hrefRaw = $el.attr("href");
+      if (!hrefRaw || !text) return;
+
+      const resolved = resolveUrl(hrefRaw, base);
+      if (!resolved) return;
+      let url: URL;
+      try {
+        url = new URL(resolved);
+      } catch {
+        return;
+      }
+      if (url.hostname !== base.hostname) return; // same-origin only
+      if (url.toString() === base.toString()) return; // not the homepage itself
+
+      if (!textOrHrefMatchesSubpageKeyword(text, url.pathname)) return;
+
+      const key = url.toString();
+      if (seen.has(key)) return;
+      seen.add(key);
+      results.push({ url: key, label: text });
+    });
+
+  return results;
+}
+
+// Shared by the homepage and every subpage fetch — same script/style/
+// noscript/svg/nav/footer/header stripping either way, so a subpage's
+// text is comparably clean, not a rougher approximation.
+function extractVisibleText($: cheerio.CheerioAPI, charCap: number): string {
+  $("script, style, noscript, svg, nav, footer, header").remove();
+  return $("body").text().replace(/\s+/g, " ").trim().slice(0, charCap);
+}
+
+// Best-effort: a subpage that's slow, blocked, or non-HTML is silently
+// skipped rather than failing the whole extraction — same philosophy
+// as fetchExternalStylesheets above. Fetched concurrently so up to
+// SUBPAGE_FETCH_LIMIT slow pages cost roughly one timeout window, not
+// SUBPAGE_FETCH_LIMIT of them sequentially.
+async function fetchSubpageTexts(
+  links: { url: string; label: string }[],
+): Promise<{ label: string; text: string }[]> {
+  const results = await Promise.allSettled(
+    links.map(async ({ url, label }) => {
+      const { response } = await fetchPublic(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; PostifyBrandBot/1.0; +https://postify.app)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) return null;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("html")) return null;
+      const html = await response.text();
+      const $page = cheerio.load(html);
+      const text = extractVisibleText($page, SUBPAGE_TEXT_CHAR_CAP);
+      return text ? { label, text } : null;
+    }),
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ label: string; text: string }> => r.status === "fulfilled" && r.value !== null)
+    .map((r) => r.value);
 }
 
 export class BrandExtractError extends Error {}
@@ -334,9 +442,19 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
   const suggestedName = ogSiteName ?? titleFirstSegment;
 
   const navLinkTexts = extractNavLinkTexts($);
+  // Found before the nav/header removal below (needs the real hrefs,
+  // not just link text) — see findSubpageLinks's own doc comment.
+  const subpageLinks = findSubpageLinks($, finalUrl);
 
-  $("script, style, noscript, svg, nav, footer, header").remove();
-  const visibleText = $("body").text().replace(/\s+/g, " ").trim().slice(0, 3000);
+  const homepageText = extractVisibleText($, 3000);
+  const subpages = await fetchSubpageTexts(subpageLinks);
+
+  let visibleText = homepageText;
+  for (const { label, text } of subpages) {
+    if (visibleText.length >= COMBINED_TEXT_CHAR_CAP) break;
+    visibleText += ` [${label}] ${text}`;
+  }
+  visibleText = visibleText.slice(0, COMBINED_TEXT_CHAR_CAP);
 
   return {
     logoUrl,
@@ -348,6 +466,7 @@ export async function extractBrandAssetsFromUrl(rawUrl: string): Promise<Extract
     ogDescription,
     navLinkTexts,
     visibleText,
+    fetchedPageLabels: subpages.map((p) => p.label),
     suggestedName,
   };
 }

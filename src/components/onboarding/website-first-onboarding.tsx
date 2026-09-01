@@ -111,7 +111,7 @@ function OnboardingReview({
     fontFamilies: string[];
     suggestedName: string | null;
   };
-  businessContext: { description: string; products: string[]; tone: string };
+  businessContext: { description: string; products: string[]; tone: string; providerName: string };
   suggestedIndustry: (typeof INDUSTRIES)[number] | null;
 }) {
   const [state, action, pending] = useActionState(createCompanyFromOnboarding, undefined);
@@ -275,6 +275,16 @@ function OnboardingReview({
           </>
         )}
       </div>
+
+      {/* Honest disclosure of what actually produced this description/tone —
+          FREE_TEXT_PROVIDER_NAME's real value ("Free (template)", template-provider.ts)
+          compared by literal string since that module is server-only and
+          can't be imported into this client component. */}
+      <p className="text-xs text-ink-soft dark:text-ink-soft-dark">
+        {businessContext.providerName === "Free (template)"
+          ? dict.extractionSourceHeuristic
+          : dict.extractionSourceAi(businessContext.providerName)}
+      </p>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="ob-description" className="text-sm font-medium">

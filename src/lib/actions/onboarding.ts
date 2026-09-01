@@ -10,7 +10,7 @@ import { fetchPublic } from "@/lib/net/safe-fetch";
 import { extractBrandAssetsFromUrl, BrandExtractError, type ExtractedBrandAssets } from "@/lib/brand-extract";
 import { deriveBusinessContext } from "@/lib/brand-context";
 import { inferIndustryFromText } from "@/lib/industry-infer";
-import { TemplateTextProvider } from "@/lib/providers/text/template-provider";
+import { resolveSharedOrTemplateTextProvider } from "@/lib/providers/text/shared-pool";
 import type { SummarizeBusinessContextOutput } from "@/lib/providers/text/types";
 
 export type OnboardingExtractState =
@@ -27,10 +27,15 @@ const UrlSchema = z.string().trim().min(3, "Enter a website URL.").max(500);
 
 // Part B2's website-first onboarding step — runs BEFORE a Company row
 // exists, so unlike brand-extract.ts's existing action (which resolves
-// a company's own BYOK-or-free text provider), there's no company to
-// resolve a provider for yet. Always uses the free heuristic
-// (TemplateTextProvider) here — real, honest, and consistent with the
-// two-click free-first rule, not a lesser stand-in.
+// a company's own BYOK-or-free text provider via getTextProviderForCompany),
+// there's no company to resolve a BYOK credential for yet. BYOK is
+// therefore never available here — but the platform-held Free AI pool
+// (resolveSharedOrTemplateTextProvider) genuinely is: it needs no
+// company or key, only PLATFORM_GEMINI_API_KEY, and already falls back
+// to the same heuristic template on its own if that's unset or
+// exhausted for the day. Previously this hardcoded the template
+// unconditionally, meaning the single most common moment this feature
+// runs (a brand-new signup) never got the real LLM upgrade at all.
 export async function extractOnboardingContext(
   _prevState: OnboardingExtractState,
   formData: FormData,
@@ -44,11 +49,8 @@ export async function extractOnboardingContext(
 
   try {
     const assets = await extractBrandAssetsFromUrl(parsed.data);
-    const businessContext = await deriveBusinessContext(
-      assets,
-      assets.suggestedName ?? "this company",
-      new TemplateTextProvider(),
-    );
+    const provider = await resolveSharedOrTemplateTextProvider();
+    const businessContext = await deriveBusinessContext(assets, assets.suggestedName ?? "this company", provider);
     const suggestedIndustry = inferIndustryFromText(`${businessContext.description} ${assets.visibleText}`);
     return { status: "success", assets, businessContext, suggestedIndustry };
   } catch (error) {
