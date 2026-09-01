@@ -44,18 +44,38 @@ function getPlatformGeminiApiKey(): string | null {
   return process.env.PLATFORM_GEMINI_API_KEY ?? null;
 }
 
+// Real, measured evidence (2026-09-01): a real 429 at 10:21 UTC had
+// fully recovered by 12:16 UTC — well under 2 hours, not a full day.
+// Locking the shared pool out until UTC midnight on every 429 (the
+// original behavior) was needlessly pessimistic and would have kept
+// routing real companies to the template fallback for hours after
+// Google's real limiting condition had already cleared. Neither
+// Gemini's public rate-limit docs nor its error-format docs document a
+// retry-after hint or a way to distinguish a short burst limit from
+// the real daily cap in the 429 body, so rather than guess at Google's
+// exact error shape, this retries after a short, fixed cooldown instead
+// of trusting a fixed calendar boundary — same "only trust a real
+// response" principle already used for exhaustion, now applied to
+// recovery too (classic half-open circuit-breaker: one real trial
+// request allowed through once the cooldown elapses; a real success
+// clears the breaker immediately, a real failure re-arms it).
+const EXHAUSTION_COOLDOWN_MS = 15 * 60 * 1000;
+
 // Real circuit breaker (Part 4.2): checked before every attempt so a
-// day already known-exhausted (from a real 429 seen earlier today)
-// doesn't keep retrying pointlessly against Google. Never guessed from
-// our own successCount — the real daily limit isn't a stable, reliably
-// known number (verified directly against Google's docs — see
+// pool already known-exhausted (from a real 429 seen recently) doesn't
+// keep retrying pointlessly against Google. Never guessed from our own
+// successCount — the real daily limit isn't a stable, reliably known
+// number (verified directly against Google's docs — see
 // gemini-provider.ts's MODEL comment), so the only trustworthy signal
-// is a real 429 response.
+// is a real 429 (to open the breaker) or a real 200 (to close it) —
+// see EXHAUSTION_COOLDOWN_MS's doc comment for why this is now a
+// cooldown-and-retry rather than a same-day lock.
 export async function isSharedPoolExhaustedToday(): Promise<boolean> {
   const row = await db.sharedAiUsage.findUnique({
     where: { provider_date: { provider: SHARED_POOL_PROVIDER, date: todayUtcDateOnly() } },
   });
-  return Boolean(row?.exhaustedAt);
+  if (!row?.exhaustedAt) return false;
+  return Date.now() - row.exhaustedAt.getTime() < EXHAUSTION_COOLDOWN_MS;
 }
 
 // For the calm, expected-feeling UI notice (Part 5.3) — only true when
@@ -79,33 +99,31 @@ export async function shouldShowSharedPoolExhaustedNotice(companyId: string): Pr
 
 async function recordSharedPoolSuccess(): Promise<void> {
   const date = todayUtcDateOnly();
+  // A real success is the strongest possible recovery signal — clears
+  // exhaustedAt immediately (rather than waiting for the cooldown to
+  // elapse again on its own) so the half-open trial this success came
+  // from genuinely closes the breaker, not just quietly ticks past it.
   await db.sharedAiUsage.upsert({
     where: { provider_date: { provider: SHARED_POOL_PROVIDER, date } },
     create: { provider: SHARED_POOL_PROVIDER, date, successCount: 1 },
-    update: { successCount: { increment: 1 } },
+    update: { successCount: { increment: 1 }, exhaustedAt: null },
   });
 }
 
 async function recordSharedPoolExhaustion(): Promise<void> {
   const date = todayUtcDateOnly();
-  // Only sets exhaustedAt if not already set — avoids repeatedly
-  // bumping the timestamp on every subsequent 429 once today's already
-  // marked exhausted.
-  const updated = await db.sharedAiUsage.updateMany({
-    where: { provider: SHARED_POOL_PROVIDER, date, exhaustedAt: null },
-    data: { exhaustedAt: new Date() },
+  // Always refreshes exhaustedAt to now, unlike the old "only set if
+  // null" guard — that's what turns this into real backoff: a single
+  // 429 opens the breaker for one EXHAUSTION_COOLDOWN_MS window, but if
+  // the half-open trial after that window also 429s, this pushes the
+  // window out again rather than letting every subsequent call retry
+  // Google for nothing once the original cooldown had simply ticked
+  // past. Only a real success (recordSharedPoolSuccess) closes it early.
+  await db.sharedAiUsage.upsert({
+    where: { provider_date: { provider: SHARED_POOL_PROVIDER, date } },
+    create: { provider: SHARED_POOL_PROVIDER, date, exhaustedAt: new Date() },
+    update: { exhaustedAt: new Date() },
   });
-  if (updated.count === 0) {
-    // Either already exhausted (fine, no-op below) or no row exists
-    // yet for today at all — create it. The `update: {}` no-op covers
-    // the rare race where another request created the row between the
-    // updateMany above and this upsert.
-    await db.sharedAiUsage.upsert({
-      where: { provider_date: { provider: SHARED_POOL_PROVIDER, date } },
-      create: { provider: SHARED_POOL_PROVIDER, date, exhaustedAt: new Date() },
-      update: {},
-    });
-  }
 }
 
 // Reports as "Free AI" rather than GeminiTextProvider's default
