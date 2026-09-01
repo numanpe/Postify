@@ -12,6 +12,20 @@ export interface CaptionChunk {
   endSec: number;
 }
 
+// Real, current TikTok/Reels safe-zone requirement (verified against
+// 2026 platform guidance, not guessed): the bottom ~21-25% of a 9:16
+// canvas is reserved for the platform's own UI (username, caption,
+// hashtags, audio ticker, nav bar), which can obscure or visually
+// clash with anything burned into the video itself underneath it.
+// render.ts's own overlayBandBottomMargin (lower-thirds, waveform
+// band) already used this real number — this caption renderer never
+// did, using a much smaller height*0.1 instead, a real, confirmed bug
+// (captions sitting inside TikTok's own reserved UI zone). One shared
+// constant now, not two that can silently drift apart again — the
+// exact class of bug already found once this session in the media
+// picker queries.
+export const SAFE_ZONE_BOTTOM_MARGIN_RATIO = 0.23;
+
 export interface RenderedCaption extends CaptionChunk {
   png: Buffer;
 }
@@ -71,7 +85,7 @@ export async function renderCaptionPng(text: string, width: number, height: numb
           position: "absolute",
           left: sidePadding,
           right: sidePadding,
-          bottom: Math.round(height * 0.1),
+          bottom: Math.round(height * SAFE_ZONE_BOTTOM_MARGIN_RATIO),
           display: "flex",
           justifyContent: "center",
         }}

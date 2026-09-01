@@ -8,7 +8,7 @@ import type { AspectRatio, VideoTemplate } from "@prisma/client";
 import { POSTER_DIMENSIONS } from "@/lib/poster/dimensions";
 import { runFfmpeg, probeMedia } from "./ffmpeg";
 import { withScratchDir, writeScratchFile } from "./scratch";
-import { renderCaptionChunks, chunkWordsIntoCaptions, type CaptionChunk } from "./captions";
+import { renderCaptionChunks, chunkWordsIntoCaptions, SAFE_ZONE_BOTTOM_MARGIN_RATIO, type CaptionChunk } from "./captions";
 import { renderLowerThirdBannerPng } from "./lower-third";
 import { buildWaveformBandFilter } from "./waveform";
 import { runVideoQualityGate, type QualityGateResult } from "./quality-gate";
@@ -416,8 +416,10 @@ export async function renderVideo(input: RenderVideoInput): Promise<RenderVideoO
     // Same band position for both motion templates — directly above
     // the caption zone — so only one ever renders per video (the
     // template choice is mutually exclusive) but they share a
-    // consistent visual "zone" language.
-    const overlayBandBottomMargin = Math.round(height * 0.23);
+    // consistent visual "zone" language. Now the exact same constant
+    // captions.tsx itself uses (real bug found and fixed this session:
+    // the caption renderer had its own, much smaller, unsynced margin).
+    const overlayBandBottomMargin = Math.round(height * SAFE_ZONE_BOTTOM_MARGIN_RATIO);
 
     const lowerThirds: LowerThirdOverlaySpec[] = [];
     if (input.template === "LOWER_THIRD_PROMO") {
