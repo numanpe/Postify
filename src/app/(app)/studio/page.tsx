@@ -73,7 +73,7 @@ export default async function StudioWizardStep1Page({
       <WizardStep1Form
         companyName={company.name}
         defaultTopic={firstTopic}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
       />
     </div>
   );

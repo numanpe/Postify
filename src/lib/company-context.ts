@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { type Industry, type IndustryPack, resolveIndustry, INDUSTRY_PACKS } from "@/lib/industry-packs";
+import { type Industry, type IndustryPack, resolveIndustry, resolveIndustryPack } from "@/lib/industry-packs";
 
 export interface CompanyContext {
   companyId: string;
@@ -40,7 +40,10 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
   // to the Industry union — resolveIndustry (industry-packs.ts) is the
   // one real, shared place this defensive fallback lives now.
   const industry: Industry = resolveIndustry(company.primaryIndustry);
-  const pack = INDUSTRY_PACKS[industry];
+  // Locale-aware since 2026-09-02 — real Arabic content industry by
+  // industry (see INDUSTRY_PACKS_AR's own doc comment); honestly falls
+  // back to the English pack for any industry not yet covered.
+  const pack = resolveIndustryPack(company.primaryIndustry, company.locale);
 
   const tone = company.creativeDna?.toneDescriptors.length
     ? company.creativeDna.toneDescriptors.join(", ")

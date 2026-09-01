@@ -35,7 +35,7 @@ export default async function RepurposePage() {
         <h1 className="text-xl font-semibold">{dict.repurpose.title}</h1>
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.repurpose.subtitle}</p>
       </div>
-      <RepurposeForm posters={posters} videos={videos} topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions} />
+      <RepurposeForm posters={posters} videos={videos} topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions} />
     </div>
   );
 }

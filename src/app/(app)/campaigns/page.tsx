@@ -56,7 +56,7 @@ export default async function CampaignsPage({
       <CampaignForm
         defaultObjective={objective}
         defaultDays={parsedDays && parsedDays >= 1 && parsedDays <= 14 ? parsedDays : undefined}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
       />
 
       {/* totalCampaignCount, not campaigns.length — a real campaign

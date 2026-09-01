@@ -146,6 +146,23 @@ const CAMPAIGN_ARC: string[][] = [
   ["One last look at {{topic}}.", "Before it's gone: {{topic}}."],
 ];
 
+// Real, confirmed-live bug (2026-09-02, found while verifying the new
+// Arabic Real Estate pack): CAMPAIGN_ARC was English-only, so an
+// Arabic company's `angle` field code-mixed an English wrapper sentence
+// with the Arabic topic ("Introducing بحثك عن منزل.") — worse than just
+// unlocalized, since `angle` becomes `videoTopic` for a campaign's
+// video item and gets fed straight into generateScript as its actual
+// topic. Same gender-agreement-safe discipline as INDUSTRY_PACKS_AR
+// (industry-packs.ts) — {{topic}} only ever sits as a preposition's
+// object or in colon apposition, never as a verb/adjective's subject.
+const CAMPAIGN_ARC_AR: string[][] = [
+  ["تعرّف على {{topic}}.", "الجديد لدينا: {{topic}}."],
+  ["يستحق اهتمامك: {{topic}}.", "نظرة أقرب على {{topic}}."],
+  ["الجميع يتحدث عن {{topic}}.", "شاهد ماذا يقول الآخرون عن {{topic}}."],
+  ["لا تفوّت {{topic}}.", "الوقت ينفد بالنسبة لـ{{topic}}."],
+  ["آخر فرصة لـ{{topic}}.", "قبل أن يفوتك: {{topic}}."],
+];
+
 // Real keyword matching against the objective text, not a random
 // label — deliberately not an exhaustive enum (see CampaignBriefOutput's
 // doc comment): any objective that doesn't match a known pattern gets
@@ -320,8 +337,16 @@ export class TemplateTextProvider implements TextProvider {
     for (let i = 0; i < itemCount; i += 1) {
       const vars = { ...baseVars, topic: topicPool[i % topicPool.length] };
 
-      const stage = CAMPAIGN_ARC[i % CAMPAIGN_ARC.length];
-      const variant = stage[Math.floor(i / CAMPAIGN_ARC.length) % stage.length];
+      // Checks the pack's ACTUAL content, not just locale === "AR" —
+      // an Arabic-locale company in an industry INDUSTRY_PACKS_AR
+      // doesn't cover yet still gets the English pack (its own honest
+      // fallback), and using locale alone here would mix this Arabic
+      // wrapper with that pack's English topic pool ("تعرّف على this
+      // week's harvest."), a new code-mixing bug from the same root
+      // cause as the one this fix targets.
+      const arc = isArabicScript(pack.hooks[0] ?? "") ? CAMPAIGN_ARC_AR : CAMPAIGN_ARC;
+      const stage = arc[i % arc.length];
+      const variant = stage[Math.floor(i / arc.length) % stage.length];
       const angle = capitalizeSentences(fillTemplate(variant, vars));
 
       const seed = `${companyId}:${tone}:${objective}:${i}`;

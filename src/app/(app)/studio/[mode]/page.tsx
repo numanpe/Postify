@@ -73,7 +73,7 @@ export default async function StudioModePage({ params }: { params: Promise<{ mod
       </nav>
 
       {mode === "captions" && (
-        <CaptionsMode companyName={company.name} topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions} />
+        <CaptionsMode companyName={company.name} topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions} />
       )}
       {mode === "poster" && <PosterMode companyId={company.id} companyName={company.name} />}
       {mode === "video" && (
@@ -81,7 +81,7 @@ export default async function StudioModePage({ params }: { params: Promise<{ mod
           companyId={company.id}
           companyName={company.name}
           voiceEngine={company.voiceEngine}
-          topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+          topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
         />
       )}
     </div>

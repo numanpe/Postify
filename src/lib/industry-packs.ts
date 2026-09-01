@@ -577,6 +577,94 @@ export const INDUSTRY_COMPOSITION_STYLE: Record<Industry, "Minimalist" | "Bold G
   Other: "Minimalist",
 };
 
+// Real, confirmed-live gap (2026-09-01 acceptance test): the free/
+// template tier had zero Arabic content in any industry pack — an
+// Arabic-locale company with no BYOK key got fully English captions/
+// scripts/campaign items regardless of locale, contradicting CLAUDE.md's
+// "Arabic is first-class, not English-plus-a-translation-layer"
+// requirement. Being filled in industry by industry (starting with
+// Real Estate, 2026-09-02) rather than all 9 at once — real, natural
+// Arabic marketing copy is quality-sensitive enough to review a small
+// batch before mass-producing the rest, per CLAUDE.md's own "test each
+// phase before starting the next." Partial<> is honest about this:
+// only industries actually present here have real Arabic content;
+// resolveIndustryPack below falls back to the English pack for any
+// industry not yet covered, same as before this ever existed — never a
+// regression, never a fake/placeholder Arabic pack.
+//
+// Every {{topic}}/{{company}} template here deliberately avoids making
+// the placeholder the grammatical subject of a gender-agreeing verb or
+// adjective (Arabic nouns are masculine/feminine and the free tier has
+// no way to know which a given topic string is) — {{topic}} only ever
+// appears as the object of a preposition (في/مع/عن/بخصوص) or in
+// colon/dash apposition, the same "safe regardless of what fills the
+// slot" discipline as the English packs' singular/mass-noun rule,
+// adapted to Arabic's actual real risk (gender agreement, not
+// singular/plural). {{company}} is treated as grammatically feminine
+// throughout (agreeing with the implicit "الشركة") — the standard,
+// natural convention in Arabic business copy.
+//
+// visualTone/forbiddenStyles stay in English deliberately — these
+// never reach an Arabic-reading human, they're internal prompt-
+// engineering text fed to an English-trained image model.
+export const INDUSTRY_PACKS_AR: Partial<Record<Industry, IndustryPack>> = {
+  "Real Estate": {
+    toneDefault: "أنيق، طموح، جدير بالثقة",
+    hooks: [
+      "فصل جديد من حياتك يبدأ من هنا.",
+      "ابحث عن المساحة التي تناسب حياتك.",
+      "العثور على منزلك لا يجب أن يكون معقدًا.",
+      "المكان المناسب موجود — دعنا نجده معًا.",
+      "المنزل يجب أن يناسب الحياة التي تعيشها فعلاً.",
+      "التوقيت الصحيح والمعرفة المحلية يغيران كل شيء.",
+    ],
+    valueProps: [
+      "{{topic}}: خبرة محلية حقيقية وشفافية كاملة، من البداية حتى النهاية.",
+      "مع {{topic}}، لا مفاجآت — فقط نتائج تستحق الثقة.",
+      "نرافقكم خطوة بخطوة في {{topic}}، من أول معاينة حتى يوم التوقيع.",
+      "في {{topic}}، يحصل كل عميل على نفس الاهتمام الصادق والدقيق.",
+      "{{topic}} — نهتم بربط الناس بالمكان المناسب، لا أي مكان.",
+      "نتعامل مع {{topic}} بالمعرفة المحلية التي تصنع الفرق.",
+    ],
+    ctas: [
+      "احجز جولتك مع {{company}} اليوم.",
+      "تواصل مع {{company}} لبدء رحلة البحث.",
+      "اسأل {{company}} عن {{topic}} — نحن هنا للمساعدة.",
+      "تواصل مع {{company}} لمعرفة المزيد.",
+      "{{company}} جاهزة لمساعدتك في خطوتك القادمة.",
+      "تواصل مع {{company}} بخصوص {{topic}}.",
+    ],
+    scriptContexts: [
+      "العثور على المكان المناسب يتعلق بأكثر من مجرد المساحة.",
+      "السوق يتحرك بسرعة — ووجود من يفهمه جيدًا يصنع فرقًا حقيقيًا.",
+      "المنزل يجب أن يناسب الحياة التي تعيشها فعلاً.",
+      "البحث عن العقار المناسب يشبه حوارًا صادقًا أكثر من كونه بحثًا متعبًا.",
+      "كل عقار له قصة لا تخبرك بها الأرقام وحدها.",
+      "التوقيت والمعرفة المحلية يحددان أكثر مما يتخيله أغلب المشترين.",
+    ],
+    scriptMessages: [
+      "في {{topic}}، تتحول المعرفة المحلية إلى قرار تشعر تجاهه بالثقة.",
+      "مع {{topic}}، نتولى كل التفاصيل لتتفرغ لما يهمك فعلاً.",
+      "في {{topic}}، نعكس ما يهمنا أكثر: ربط الناس بالمكان المناسب، بصدق.",
+      "في {{topic}}، يحصل كل عميل على نفس الدقة والاهتمام، من البداية حتى الإغلاق.",
+      "{{topic}} — بالشفافية التي تحوّل البحث إلى ثقة.",
+      "الهدف من {{topic}} هو إيجاد التناسب الصحيح، لا مجرد أحدث قائمة متاحة.",
+    ],
+    visualTone: "Polished architectural lines, natural window light, aspirational interiors and exteriors",
+    forbiddenStyles: ["cluttered rooms", "cartoon style", "neon cyberpunk", "harsh overexposed lighting"],
+    hashtags: ["#عقارات", "#بيت_أحلامك", "#عقار_للبيع", "#البحث_عن_منزل", "#إعلان_جديد"],
+    shortHeadlines: ["فصلك القادم ينتظرك", "البداية من هنا", "جِد ما يناسبك"],
+    autoTopics: ["بحثك عن منزل", "أحدث عرض لهذا الأسبوع", "خطوتك القادمة"],
+    topicSuggestions: [
+      { label: "عرض جديد", topic: "عرضنا الجديد" },
+      { label: "بيع ناجح", topic: "عملية بيع ناجحة مؤخرًا" },
+      { label: "تحديث السوق", topic: "وضع السوق الحالي" },
+      { label: "إعلان بيت مفتوح", topic: "البيت المفتوح لهذا الأسبوع" },
+      { label: "شهادة عميل", topic: "شهادة عميل حديثة" },
+    ],
+  },
+};
+
 // Company.primaryIndustry is a plain DB string column, not narrowed to
 // the Industry union — the same defensive resolution
 // src/lib/company-context.ts already used (falls back to "Other" for
@@ -590,6 +678,16 @@ export function resolveIndustry(rawIndustry: string): Industry {
   return KNOWN_INDUSTRIES.has(rawIndustry) ? (rawIndustry as Industry) : "Other";
 }
 
-export function resolveIndustryPack(rawIndustry: string): IndustryPack {
-  return INDUSTRY_PACKS[resolveIndustry(rawIndustry)];
+// locale defaults to "EN" so every existing caller (UI pages that
+// don't yet pass a company's locale) keeps its exact prior behavior —
+// only callers that opt in by passing "AR" can get a real Arabic pack,
+// and even then only for an industry INDUSTRY_PACKS_AR actually covers
+// (see its own doc comment for the honest fallback rule).
+export function resolveIndustryPack(rawIndustry: string, locale: "EN" | "AR" = "EN"): IndustryPack {
+  const industry = resolveIndustry(rawIndustry);
+  if (locale === "AR") {
+    const arabicPack = INDUSTRY_PACKS_AR[industry];
+    if (arabicPack) return arabicPack;
+  }
+  return INDUSTRY_PACKS[industry];
 }

@@ -45,7 +45,7 @@ export default async function StudioWizardStep2Page({
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
         narrationAvailable={narrationAvailable}
         preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
+        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
       />
     </div>
   );
