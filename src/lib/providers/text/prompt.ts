@@ -20,7 +20,7 @@ export function buildCaptionPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches, businessDescription, targetMarket } = context;
+  const { name, industry, tone, secondaryNiches, locale, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
@@ -38,6 +38,15 @@ export function buildCaptionPrompt(
   const marketLine = targetMarket
     ? ` This company mainly serves ${targetMarket} — let that feel genuinely local where it fits naturally, don't force it into every sentence.`
     : "";
+  // Real, confirmed-live bug (2026-09-01 acceptance test): this prompt
+  // never referenced locale at all, so an Arabic-locale company's BYOK
+  // caption defaulted to English regardless — only
+  // buildCampaignBriefPrompt had this instruction. Same real
+  // "culturally idiomatic, not word-for-word" bar as that one.
+  const languageInstruction =
+    locale === "AR"
+      ? "Write the caption in natural, culturally idiomatic Arabic — not a literal word-for-word translation of an English draft."
+      : null;
 
   const system = [
     `You are a marketing copywriter for a company in the ${industry} industry.`,
@@ -45,7 +54,10 @@ export function buildCaptionPrompt(
     "Write one concise, natural social media caption — at most two short sentences.",
     "No hashtags unless they read naturally. No generic filler.",
     "Never invent specific facts (prices, dates, promises) that weren't given to you.",
-  ].join(" ");
+    languageInstruction,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nWrite a short social media caption about: ${topic}`;
 
@@ -59,7 +71,7 @@ export function buildScriptPrompt(
   context: CompanyContext,
   topic: string,
 ): { system: string; user: string } {
-  const { name, industry, tone, secondaryNiches, businessDescription, targetMarket } = context;
+  const { name, industry, tone, secondaryNiches, locale, businessDescription, targetMarket } = context;
 
   const nicheLine = secondaryNiches.length
     ? ` The company also focuses on: ${secondaryNiches.join(", ")}.`
@@ -68,6 +80,13 @@ export function buildScriptPrompt(
   const marketLine = targetMarket
     ? ` This company mainly serves ${targetMarket} — let that feel genuinely local where it fits naturally, don't force it into every sentence.`
     : "";
+  // Same real gap as buildCaptionPrompt (2026-09-01 acceptance test) —
+  // never referenced locale, so an Arabic-locale company's BYOK script
+  // defaulted to English narration/captions regardless.
+  const languageInstruction =
+    locale === "AR"
+      ? "Write every section (hook, context, value, message, cta) in natural, culturally idiomatic Arabic, suitable to be read aloud — not a literal word-for-word translation of an English draft."
+      : null;
 
   const system = [
     `You are a video creative director for a company in the ${industry} industry.`,
@@ -77,8 +96,11 @@ export function buildScriptPrompt(
     "message (ties directly to the specific topic given), cta (a clear call to action).",
     "Each section is 1-2 short spoken sentences — natural spoken language, not written copy.",
     "No hashtags, no emoji, no stage directions. Never invent specific facts (prices, dates, promises) not given to you.",
+    languageInstruction,
     'Respond with ONLY a JSON object: {"hook": "...", "context": "...", "value": "...", "message": "...", "cta": "..."}',
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nWrite a video script about: ${topic}`;
 
