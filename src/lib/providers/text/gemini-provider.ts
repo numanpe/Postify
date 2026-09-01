@@ -91,6 +91,94 @@ function stripCodeFence(text: string): string {
 // transient/unrelated failure it shouldn't treat the same way.
 export class GeminiQuotaExhaustedError extends ProviderError {}
 
+// Google's Structured Output feature (responseSchema) — constrains
+// generateContent's JSON-mode output to an exact shape at the API
+// level, not just via instruction text in the prompt. Verified against
+// ai.google.dev's Schema reference before writing these: OBJECT/STRING/
+// ARRAY types, "required", "enum", "nullable", "items", and
+// "propertyOrdering" are all real, documented fields for the
+// generateContent REST endpoint (the older API this file deliberately
+// uses — see this file's top comment). A POSTER item's headline/
+// subhead/cta vs. a VIDEO item's videoTopic are deliberately left out
+// of "required" rather than modeled as a schema union — Gemini's
+// documented schema subset doesn't support oneOf/conditional-required,
+// and prompt.ts's parseCampaignBriefResponse already does the real
+// per-assetType validation this app actually relies on.
+const SCRIPT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    hook: { type: "STRING" },
+    context: { type: "STRING" },
+    value: { type: "STRING" },
+    message: { type: "STRING" },
+    cta: { type: "STRING" },
+  },
+  required: ["hook", "context", "value", "message", "cta"],
+  propertyOrdering: ["hook", "context", "value", "message", "cta"],
+};
+
+const CAMPAIGN_BRIEF_ITEM_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    assetType: { type: "STRING", enum: ["POSTER", "VIDEO"] },
+    angle: { type: "STRING" },
+    headline: { type: "STRING" },
+    subhead: { type: "STRING" },
+    cta: { type: "STRING" },
+    videoTopic: { type: "STRING" },
+    captionText: { type: "STRING" },
+    hashtags: { type: "ARRAY", items: { type: "STRING" } },
+    suggestedPostAt: { type: "STRING" },
+    targetPlatforms: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["assetType", "angle", "captionText", "hashtags", "suggestedPostAt", "targetPlatforms"],
+};
+
+const CAMPAIGN_BRIEF_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    campaignType: { type: "STRING" },
+    items: { type: "ARRAY", items: CAMPAIGN_BRIEF_ITEM_SCHEMA },
+  },
+  required: ["campaignType", "items"],
+};
+
+const BACKGROUND_EXPANSION_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    expandedVisualPrompt: { type: "STRING" },
+    negativePrompt: { type: "STRING" },
+    designParameters: {
+      type: "OBJECT",
+      properties: {
+        aspectRatio: { type: "STRING" },
+        colorPalette: { type: "ARRAY", items: { type: "STRING" } },
+        compositionStyle: { type: "STRING", enum: ["Minimalist", "Bold Geometric", "Organic"] },
+      },
+      required: ["aspectRatio", "colorPalette", "compositionStyle"],
+    },
+  },
+  required: ["expandedVisualPrompt", "negativePrompt", "designParameters"],
+};
+
+const BUSINESS_CONTEXT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    description: { type: "STRING" },
+    products: { type: "ARRAY", items: { type: "STRING" } },
+    tone: { type: "STRING" },
+  },
+  required: ["description", "products", "tone"],
+};
+
+const CLARIFY_TOPIC_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    topic: { type: "STRING", nullable: true },
+  },
+  required: ["topic"],
+};
+
 export class GeminiTextProvider implements TextProvider {
   // Not `readonly` with a fixed literal — src/lib/providers/text/
   // shared-pool.ts subclasses this with a different name ("Free AI")
@@ -104,7 +192,7 @@ export class GeminiTextProvider implements TextProvider {
   private async generateContent(
     system: string,
     user: string,
-    options: { jsonMode?: boolean; maxTokens?: number } = {},
+    options: { jsonMode?: boolean; maxTokens?: number; responseSchema?: object } = {},
   ): Promise<{ content: string; estimatedCostUsd?: number; finishReason?: string }> {
     let response: Response;
     try {
@@ -122,7 +210,23 @@ export class GeminiTextProvider implements TextProvider {
             generationConfig: {
               temperature: 0.7,
               maxOutputTokens: options.maxTokens ?? 150,
-              ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
+              ...(options.jsonMode
+                ? {
+                    responseMimeType: "application/json",
+                    ...(options.responseSchema ? { responseSchema: options.responseSchema } : {}),
+                    // Real fix for a confirmed prod failure, not speculative: queried
+                    // ProviderFallbackEvent directly and found every expandBackgroundPrompt
+                    // MAX_TOKENS failure had only 54-70 chars of actual content — far too
+                    // short to be real JSON truncated near the end. Gemini 3 Flash's
+                    // "thinking" tokens count against maxOutputTokens and are on by default
+                    // (verified against ai.google.dev/gemini-api/docs/generate-content/
+                    // gemini-3), so a modest budget can be exhausted by hidden reasoning
+                    // before any visible JSON escapes. These 5 methods are structured
+                    // extraction, not reasoning tasks — "low" is the documented setting for
+                    // that; Gemini 3 Flash doesn't support a full thinking-off.
+                    thinkingConfig: { thinkingLevel: "low" },
+                  }
+                : {}),
             },
           }),
         },
@@ -205,7 +309,8 @@ export class GeminiTextProvider implements TextProvider {
     const { system, user } = buildScriptPrompt(context, topic);
     const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
-      maxTokens: 500,
+      maxTokens: 700,
+      responseSchema: SCRIPT_RESPONSE_SCHEMA,
     });
 
     const parsed = this.parseJsonOrThrow("generateScript", "script", content, finishReason);
@@ -235,7 +340,12 @@ export class GeminiTextProvider implements TextProvider {
     });
     const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
-      maxTokens: 1500,
+      // Scales with itemCount (up to 14 — see campaign.ts's own cap) instead of
+      // a flat 1500: a multi-item brief's real token need grows with the item
+      // count, and a fixed budget risked truncating longer campaigns/recurring
+      // plans that request more items per call.
+      maxTokens: Math.min(4000, 300 + input.itemCount * 220),
+      responseSchema: CAMPAIGN_BRIEF_RESPONSE_SCHEMA,
     });
 
     const parsed = this.parseJsonOrThrow("generateCampaignBrief", "campaign brief", content, finishReason);
@@ -252,7 +362,11 @@ export class GeminiTextProvider implements TextProvider {
 
   async expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput> {
     const { system, user } = buildBackgroundExpansionPrompt(input);
-    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
+    const { content, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 500,
+      responseSchema: BACKGROUND_EXPANSION_RESPONSE_SCHEMA,
+    });
 
     const parsed = this.parseJsonOrThrow("expandBackgroundPrompt", "background-prompt", content, finishReason);
 
@@ -261,7 +375,11 @@ export class GeminiTextProvider implements TextProvider {
 
   async summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput> {
     const { system, user } = buildBusinessContextPrompt(input);
-    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 400 });
+    const { content, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 500,
+      responseSchema: BUSINESS_CONTEXT_RESPONSE_SCHEMA,
+    });
 
     const parsed = this.parseJsonOrThrow("summarizeBusinessContext", "business-context", content, finishReason);
 
@@ -271,7 +389,11 @@ export class GeminiTextProvider implements TextProvider {
 
   async clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput> {
     const { system, user } = buildClarifyTopicPrompt(input);
-    const { content, finishReason } = await this.generateContent(system, user, { jsonMode: true, maxTokens: 60 });
+    const { content, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 100,
+      responseSchema: CLARIFY_TOPIC_RESPONSE_SCHEMA,
+    });
 
     const parsed = this.parseJsonOrThrow("clarifyTopic", "clarify-topic", content, finishReason);
 
