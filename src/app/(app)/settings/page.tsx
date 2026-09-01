@@ -1,5 +1,6 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
+import { storage } from "@/lib/storage";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getCompaniesRelyingOnSharedCredential } from "@/lib/providers/shared-provider-credential";
@@ -11,6 +12,7 @@ import { MusicCredits } from "@/components/settings/music-credits";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
 import { CreativeDnaInsights } from "@/components/settings/creative-dna-insights";
 import { CreativeDnaPreferencesPanel, type Dimension, type PreferenceRow } from "@/components/settings/creative-dna-preferences";
+import { TeachAiPanel, type TeachableItem } from "@/components/settings/teach-ai-panel";
 import { DeleteCompanySection } from "@/components/settings/delete-company-section";
 import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import { ActionIcons } from "@/components/icons";
@@ -31,7 +33,7 @@ export default async function SettingsPage() {
   const { user, company, role } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const [credentials, sharedCredentials, companyCount, aggregatorCredentials, creativeDna] = await Promise.all([
+  const [credentials, sharedCredentials, companyCount, aggregatorCredentials, creativeDna, recentPosters, recentVideos] = await Promise.all([
     db.providerCredential.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "asc" },
@@ -50,8 +52,52 @@ export default async function SettingsPage() {
       where: { companyId: company.id },
       select: { confidenceScores: true, lockedTopics: true },
     }),
+    // Teach AI's "mark existing content" list — most recent 8 of each,
+    // merged/trimmed below. Not paginated/searchable: a real, but
+    // deliberately small, first version (Part 2's actual ask is the
+    // explicit-signal mechanism, not a full content browser — Media
+    // Library already exists for that).
+    db.poster.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        headline: true,
+        createdAt: true,
+        asset: { select: { storageKey: true, storageDeletedAt: true } },
+      },
+    }),
+    db.video.findMany({
+      where: { companyId: company.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { id: true, topic: true, createdAt: true, asset: { select: { storageDeletedAt: true } } },
+    }),
   ]);
   const scores = creativeDna?.confidenceScores as Partial<CreativeDnaConfidenceScores> | undefined;
+
+  // Same "no longer available" discipline as Media Library
+  // (media/page.tsx) — a poster whose file was cleaned up still has a
+  // real DB row, but showing its stale storage URL would render a
+  // broken image instead of an honest state.
+  const teachableItems: TeachableItem[] = [
+    ...recentPosters
+      .filter((p) => !p.asset.storageDeletedAt)
+      .map((p) => ({
+        id: p.id,
+        kind: "poster" as const,
+        thumbnailUrl: storage.url(p.asset.storageKey),
+        label: p.headline,
+        createdAt: p.createdAt,
+      })),
+    ...recentVideos
+      .filter((v) => !v.asset.storageDeletedAt)
+      .map((v) => ({ id: v.id, kind: "video" as const, thumbnailUrl: null, label: v.topic, createdAt: v.createdAt })),
+  ]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 12)
+    .map(({ id, kind, thumbnailUrl, label }) => ({ id, kind, thumbnailUrl, label }));
 
   // Per provider, show whichever credential is actually active for this
   // company — same company-first-then-shared priority the resolvers use
@@ -161,6 +207,26 @@ export default async function SettingsPage() {
           resetConfirm: dict.settings.resetConfirm,
           resetDone: dict.settings.resetDone,
           resetHint: dict.settings.resetHint,
+        }}
+      />
+
+      <TeachAiPanel
+        items={teachableItems}
+        labels={{
+          teachTitle: dict.settings.teachTitle,
+          teachSubtitle: dict.settings.teachSubtitle,
+          teachNoContent: dict.settings.teachNoContent,
+          teachMoreLikeThis: dict.settings.teachMoreLikeThis,
+          teachNeverLikeThis: dict.settings.teachNeverLikeThis,
+          teachMarked: dict.settings.teachMarked,
+          teachExampleTitle: dict.settings.teachExampleTitle,
+          teachExampleSubtitle: dict.settings.teachExampleSubtitle,
+          teachExampleFileLabel: dict.settings.teachExampleFileLabel,
+          teachExampleTopicPlaceholder: dict.settings.teachExampleTopicPlaceholder,
+          teachExampleStylePlaceholder: dict.settings.teachExampleStylePlaceholder,
+          teachExampleSubmit: dict.settings.teachExampleSubmit,
+          teachExampleSubmitting: dict.settings.teachExampleSubmitting,
+          teachExampleDone: dict.settings.teachExampleDone,
         }}
       />
 

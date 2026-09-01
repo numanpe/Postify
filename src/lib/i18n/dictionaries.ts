@@ -239,6 +239,11 @@ export interface Dictionary {
     dimensionTopic: string; dimensionTemplate: string; dimensionTone: string; dimensionVisualStyle: string;
     lockButton: string; unlockButton: string; lockedBadge: string;
     resetButton: string; resetConfirm: string; resetDone: string; resetHint: string;
+    teachTitle: string; teachSubtitle: string; teachNoContent: string;
+    teachMoreLikeThis: string; teachNeverLikeThis: string; teachMarked: string;
+    teachExampleTitle: string; teachExampleSubtitle: string; teachExampleFileLabel: string;
+    teachExampleTopicPlaceholder: string; teachExampleStylePlaceholder: string;
+    teachExampleSubmit: string; teachExampleSubmitting: string; teachExampleDone: string;
     dangerZoneTitle: string; dangerZoneSubtitle: string;
     deleteCompanyButton: string;
     deleteCompanyConfirmTitle: string;
@@ -859,6 +864,22 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "This clears everything learned from your deletes, publishes, edits, and regenerations, and unlocks any locked topics. It does not affect your real published-post engagement history. Continue?",
       resetDone: "Reset. We'll start noticing patterns again as you use Postify.",
       resetHint: "This only resets usage-pattern learning above — not your real measured post-performance history below.",
+      teachTitle: "Teach AI",
+      teachSubtitle:
+        "Tell us directly what you like or don't — mark content below, or upload your own example. This counts more than what we quietly notice above.",
+      teachNoContent: "Generate a poster or video first, then come back here to mark it.",
+      teachMoreLikeThis: "More like this",
+      teachNeverLikeThis: "Never like this",
+      teachMarked: "Marked — thanks, this is now feeding your Creative DNA.",
+      teachExampleTitle: "Or upload an example",
+      teachExampleSubtitle:
+        "Have a photo or video from elsewhere that shows a style or topic you want? Upload it and tell us what it represents — we can't automatically analyze an outside image, so this is how you point us to it directly.",
+      teachExampleFileLabel: "Choose a photo or video",
+      teachExampleTopicPlaceholder: "What topic is this about? (optional)",
+      teachExampleStylePlaceholder: "What visual style is this? (optional)",
+      teachExampleSubmit: "Submit example",
+      teachExampleSubmitting: "Uploading…",
+      teachExampleDone: "Thanks — this is now feeding your Creative DNA.",
       dangerZoneTitle: "Danger zone",
       dangerZoneSubtitle: "Permanently delete this company and everything in it.",
       deleteCompanyButton: "Delete this company",
@@ -1529,6 +1550,22 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "سيؤدي هذا إلى مسح كل ما تعلمناه من عمليات الحذف والنشر والتعديل وإعادة التوليد، وإلغاء قفل أي مواضيع مقفلة. لن يؤثر هذا على سجل أداء منشوراتك الفعلي. متابعة؟",
       resetDone: "تمت إعادة التعيين. سنبدأ في ملاحظة الأنماط مجددًا مع استخدامك لـ Postify.",
       resetHint: "هذا يعيد تعيين تعلّم أنماط الاستخدام أعلاه فقط — وليس سجل أداء منشوراتك الفعلي أدناه.",
+      teachTitle: "علّم الذكاء الاصطناعي",
+      teachSubtitle:
+        "أخبرنا مباشرة بما يعجبك وما لا يعجبك — علّم على المحتوى أدناه، أو ارفع مثالًا خاصًا بك. هذا له وزن أكبر مما نلاحظه بصمت أعلاه.",
+      teachNoContent: "أنشئ ملصقًا أو فيديو أولًا، ثم عد إلى هنا لتعليمه.",
+      teachMoreLikeThis: "المزيد مثل هذا",
+      teachNeverLikeThis: "لا تكرر هذا أبدًا",
+      teachMarked: "تم التعليم — شكرًا، هذا يغذي الآن حمضك الإبداعي (Creative DNA).",
+      teachExampleTitle: "أو ارفع مثالًا",
+      teachExampleSubtitle:
+        "هل لديك صورة أو فيديو من مكان آخر يُظهر أسلوبًا أو موضوعًا تريده؟ ارفعه وأخبرنا بما يمثله — لا يمكننا تحليل صورة خارجية تلقائيًا، لذا هذه هي طريقتك لتوجيهنا إليها مباشرة.",
+      teachExampleFileLabel: "اختر صورة أو فيديو",
+      teachExampleTopicPlaceholder: "عن أي موضوع هذا؟ (اختياري)",
+      teachExampleStylePlaceholder: "ما هو الأسلوب البصري لهذا؟ (اختياري)",
+      teachExampleSubmit: "إرسال المثال",
+      teachExampleSubmitting: "جارٍ الرفع…",
+      teachExampleDone: "شكرًا — هذا يغذي الآن حمضك الإبداعي (Creative DNA).",
       dangerZoneTitle: "منطقة الخطر",
       dangerZoneSubtitle: "احذف هذه الشركة وكل ما فيها نهائيًا.",
       deleteCompanyButton: "حذف هذه الشركة",
