@@ -4,6 +4,8 @@ import { generateVideoCore } from "@/lib/video/generate";
 import { getCompanyContext } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 
+export const maxDuration = 300;
+
 interface Profile {
   key: string;
   name: string;
@@ -75,10 +77,17 @@ const PROFILES: Profile[] = [
   },
 ];
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const only = url.searchParams.get("company");
+  const profiles = only ? PROFILES.filter((p) => p.key === only) : PROFILES;
+  if (profiles.length === 0) {
+    return Response.json({ error: `no profile matching "${only}"` }, { status: 400 });
+  }
+
   const results: unknown[] = [];
 
-  for (const profile of PROFILES) {
+  for (const profile of profiles) {
     const user = await db.user.create({
       data: { email: `acceptance-test-${profile.key}-${Date.now()}@throwaway.invalid`, name: "Acceptance Test" },
     });
