@@ -19,9 +19,16 @@ import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { NavIcons } from "@/components/icons";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getPickableMediaAssets } from "@/lib/media";
 
 const MODES = ["captions", "poster", "video"] as const;
 type Mode = (typeof MODES)[number];
+
+// The "previous posters"/"previous videos" galleries below are a
+// secondary, at-a-glance reference inside the create-content tool, not
+// the primary way to browse full history (Media Library already is) —
+// a simple recency cap is the right-sized fix, not full pagination.
+const PREVIOUS_CREATIONS_LIMIT = 12;
 
 // Folded from three separate pages (/studio, /poster, /video) into one
 // dynamic route to reduce this deployment's Vercel Function count
@@ -104,27 +111,21 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
   const dict = getDictionary(await getLocale());
 
   const [photoAssets, posters, brandKit, preferredTemplates] = await Promise.all([
-    // Excludes posterOutput and brandKitLogo assets — a generated
-    // poster or the brand logo are both real MediaAssets, but offering
-    // either back as a "photo" background would let a poster get
-    // composited into another poster, or the logo used as a background
-    // photo (confusing, and exactly the kind of synthetic-on-synthetic
-    // output CLAUDE.md's authenticity rule is against). Only genuinely
-    // uploaded photos belong here.
-    db.mediaAsset.findMany({
-      where: {
-        companyId,
-        mimeType: { startsWith: "image/" },
-        posterOutput: null,
-        brandKitLogo: null,
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, fileName: true },
-    }),
+    // Shared with every other real media picker in the app (media.ts's
+    // own doc comment) — this specific call site previously never
+    // excluded storageDeletedAt, a real bug: a photo cleaned up by
+    // cleanupMediaStorage could still be picked here and render broken.
+    getPickableMediaAssets(companyId, { includeVideo: false }),
+    // Capped, most-recent-first — the same real growth-risk pagination
+    // already closed for Media Library/Campaigns: a company's poster
+    // history only grows, and this is a secondary "recent creations"
+    // gallery inside the create-content tool, not the primary place to
+    // browse full history (Media Library already is).
     db.poster.findMany({
       where: { companyId },
       include: { asset: true },
       orderBy: { createdAt: "desc" },
+      take: PREVIOUS_CREATIONS_LIMIT,
     }),
     db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
     getPreferredTemplateOrder(companyId, TEMPLATE_IDS),
@@ -204,26 +205,14 @@ async function VideoMode({
   const dict = getDictionary(await getLocale());
 
   const [assets, videos, voiceCredential, brandKit] = await Promise.all([
-    // Excludes brand logos and previously-generated posters/videos —
-    // none of those are real B-roll footage (see Phase 3's photo-picker
-    // fix for the same category of bug with poster backgrounds).
-    db.mediaAsset.findMany({
-      where: {
-        companyId,
-        posterOutput: null,
-        videoOutput: null,
-        brandKitLogo: null,
-        // A video that's since been re-rendered/edited reassigns
-        // Video.assetId away from its old asset, which makes
-        // videoOutput null again even though the real file was deleted
-        // (cleanupMediaStorage) — storageDeletedAt is the real signal
-        // this asset is gone, not "currently unused."
-        storageDeletedAt: null,
-        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, fileName: true, mimeType: true },
-    }),
+    // Shared with every other real media picker in the app (media.ts's
+    // own doc comment). Now newest-first, not oldest-first — the old
+    // ordering here was the one real inconsistency among all five
+    // picker call sites, with no documented reason for it, found while
+    // consolidating them into one shared function.
+    getPickableMediaAssets(companyId, { includeVideo: true }),
+    // Capped, most-recent-first — same real growth-risk rationale as
+    // the poster gallery above.
     db.video.findMany({
       where: { companyId },
       include: {
@@ -234,6 +223,7 @@ async function VideoMode({
         },
       },
       orderBy: { createdAt: "desc" },
+      take: PREVIOUS_CREATIONS_LIMIT,
     }),
     db.providerCredential.findFirst({
       where: { companyId, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },

@@ -4,6 +4,7 @@ import { WizardStep2 } from "@/components/studio/wizard-step2";
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getPickableMediaAssets } from "@/lib/media";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
 // VideoForm components (and their real generation actions) the
@@ -20,28 +21,12 @@ export default async function StudioWizardStep2Page({
   const { topic, caption } = await searchParams;
 
   const [photoAssets, videoAssets, voiceCredential, preferredTemplates] = await Promise.all([
-    // Same exclusions as studio/[mode]/page.tsx's PosterMode — no
-    // posters/brand-logo assets offered back as a background photo.
-    db.mediaAsset.findMany({
-      where: { companyId: company.id, mimeType: { startsWith: "image/" }, posterOutput: null, brandKitLogo: null },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, fileName: true },
-    }),
-    db.mediaAsset.findMany({
-      where: {
-        companyId: company.id,
-        posterOutput: null,
-        videoOutput: null,
-        brandKitLogo: null,
-        // See studio/[mode]/page.tsx's identical filter — a re-rendered
-        // video's old asset passes videoOutput:null too, even though
-        // its real file is gone.
-        storageDeletedAt: null,
-        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, fileName: true, mimeType: true },
-    }),
+    // Shared with every other real media picker in the app (media.ts's
+    // own doc comment) — this specific call site previously never
+    // excluded storageDeletedAt, a real bug: a photo cleaned up by
+    // cleanupMediaStorage could still be picked here and render broken.
+    getPickableMediaAssets(company.id, { includeVideo: false }),
+    getPickableMediaAssets(company.id, { includeVideo: true }),
     db.providerCredential.findFirst({
       where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
     }),

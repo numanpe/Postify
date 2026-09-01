@@ -70,3 +70,56 @@ export async function createMediaAssetFromFile(params: {
     },
   });
 }
+
+// Real, most-recent-first bound on every "pick from your library"
+// selector — a company's usable media only grows over time (recurring
+// plans generate content indefinitely), so an unbounded fetch here is
+// the same real scalability risk pagination already closed for the
+// main Media Library grid and Campaigns list.
+const PICKABLE_MEDIA_ASSETS_LIMIT = 200;
+
+export interface PickableMediaAsset {
+  id: string;
+  fileName: string;
+  mimeType: string;
+}
+
+// Shared by every real "pick from your media" selector (poster
+// background, video B-roll, video scene-swap) — five near-identical
+// inline queries used to duplicate this exact filter across
+// media/page.tsx, campaigns/[id]/page.tsx, studio/design/page.tsx, and
+// studio/[mode]/page.tsx, which is exactly how a real bug shipped: the
+// two photo-only pickers never got the storageDeletedAt exclusion the
+// other three already had, so a photo cleaned up by
+// cleanupMediaStorage could still be picked and render broken. One
+// shared function now, not five copies that can silently drift apart
+// again.
+export async function getPickableMediaAssets(
+  companyId: string,
+  { includeVideo }: { includeVideo: boolean },
+): Promise<PickableMediaAsset[]> {
+  return db.mediaAsset.findMany({
+    where: {
+      companyId,
+      // Never offer a generated poster/video's own output, or the
+      // brand logo, back as raw material for a new one — see Phase 3's
+      // photo-picker fix and CLAUDE.md's authenticity rule against
+      // synthetic-on-synthetic output.
+      posterOutput: null,
+      videoOutput: null,
+      brandKitLogo: null,
+      // A re-rendered/edited video reassigns Video.assetId away from
+      // its old asset, which makes videoOutput null again even though
+      // the real file was deleted (cleanupMediaStorage) —
+      // storageDeletedAt is the real signal an asset is actually gone,
+      // not "currently unused."
+      storageDeletedAt: null,
+      OR: includeVideo
+        ? [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }]
+        : [{ mimeType: { startsWith: "image/" } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: PICKABLE_MEDIA_ASSETS_LIMIT,
+    select: { id: true, fileName: true, mimeType: true },
+  });
+}

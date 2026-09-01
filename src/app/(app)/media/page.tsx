@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { formatBytes } from "@/lib/format";
 import { deleteMedia } from "@/lib/actions/media";
+import { getPickableMediaAssets } from "@/lib/media";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
@@ -65,25 +66,12 @@ export default async function MediaPage({
       },
     }),
     db.mediaAsset.count({ where: { companyId: company.id } }),
-    // The video-edit modal's scene-swap picker needs the company's real,
-    // FULL usable-media library, not just this page's 24 — deliberately
-    // a separate, unbounded-but-cheap query (id/fileName/mimeType only,
-    // no relations) rather than derived from the paginated `assets`
-    // above the way it used to be. Same exclusion filter (no poster/
-    // video outputs, no brand logo, no deleted files) and shape as the
-    // identical picker query campaigns/[id]/page.tsx already uses.
-    db.mediaAsset.findMany({
-      where: {
-        companyId: company.id,
-        posterOutput: null,
-        videoOutput: null,
-        brandKitLogo: null,
-        storageDeletedAt: null,
-        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, fileName: true, mimeType: true },
-    }),
+    // The video-edit modal's scene-swap picker needs the company's real
+    // usable-media library, not just this page's 24 — deliberately a
+    // separate query rather than derived from the paginated `assets`
+    // above the way it used to be. Shared with every other real media
+    // picker in the app (media.ts's own doc comment).
+    getPickableMediaAssets(company.id, { includeVideo: true }),
     // Recent Activity's three real sources — no new tracking, all
     // already recorded by the existing generation/publish pipelines.
     db.publishJob.findMany({

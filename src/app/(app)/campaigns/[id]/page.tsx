@@ -10,6 +10,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CalendarItemCard } from "@/components/campaign/calendar-item-card";
 import { Button } from "@/components/ui/button";
 import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
+import { getPickableMediaAssets } from "@/lib/media";
 
 // Requests the platform's maximum available execution time for this
 // page's Server Actions (processCampaignNow, regenerateCampaignItem,
@@ -61,23 +62,9 @@ export default async function CampaignDetailPage({
       : null,
     db.brandKit.findUnique({ where: { companyId: company.id }, include: { logoAsset: true } }),
     // Real Media Library assets for the video edit modal's scene-media
-    // swap picker — same exclusions as the Video Studio's own picker
-    // (no poster/video outputs, no brand logo offered back as B-roll).
-    db.mediaAsset.findMany({
-      where: {
-        companyId: company.id,
-        posterOutput: null,
-        videoOutput: null,
-        brandKitLogo: null,
-        // See studio/[mode]/page.tsx's identical filter — a re-rendered
-        // video's old asset passes videoOutput:null too, even though
-        // its real file is gone.
-        storageDeletedAt: null,
-        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, fileName: true, mimeType: true },
-    }),
+    // swap picker — shared with every other real media picker in the
+    // app (media.ts's own doc comment).
+    getPickableMediaAssets(company.id, { includeVideo: true }),
   ]);
   if (!campaign) {
     notFound();
