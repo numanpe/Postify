@@ -12,7 +12,8 @@ import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { UploadMediaForm } from "@/components/media/upload-media-form";
 import { EmptyState } from "@/components/empty-state";
 import { NavIcons } from "@/components/icons";
-import { VideoEditModal, type SceneMediaAssetOption } from "@/components/campaign/video-edit-modal";
+import { PaginationNav } from "@/components/ui/pagination-nav";
+import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { RegenerateBackgroundButton } from "@/components/poster/regenerate-background-button";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 
@@ -31,15 +32,25 @@ function truncate(text: string, max = 40): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-export default async function MediaPage() {
+const ASSETS_PER_PAGE = 24;
+
+export default async function MediaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { company } = await requireCompany();
   const locale = await getLocale();
   const dict = getDictionary(locale);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
 
-  const [assets, publishJobs, aggregatorLogs, failedItems] = await Promise.all([
+  const [assets, totalAssetCount, sceneMediaAssets, publishJobs, aggregatorLogs, failedItems] = await Promise.all([
     db.mediaAsset.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "desc" },
+      skip: (page - 1) * ASSETS_PER_PAGE,
+      take: ASSETS_PER_PAGE,
       include: {
         videoOutput: {
           include: {
@@ -52,6 +63,26 @@ export default async function MediaPage() {
         posterOutput: true,
         brandKitLogo: true,
       },
+    }),
+    db.mediaAsset.count({ where: { companyId: company.id } }),
+    // The video-edit modal's scene-swap picker needs the company's real,
+    // FULL usable-media library, not just this page's 24 — deliberately
+    // a separate, unbounded-but-cheap query (id/fileName/mimeType only,
+    // no relations) rather than derived from the paginated `assets`
+    // above the way it used to be. Same exclusion filter (no poster/
+    // video outputs, no brand logo, no deleted files) and shape as the
+    // identical picker query campaigns/[id]/page.tsx already uses.
+    db.mediaAsset.findMany({
+      where: {
+        companyId: company.id,
+        posterOutput: null,
+        videoOutput: null,
+        brandKitLogo: null,
+        storageDeletedAt: null,
+        OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fileName: true, mimeType: true },
     }),
     // Recent Activity's three real sources — no new tracking, all
     // already recorded by the existing generation/publish pipelines.
@@ -122,22 +153,7 @@ export default async function MediaPage() {
   }
 
   const recentActivity = events.sort((a, b) => b.when.getTime() - a.when.getTime()).slice(0, 6);
-
-  // Same "real, usable media" exclusion filter the video edit/swap
-  // pickers already apply elsewhere (studio/[mode]/page.tsx,
-  // campaigns/[id]/page.tsx) — derived from the assets already fetched
-  // above instead of a second DB round-trip, since this page already
-  // loads every company asset.
-  const sceneMediaAssets: SceneMediaAssetOption[] = assets
-    .filter(
-      (a) =>
-        !a.posterOutput &&
-        !a.videoOutput &&
-        !a.brandKitLogo &&
-        !a.storageDeletedAt &&
-        (a.mimeType.startsWith("image/") || a.mimeType.startsWith("video/")),
-    )
-    .map((a) => ({ id: a.id, fileName: a.fileName, mimeType: a.mimeType }));
+  const totalPages = Math.max(1, Math.ceil(totalAssetCount / ASSETS_PER_PAGE));
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,7 +192,10 @@ export default async function MediaPage() {
 
       <UploadMediaForm />
 
-      {assets.length === 0 ? (
+      {/* totalAssetCount, not assets.length — a real library that
+          simply doesn't reach a manually-typed ?page=N shouldn't show
+          the "upload your first asset" empty state. */}
+      {totalAssetCount === 0 ? (
         <EmptyState icon={NavIcons.media} title={dict.media.noMedia} hint={dict.media.noMediaHint} />
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
@@ -241,6 +260,15 @@ export default async function MediaPage() {
           ))}
         </ul>
       )}
+
+      <PaginationNav
+        currentPage={page}
+        totalPages={totalPages}
+        basePath="/media"
+        previousLabel={dict.common.previousPage}
+        nextLabel={dict.common.nextPage}
+        indicatorLabel={dict.common.pageIndicator(page, totalPages)}
+      />
     </div>
   );
 }

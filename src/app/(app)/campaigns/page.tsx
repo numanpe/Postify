@@ -8,6 +8,9 @@ import { CampaignForm } from "@/components/campaign/campaign-form";
 import { EmptyState } from "@/components/empty-state";
 import { NavIcons } from "@/components/icons";
 import { resolveIndustryPack } from "@/lib/industry-packs";
+import { PaginationNav } from "@/components/ui/pagination-nav";
+
+const CAMPAIGNS_PER_PAGE = 15;
 
 export default async function CampaignsPage({
   searchParams,
@@ -16,19 +19,29 @@ export default async function CampaignsPage({
   // N days of content" suggestion (see wizard-step1-form.tsx) — the
   // user still has to review and submit this real form themselves,
   // this only saves them retyping what they already said.
-  searchParams: Promise<{ objective?: string; days?: string }>;
+  searchParams: Promise<{ objective?: string; days?: string; page?: string }>;
 }) {
   const { company } = await requireCompany();
   const locale = await getLocale();
   const dict = getDictionary(locale);
-  const { objective, days } = await searchParams;
+  const { objective, days, page: pageParam } = await searchParams;
   const parsedDays = days ? Number(days) : undefined;
+  const page = Math.max(1, Number(pageParam) || 1);
 
-  const campaigns = await db.campaign.findMany({
-    where: { companyId: company.id },
-    include: { items: { select: { status: true, scheduledDate: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  // A recurring plan (see /campaigns/recurring) creates one of these
+  // every day it runs, indefinitely — a real, growing dataset this page
+  // needs to actually paginate rather than fetch in full forever.
+  const [campaigns, totalCampaignCount] = await Promise.all([
+    db.campaign.findMany({
+      where: { companyId: company.id },
+      include: { items: { select: { status: true, scheduledDate: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * CAMPAIGNS_PER_PAGE,
+      take: CAMPAIGNS_PER_PAGE,
+    }),
+    db.campaign.count({ where: { companyId: company.id } }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalCampaignCount / CAMPAIGNS_PER_PAGE));
 
   return (
     <div className="flex flex-col gap-8">
@@ -46,11 +59,14 @@ export default async function CampaignsPage({
         topicSuggestions={resolveIndustryPack(company.primaryIndustry).topicSuggestions}
       />
 
-      {campaigns.length === 0 && (
+      {/* totalCampaignCount, not campaigns.length — a real campaign
+          history that simply doesn't reach a manually-typed ?page=N
+          shouldn't show the "create your first campaign" empty state. */}
+      {totalCampaignCount === 0 && (
         <EmptyState icon={NavIcons.campaigns} title={dict.campaigns.yourCampaigns} hint={dict.campaigns.noCampaignsHint} />
       )}
 
-      {campaigns.length > 0 && (
+      {totalCampaignCount > 0 && (
         <div className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-ink-soft dark:text-ink-soft-dark">{dict.campaigns.yourCampaigns}</h2>
           <ul className="flex flex-col gap-2">
@@ -82,6 +98,15 @@ export default async function CampaignsPage({
               );
             })}
           </ul>
+
+          <PaginationNav
+            currentPage={page}
+            totalPages={totalPages}
+            basePath="/campaigns"
+            previousLabel={dict.common.previousPage}
+            nextLabel={dict.common.nextPage}
+            indicatorLabel={dict.common.pageIndicator(page, totalPages)}
+          />
         </div>
       )}
     </div>

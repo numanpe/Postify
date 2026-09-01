@@ -36,6 +36,7 @@ export interface Dictionary {
     // the way captions/poster have — this states what failed without
     // guessing a specific replacement for the whole video.
     fallbackNoticeGeneric: (originalProvider: string) => string;
+    previousPage: string; nextPage: string; pageIndicator: (current: number, total: number) => string;
   };
   company: {
     switcherLabel: string; addAnother: string; switchError: string;
@@ -337,6 +338,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         `Generated using ${currentProvider} — your ${originalProvider} had an issue this time.`,
       fallbackNoticeGeneric: (originalProvider: string) =>
         `Your ${originalProvider} had an issue during this generation — a free fallback was used for that part automatically.`,
+      previousPage: "Previous",
+      nextPage: "Next",
+      pageIndicator: (current: number, total: number) => `Page ${current} of ${total}`,
     },
     company: {
       switcherLabel: "Switch company",
@@ -1032,6 +1036,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         `تم الإنشاء باستخدام ${currentProvider} — واجه ${originalProvider} مشكلة هذه المرة.`,
       fallbackNoticeGeneric: (originalProvider: string) =>
         `واجه ${originalProvider} مشكلة أثناء هذا الإنشاء — تم استخدام بديل مجاني لهذا الجزء تلقائيًا.`,
+      previousPage: "السابق",
+      nextPage: "التالي",
+      pageIndicator: (current: number, total: number) => `صفحة ${current} من ${total}`,
     },
     company: {
       switcherLabel: "تبديل الشركة",
