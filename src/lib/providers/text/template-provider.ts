@@ -224,10 +224,14 @@ export class TemplateTextProvider implements TextProvider {
     return { text, providerName: this.name };
   }
 
-  async generateScript({ context, topic }: GenerateScriptInput): Promise<GenerateScriptOutput> {
+  async generateScript({ context, topic, variantIndex }: GenerateScriptInput): Promise<GenerateScriptOutput> {
     const { pack, name, tone, secondaryNiches, companyId } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
-    const seed = `${companyId}:${tone}:${topic}:script`;
+    // variantIndex folded in exactly like generateCaption above — real,
+    // confirmed bug otherwise (see GenerateScriptInput's own doc
+    // comment): 5 real repeat calls for the same topic returned 5
+    // byte-identical scripts with no variantIndex to break the tie.
+    const seed = `${companyId}:${tone}:${topic}:script${variantIndex !== undefined ? `:${variantIndex}` : ""}`;
 
     // Sequential — each section only avoids repeating the company name
     // if an earlier section (in hook -> context -> value -> message ->

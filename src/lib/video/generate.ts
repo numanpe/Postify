@@ -41,6 +41,14 @@ export interface GenerateVideoCoreInput {
   // the campaign job processor doesn't pass one, so a batch-generated
   // week of content isn't unexpectedly opinionated about motion style.
   template?: VideoTemplate;
+  // Threaded straight into generateScript's own variantIndex (see its
+  // doc comment) — real, confirmed bug otherwise: the free-tier script
+  // picker is fully deterministic on topic alone, so a same-topic
+  // regenerate silently returned the identical script every time.
+  // Same real "regenerate produces something genuinely different"
+  // purpose POSTER_TEMPLATE_ROTATION already serves for posters at
+  // this function's own campaign-item call site.
+  variantIndex?: number;
 }
 
 export interface GenerateVideoCoreResult {
@@ -97,7 +105,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   const textProvider = await getTextProviderForCompany(companyId);
   let script;
   try {
-    const scriptResult = await textProvider.generateScript({ context, topic });
+    const scriptResult = await textProvider.generateScript({ context, topic, variantIndex: input.variantIndex });
     script = scriptResult.script;
     if (scriptResult.fallbackFrom) fallbackFrom.push(...scriptResult.fallbackFrom);
   } catch (error) {

@@ -50,6 +50,13 @@ export interface ClarifyTopicOutput {
 export interface GenerateScriptInput {
   context: CompanyContext;
   topic: string;
+  // Same real gap as GenerateCaptionInput.variantIndex (see its own
+  // doc comment) — TemplateProvider.generateScript's picker was
+  // 100% deterministic on companyId+tone+topic alone, confirmed via a
+  // real test: 5 calls for the identical topic returned 5 byte-
+  // identical scripts. Without this, a "Regenerate" click for the same
+  // topic silently returns the same script every time.
+  variantIndex?: number;
 }
 
 // system #4's structure: hook -> context -> value -> message -> CTA.

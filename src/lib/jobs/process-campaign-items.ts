@@ -168,6 +168,11 @@ export async function processSingleCampaignItem(item: DueItem): Promise<Campaign
         aspectRatio: "SQUARE",
         useNarration: true,
         assetIds,
+        // Same real purpose as POSTER_TEMPLATE_ROTATION just below for
+        // posters — a Regenerate click otherwise silently returned the
+        // identical script every time (see GenerateScriptInput's own
+        // doc comment for the real, confirmed evidence).
+        variantIndex: item.generationAttempt,
       });
       await db.campaignItem.update({
         where: { id: item.id },
