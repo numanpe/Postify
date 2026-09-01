@@ -441,6 +441,16 @@ model Poster {
 
   createdAt DateTime @default(now())
 
+  // Media Library's "Share" button (2026-09-02) publishes a poster
+  // directly, with no CampaignItem in the picture — same real
+  // compare-and-swap lock CampaignItem.publishingLockedAt already
+  // proved out (see its own doc comment / the campaign concurrency
+  // race fix), just living on Poster itself for this standalone path.
+  // null = not currently publishing; a lock older than
+  // STALE_PUBLISH_LOCK_MINUTES is treated as abandoned, not a real
+  // block forever.
+  publishingLockedAt DateTime?
+
   campaignItem CampaignItem?
   publishJobs  PublishJob[]
 
@@ -675,6 +685,10 @@ model Video {
   scenes VideoScene[]
 
   createdAt DateTime @default(now())
+
+  // Same real purpose as Poster.publishingLockedAt — see its own doc
+  // comment.
+  publishingLockedAt DateTime?
 
   campaignItem CampaignItem?
   publishJobs  PublishJob[]

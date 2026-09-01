@@ -202,6 +202,10 @@ export interface Dictionary {
     activityTitle: string; activityPublished: (label: string) => string;
     activityPublishFailed: (label: string) => string; activityGenerationFailed: (label: string) => string;
     uploadFilesLabel: string;
+    shareButton: string; shareTitle: string; shareCancel: string; shareTo: string;
+    shareNoAccounts: string; shareNoAccountsHint: string; shareCaption: string;
+    shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
+    shareSuccessNow: string; shareSuccessScheduled: string;
   };
   brandKit: {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
@@ -736,6 +740,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       activityPublishFailed: (label: string) => `Publish failed: ${label}`,
       activityGenerationFailed: (label: string) => `${label} — a post failed to generate`,
       uploadFilesLabel: "Choose photos, videos, or audio files to upload",
+      shareButton: "Share",
+      shareTitle: "Share to social",
+      shareCancel: "Cancel",
+      shareTo: "Publish to",
+      shareNoAccounts: "No connected accounts yet.",
+      shareNoAccountsHint: "Connect an account in Settings → Publish to share directly from your library.",
+      shareCaption: "Caption",
+      shareWhen: "When",
+      shareWhenHint: "(leave blank to publish now)",
+      sharePublishNow: "Share",
+      sharePublishing: "Sharing…",
+      shareSuccessNow: "Published.",
+      shareSuccessScheduled: "Scheduled to publish.",
     },
     brandKit: {
       title: "Brand Kit",
@@ -1437,6 +1454,19 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       activityPublishFailed: (label: string) => `فشل النشر: ${label}`,
       activityGenerationFailed: (label: string) => `${label} — فشل إنشاء أحد المنشورات`,
       uploadFilesLabel: "اختر صورًا أو فيديوهات أو ملفات صوتية لرفعها",
+      shareButton: "مشاركة",
+      shareTitle: "مشاركة على وسائل التواصل",
+      shareCancel: "إلغاء",
+      shareTo: "النشر إلى",
+      shareNoAccounts: "لا توجد حسابات متصلة بعد.",
+      shareNoAccountsHint: "اربط حسابًا من الإعدادات ← النشر لتتمكن من المشاركة مباشرة من مكتبتك.",
+      shareCaption: "التعليق",
+      shareWhen: "الموعد",
+      shareWhenHint: "(اتركه فارغًا للنشر الآن)",
+      sharePublishNow: "مشاركة",
+      sharePublishing: "جارٍ المشاركة…",
+      shareSuccessNow: "تم النشر.",
+      shareSuccessScheduled: "تمت الجدولة للنشر.",
     },
     brandKit: {
       title: "هوية العلامة",

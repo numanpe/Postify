@@ -7,6 +7,7 @@ import { storage } from "@/lib/storage";
 import { formatBytes } from "@/lib/format";
 import { deleteMedia } from "@/lib/actions/media";
 import { getPickableMediaAssets } from "@/lib/media";
+import { getRealPublishTargets } from "@/lib/publish-targets";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
@@ -16,6 +17,8 @@ import { NavIcons } from "@/components/icons";
 import { PaginationNav } from "@/components/ui/pagination-nav";
 import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { RegenerateBackgroundButton } from "@/components/poster/regenerate-background-button";
+import { ShareAssetModal } from "@/components/media/share-asset-modal";
+import { appendMusicCredit } from "@/lib/video/music-credit";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 
 interface ActivityEvent {
@@ -46,7 +49,7 @@ export default async function MediaPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const [assets, totalAssetCount, sceneMediaAssets, publishJobs, aggregatorLogs, failedItems] = await Promise.all([
+  const [assets, totalAssetCount, sceneMediaAssets, publishJobs, aggregatorLogs, failedItems, publishTargets] = await Promise.all([
     db.mediaAsset.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "desc" },
@@ -59,9 +62,19 @@ export default async function MediaPage({
               include: { mediaAsset: { select: { id: true, fileName: true, storageKey: true } } },
               orderBy: { order: "asc" },
             },
+            // Share button's real caption/hashtag pre-fill when this
+            // item came from a campaign — a Studio-standalone video has
+            // none of these, and the Share form falls back to an empty,
+            // user-typed caption, same honest gap createPublishJob's
+            // own caption field already has for non-campaign items.
+            campaignItem: { select: { captionText: true, angle: true, hashtags: true } },
           },
         },
-        posterOutput: true,
+        posterOutput: {
+          include: {
+            campaignItem: { select: { captionText: true, angle: true, hashtags: true } },
+          },
+        },
         brandKitLogo: true,
       },
     }),
@@ -96,6 +109,10 @@ export default async function MediaPage({
       take: 5,
       select: { id: true, campaignId: true, updatedAt: true, campaign: { select: { name: true } } },
     }),
+    // Real connected-account listing for the Share button — the same
+    // Direct SocialAccount + aggregator accountMap merge
+    // campaign-publish-core.ts already reads, not a new source.
+    getRealPublishTargets(company),
   ]);
 
   const events: ActivityEvent[] = [];
@@ -235,6 +252,34 @@ export default async function MediaPage({
               )}
               {!asset.storageDeletedAt && asset.posterOutput?.backgroundSource === "AI" && (
                 <RegenerateBackgroundButton posterId={asset.posterOutput.id} />
+              )}
+              {/* Part 1's real eligibility signal: posterOutput/
+                  videoOutput present — a raw uploaded photo/video never
+                  has either, so it never gets a Share button. */}
+              {!asset.storageDeletedAt && asset.posterOutput && (
+                <ShareAssetModal
+                  assetKind="poster"
+                  assetId={asset.posterOutput.id}
+                  defaultCaption={
+                    asset.posterOutput.campaignItem?.captionText ??
+                    [asset.posterOutput.headline, asset.posterOutput.subhead, asset.posterOutput.cta]
+                      .filter(Boolean)
+                      .join("\n\n")
+                  }
+                  targets={publishTargets}
+                  connectAccountsHref="/publish"
+                />
+              )}
+              {!asset.storageDeletedAt && asset.videoOutput && (
+                <ShareAssetModal
+                  assetKind="video"
+                  assetId={asset.videoOutput.id}
+                  defaultCaption={
+                    asset.videoOutput.campaignItem?.captionText ?? appendMusicCredit(asset.videoOutput.topic)
+                  }
+                  targets={publishTargets}
+                  connectAccountsHref="/publish"
+                />
               )}
               <form action={deleteMedia.bind(null, asset.id)}>
                 <button

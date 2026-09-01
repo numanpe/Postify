@@ -68,6 +68,7 @@ export const ActionIcons = {
   publishDirect: Upload,
   publishProvider: Send,
   generate: Zap,
+  share: Share2,
 } satisfies Record<string, LucideIcon>;
 
 // lucide-react no longer ships per-brand logo marks (Instagram/
