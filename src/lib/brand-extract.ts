@@ -185,10 +185,22 @@ function resolveCustomProperties(styleText: string): Map<string, string> {
 // not a guess. Matched against both link text AND the href path, since
 // some sites use icon-only or generically-labeled nav links ("Learn
 // more") whose href ("/about-us") is the only real signal.
+//
+// Real bug found by testing against a real Arabic-language site
+// (almarai.com/ar): an English-only list here silently found zero
+// subpages on real nav text like "منتجاتنا" (Our Products) or
+// "الشركة" (The Company) — this app's own CLAUDE.md rules out
+// English-plus-a-translation-layer, and this was exactly that failure
+// mode. Arabic phrasings gathered the same way as the English ones
+// (real nav bars, not a guess): من نحن/عن الشركة/الشركة/قصتنا (about),
+// منتجاتنا/المنتجات (products), خدماتنا/الخدمات (services).
 const SUBPAGE_KEYWORDS = [
   "about", "our story", "who we are",
   "product", "products", "our products",
   "service", "services", "our services", "what we do", "solutions",
+  "من نحن", "عن الشركة", "الشركة", "قصتنا",
+  "منتجاتنا", "المنتجات",
+  "خدماتنا", "الخدمات",
 ];
 
 function textOrHrefMatchesSubpageKeyword(text: string, href: string): boolean {
