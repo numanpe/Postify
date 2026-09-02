@@ -8,15 +8,19 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { BrandKitForm } from "@/components/brand-kit/brand-kit-form";
 import { SecondaryNichesForm } from "@/components/brand-kit/secondary-niches-form";
 import { TargetMarketForm } from "@/components/brand-kit/target-market-form";
+import { PublicBioForm } from "@/components/brand-kit/public-bio-form";
+import { ensurePublicBioSlug } from "@/lib/public-bio";
 
 export default async function BrandKitPage() {
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
 
-  const brandKit = await db.brandKit.findUnique({
-    where: { companyId: company.id },
-    include: { logoAsset: true },
-  });
+  const [brandKit, publicBioSlug] = await Promise.all([
+    db.brandKit.findUnique({ where: { companyId: company.id }, include: { logoAsset: true } }),
+    ensurePublicBioSlug(company.id),
+  ]);
+  const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
+  const bioUrl = `${appUrl}/bio/${publicBioSlug}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,6 +45,13 @@ export default async function BrandKitPage() {
       <TargetMarketForm targetMarket={company.targetMarket} />
 
       <BrandKitForm brandKit={brandKit} />
+
+      <PublicBioForm
+        bioUrl={bioUrl}
+        enabled={company.publicBioEnabled}
+        websiteUrl={company.websiteUrl}
+        whatsappNumber={company.whatsappNumber}
+      />
     </div>
   );
 }

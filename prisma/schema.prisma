@@ -162,6 +162,23 @@ model Company {
   targetMarket    String?
   locale          Locale   @default(EN)
   voiceEngine     VoiceEngine @default(FREE)
+
+  // Part 4's real "link in bio" public page (src/app/bio/[slug]).
+  // Neither field is captured anywhere else today (confirmed by grep —
+  // brand-extract.ts's websiteUrl input is used transiently for
+  // extraction and never persisted) — genuinely new, optional info, not
+  // re-asking for something already on file. Both null = no CTA button
+  // shown on the bio page, never a placeholder.
+  websiteUrl      String?
+  whatsappNumber  String?
+  // On by default once a slug exists (see publicBioSlug below), same
+  // opt-out-not-opt-in convention as Company.weeklyDigestEnabled.
+  publicBioEnabled Boolean @default(true)
+  // Lazily generated on first real need (Settings page view, or the
+  // bio page itself) by src/lib/public-bio.ts's ensurePublicBioSlug —
+  // null until then, never guessed/pre-filled. Company name + a short
+  // random suffix, URL-safe.
+  publicBioSlug   String?  @unique
   // Company-level suspend, independent of any individual member's own
   // User.status — lets an abusive company be shut down without banning
   // every member by hand, and a member can still be individually banned
