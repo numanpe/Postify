@@ -193,7 +193,7 @@ export interface Dictionary {
     autoScheduleAppliedDefault: string; autoScheduleAppliedLearned: (sampleSize: number) => string;
     history: string; posterRemoved: string; scheduledFor: string; attempted: string;
     viewPost: string; platformFacebook: string; platformInstagram: string;
-    platformLinkedIn: string; platformTikTok: string; video: string; noVideosYet: string;
+    platformLinkedIn: string; platformTikTok: string; video: string; noVideosYet: string; noPostersYetInline: string;
     connectLinkedIn: string; connectTikTok: string; pendingAppReview: string;
   };
   media: {
@@ -326,7 +326,7 @@ export interface Dictionary {
     modeAggregatorConnectHint: string; directApiTesterNote: string;
     downloadButton: string; downloadedToast: string;
     publishViaProvider: (provider: string) => string; publishing: string;
-    publishDirect: string; selectAccount: string; noAccountsForDirect: string;
+    publishDirect: string; selectAccount: string; noAccountsForDirect: string; noMatchingAccountForDirect: (platforms: string) => string;
     lastAttemptSucceeded: string; lastAttemptFailed: (message: string) => string;
     staleWarning: (days: number) => string; extendRetention: string; fileCleanedUp: string;
   };
@@ -742,6 +742,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       platformTikTok: "TikTok",
       video: "Video",
       noVideosYet: "No videos yet — generate one in the video studio first.",
+      noPostersYetInline: "No posters yet — generate one in the poster studio first.",
       connectLinkedIn: "Connect LinkedIn",
       connectTikTok: "Connect TikTok",
       pendingAppReview:
@@ -1090,6 +1091,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       publishDirect: "Publish directly",
       selectAccount: "Account",
       noAccountsForDirect: "Connect a Facebook/Instagram account in Publish first.",
+      noMatchingAccountForDirect: (platforms: string) =>
+        `None of your connected accounts match this item's target platform${platforms.includes(",") ? "s" : ""} (${platforms}).`,
       lastAttemptSucceeded: "Published successfully.",
       lastAttemptFailed: (message: string) => `Publish failed: ${message}`,
       staleWarning: (days: number) =>
@@ -1506,6 +1509,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       platformTikTok: "تيك توك",
       video: "الفيديو",
       noVideosYet: "لا توجد فيديوهات بعد — أنشئ واحدًا في استوديو الفيديو أولًا.",
+      noPostersYetInline: "لا توجد ملصقات بعد — أنشئ واحدًا في استوديو الملصقات أولًا.",
       connectLinkedIn: "ربط لينكدإن",
       connectTikTok: "ربط تيك توك",
       pendingAppReview:
@@ -1850,6 +1854,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       publishDirect: "نشر مباشر",
       selectAccount: "الحساب",
       noAccountsForDirect: "اربط حساب فيسبوك/إنستغرام من صفحة النشر أولًا.",
+      noMatchingAccountForDirect: (platforms: string) =>
+        `لا يتطابق أي من حساباتك المتصلة مع منصة هذا العنصر المستهدفة (${platforms}).`,
       lastAttemptSucceeded: "تم النشر بنجاح.",
       lastAttemptFailed: (message: string) => `فشل النشر: ${message}`,
       staleWarning: (days: number) => `لم يُنزَّل أو يُنشر منذ أكثر من ${days} يومًا — قد تتم إزالته قريبًا لتوفير المساحة.`,

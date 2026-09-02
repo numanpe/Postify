@@ -6,6 +6,7 @@ import { approveCampaignItem, regenerateCampaignItem, removeCampaignItem } from 
 import { extendMediaRetention } from "@/lib/actions/campaign-publish";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { platformLabel } from "@/lib/publish-targets";
 import { DownloadCopyButton } from "./download-copy-button";
 import { PublishViaAggregatorButton } from "./publish-via-aggregator-button";
 import { PublishDirectButton } from "./publish-direct-button";
@@ -250,6 +251,20 @@ export async function CalendarItemCard({
           {fileAvailable && item.assetType === "POSTER" && (
             eligibleAccounts.length > 0 ? (
               <PublishDirectButton itemId={item.id} accounts={eligibleAccounts} />
+            ) : connectedAccounts.length > 0 ? (
+              // Real bug found while auditing other publish surfaces for
+              // the ShareAssetModal eligibility-messaging fix: this used
+              // to show the same "connect an account" copy even when a
+              // real Direct account IS connected — just for a platform
+              // this item's own targetPlatforms (set at generation time
+              // from whichever accounts were connected then, see
+              // CampaignItem.targetPlatforms's own schema comment)
+              // doesn't include, e.g. after switching which account is
+              // connected. Honest, distinct copy naming the real gap
+              // instead of implying nothing is connected at all.
+              <p className="text-ink-soft dark:text-ink-soft-dark">
+                {pubDict.noMatchingAccountForDirect(item.targetPlatforms.map((p) => platformLabel(dict, p)).join(", "))}
+              </p>
             ) : (
               <p className="text-ink-soft dark:text-ink-soft-dark">{pubDict.noAccountsForDirect}</p>
             )

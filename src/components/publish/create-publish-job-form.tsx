@@ -125,6 +125,16 @@ export function CreatePublishJobForm({
               </option>
             ))}
           </select>
+          {/* Real bug found while auditing other publish surfaces for
+              the ShareAssetModal eligibility-messaging fix: this branch
+              never had the videos branch's equivalent empty-state
+              warning, so a company with a real connected Direct
+              Facebook/Instagram account but zero posters (e.g. only
+              videos generated so far) got a silently empty required
+              <select> with no explanation. */}
+          {posters.length === 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">{dict.noPostersYetInline}</p>
+          )}
         </div>
       )}
 
