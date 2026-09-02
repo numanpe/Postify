@@ -2,6 +2,8 @@ import "server-only";
 
 import type {
   TextProvider,
+  GenerateReplyInput,
+  GenerateReplyOutput,
   GenerateCaptionInput,
   GenerateCaptionOutput,
   GenerateScriptInput,
@@ -197,8 +199,53 @@ function shortHeadline(seed: string, options: string[]): string {
 // duplicating the string.
 export const FREE_TEXT_PROVIDER_NAME = "Free (template)";
 
+// Honest scope limit, same reasoning as clarifyTopic's own doc comment
+// (real language understanding needed to respond to specific arbitrary
+// text): the free tier can't genuinely address what a customer actually
+// said, so it doesn't try to fake that — these are real, usable generic
+// acknowledgments (the kind of first-pass reply many real businesses
+// already send), never dressed up as a considered response to the
+// message's content. Kept short so it reads as a real reply, not a
+// canned paragraph; always shown as an editable draft before Send, same
+// as every other output here.
+const REPLY_TEMPLATES: Record<"EN" | "AR", Record<"comment" | "dm", string[]>> = {
+  EN: {
+    comment: [
+      "Thanks so much for the comment! Reach out anytime if there's more we can help with.",
+      "Appreciate you taking the time to comment — happy to help with anything else.",
+      "Thank you! Feel free to send us a message if you have questions.",
+    ],
+    dm: [
+      "Thanks for reaching out — we've got your message and will follow up shortly.",
+      "Thanks for the message! We'll get back to you with more details soon.",
+      "Appreciate you contacting us — someone from our team will respond shortly.",
+    ],
+  },
+  AR: {
+    comment: [
+      "شكرًا لتعليقك! لا تتردد في التواصل معنا إذا احتجت أي مساعدة أخرى.",
+      "نقدّر وقتك في التعليق — يسعدنا مساعدتك في أي شيء آخر.",
+      "شكرًا لك! لا تتردد في مراسلتنا إذا كانت لديك أسئلة.",
+    ],
+    dm: [
+      "شكرًا لتواصلك معنا — استلمنا رسالتك وسنرد عليك قريبًا.",
+      "شكرًا على رسالتك! سنوافيك بمزيد من التفاصيل قريبًا.",
+      "نقدّر تواصلك معنا — سيرد عليك أحد أعضاء فريقنا قريبًا.",
+    ],
+  },
+};
+
 export class TemplateTextProvider implements TextProvider {
   readonly name = FREE_TEXT_PROVIDER_NAME;
+
+  async generateReply({ context, incomingMessage, kind }: GenerateReplyInput): Promise<GenerateReplyOutput> {
+    const options = REPLY_TEMPLATES[context.locale][kind];
+    // Seeded on the incoming message itself (not companyId/topic like
+    // generateCaption) — the same message always drafts the same
+    // acknowledgment, but two different messages don't collide.
+    const text = options[pickIndex(`${context.companyId}:${kind}:${incomingMessage}`, options.length)];
+    return { text, providerName: this.name };
+  }
 
   async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
     const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;

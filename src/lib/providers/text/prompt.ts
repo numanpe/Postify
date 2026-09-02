@@ -16,6 +16,42 @@ import { validateTopic } from "@/lib/topic-validation";
 // Shared by every BYOK provider so a real LLM's output is grounded in
 // the same company context the free template uses — BYOK unlocks
 // quality, not a different (generic) product.
+// Part 2's AI-drafted reply (src/lib/inbox.ts) — grounded in the same
+// real Creative DNA tone/industry context every other BYOK prompt here
+// uses, so a reply sounds like the real business, not generic customer
+// service copy. Always a DRAFT: the caller (inbox-reply-form.tsx) shows
+// this in an editable textarea and requires an explicit manual Send —
+// this prompt itself has no bearing on that discipline, it only shapes
+// what text gets suggested.
+export function buildReplyPrompt(
+  context: CompanyContext,
+  incomingMessage: string,
+  kind: "comment" | "dm",
+  authorName?: string,
+): { system: string; user: string } {
+  const { name, industry, tone, locale } = context;
+
+  const surface = kind === "comment" ? "a public comment on one of the company's posts" : "a private direct message";
+  const languageInstruction =
+    locale === "AR"
+      ? "Write the reply in natural, culturally idiomatic Arabic — not a literal word-for-word translation of an English draft."
+      : null;
+
+  const system = [
+    `You are replying, as ${name}, to ${surface} on social media. Brand tone: ${tone}. Industry: ${industry}.`,
+    "Write one short, genuine reply — at most 2 sentences. Sound like a real person at this business, not a scripted customer-service bot.",
+    "Address what the person actually said. Never invent specific facts (prices, dates, availability, promises) that weren't given to you — if the message asks something you can't honestly answer, offer to follow up instead of guessing.",
+    "No hashtags. No generic filler like \"We appreciate your feedback!\" unless the message genuinely only warrants that.",
+    languageInstruction,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const user = `${authorName ? `From: ${authorName}\n` : ""}Message: "${incomingMessage}"\n\nWrite a reply.`;
+
+  return { system, user };
+}
+
 export function buildCaptionPrompt(
   context: CompanyContext,
   topic: string,

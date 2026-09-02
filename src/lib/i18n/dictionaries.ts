@@ -20,7 +20,7 @@ export interface Dictionary {
   nav: {
     studio: string; poster: string; video: string; campaigns: string; publish: string;
     media: string; brandKit: string; settings: string; signOut: string; repurpose: string; menu: string;
-    createContent: string; help: string;
+    createContent: string; help: string; inbox: string;
   };
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
@@ -207,6 +207,18 @@ export interface Dictionary {
     shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
     shareSuccessNow: string; shareSuccessScheduled: string;
   };
+  inbox: {
+    title: string; subtitle: string;
+    notConnectedTitle: string; notConnectedHint: string; connectSettingsLink: string;
+    unavailableTitle: string;
+    emptyTitle: string; emptyHint: string;
+    unsupportedPlatformsNote: (platforms: string) => string;
+    accountIssueNote: (platform: string, error: string) => string;
+    commentLabel: string; dmLabel: string;
+    generateDraft: string; generatingDraft: string;
+    replyPlaceholder: string;
+    send: string; sending: string; sent: string;
+  };
   brandKit: {
     title: string; subtitle: (name: string) => string; logo: string; primary: string;
     secondary: string; accent: string; headingFont: string; bodyFont: string; save: string;
@@ -329,6 +341,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       menu: "Menu",
       createContent: "Create Content",
       help: "Help",
+      inbox: "Inbox",
     },
     common: {
       save: "Save",
@@ -756,6 +769,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareSuccessNow: "Published.",
       shareSuccessScheduled: "Scheduled to publish.",
     },
+    inbox: {
+      title: "Inbox",
+      subtitle: "Real comments and messages from your connected accounts, with an AI-drafted reply you can edit before sending.",
+      notConnectedTitle: "Connect Zernio to see your inbox here.",
+      notConnectedHint: "Comments and DMs are read through your Zernio connection.",
+      connectSettingsLink: "Connect in Settings",
+      unavailableTitle: "Inbox isn't available right now",
+      emptyTitle: "No new comments or messages.",
+      emptyHint: "Check back later, or refresh this page.",
+      unsupportedPlatformsNote: (platforms: string) => `Zernio doesn't support reading comments/messages for: ${platforms}.`,
+      accountIssueNote: (platform: string, error: string) => `${platform}: ${error}`,
+      commentLabel: "Comment",
+      dmLabel: "Message",
+      generateDraft: "Generate draft reply",
+      generatingDraft: "Drafting…",
+      replyPlaceholder: "Write a reply…",
+      send: "Send",
+      sending: "Sending…",
+      sent: "Sent.",
+    },
     brandKit: {
       title: "Brand Kit",
       subtitle: (name: string) => `Logo, colors, and fonts for ${name}.`,
@@ -1049,6 +1082,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       menu: "القائمة",
       createContent: "إنشاء محتوى",
       help: "المساعدة",
+      inbox: "الوارد",
     },
     common: {
       save: "حفظ",
@@ -1474,6 +1508,26 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sharePublishing: "جارٍ المشاركة…",
       shareSuccessNow: "تم النشر.",
       shareSuccessScheduled: "تمت الجدولة للنشر.",
+    },
+    inbox: {
+      title: "الوارد",
+      subtitle: "التعليقات والرسائل الحقيقية من حساباتك المتصلة، مع رد مُسوَّد بالذكاء الاصطناعي يمكنك تعديله قبل الإرسال.",
+      notConnectedTitle: "اربط زيرنيو لعرض الوارد هنا.",
+      notConnectedHint: "تُقرأ التعليقات والرسائل الخاصة من خلال اتصالك بزيرنيو.",
+      connectSettingsLink: "الربط من الإعدادات",
+      unavailableTitle: "الوارد غير متاح حاليًا",
+      emptyTitle: "لا توجد تعليقات أو رسائل جديدة.",
+      emptyHint: "تحقق لاحقًا، أو أعد تحميل الصفحة.",
+      unsupportedPlatformsNote: (platforms: string) => `زيرنيو لا يدعم قراءة التعليقات/الرسائل لـ: ${platforms}.`,
+      accountIssueNote: (platform: string, error: string) => `${platform}: ${error}`,
+      commentLabel: "تعليق",
+      dmLabel: "رسالة",
+      generateDraft: "إنشاء مسودة رد",
+      generatingDraft: "جارٍ الإعداد…",
+      replyPlaceholder: "اكتب ردًا…",
+      send: "إرسال",
+      sending: "جارٍ الإرسال…",
+      sent: "تم الإرسال.",
     },
     brandKit: {
       title: "هوية العلامة",

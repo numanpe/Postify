@@ -39,6 +39,7 @@ import {
   Eye,
   Building2,
   HelpCircle,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +56,7 @@ export const NavIcons = {
   signOut: LogOut,
   addCompany: Building2,
   help: HelpCircle,
+  inbox: Inbox,
 } satisfies Record<string, LucideIcon>;
 
 export const ActionIcons = {

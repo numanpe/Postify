@@ -2,6 +2,8 @@ import "server-only";
 
 import type {
   TextProvider,
+  GenerateReplyInput,
+  GenerateReplyOutput,
   GenerateCaptionInput,
   GenerateCaptionOutput,
   GenerateScriptInput,
@@ -18,6 +20,7 @@ import type {
 } from "./types";
 import { ProviderError } from "./types";
 import {
+  buildReplyPrompt,
   buildCaptionPrompt,
   buildScriptPrompt,
   buildCampaignBriefPrompt,
@@ -108,6 +111,12 @@ export class AnthropicTextProvider implements TextProvider {
       : undefined;
 
     return { content: text, estimatedCostUsd };
+  }
+
+  async generateReply({ context, incomingMessage, kind, authorName }: GenerateReplyInput): Promise<GenerateReplyOutput> {
+    const { system, user } = buildReplyPrompt(context, incomingMessage, kind, authorName);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user);
+    return { text: content, providerName: this.name, model: MODEL, estimatedCostUsd };
   }
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {

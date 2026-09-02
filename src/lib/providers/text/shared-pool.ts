@@ -3,6 +3,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import type {
   TextProvider,
+  GenerateReplyInput,
+  GenerateReplyOutput,
   GenerateCaptionInput,
   GenerateCaptionOutput,
   GenerateScriptInput,
@@ -181,6 +183,10 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
 
   return {
     name: shared.name,
+    generateReply: tryShared<[GenerateReplyInput], GenerateReplyOutput>(
+      shared.generateReply.bind(shared),
+      template.generateReply.bind(template),
+    ),
     generateCaption: tryShared<[GenerateCaptionInput], GenerateCaptionOutput>(
       shared.generateCaption.bind(shared),
       template.generateCaption.bind(template),

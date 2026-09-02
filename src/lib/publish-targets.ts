@@ -44,7 +44,9 @@ const PLATFORM_LABEL_KEYS: Record<SocialPlatform, keyof Dictionary["publish"]> =
   TIKTOK: "platformTikTok",
 };
 
-function platformLabel(dict: Dictionary, platform: SocialPlatform): string {
+// Exported for src/app/(app)/inbox/page.tsx too — same real translated
+// platform names, one place they're derived from the dictionary.
+export function platformLabel(dict: Dictionary, platform: SocialPlatform): string {
   const key = PLATFORM_LABEL_KEYS[platform];
   return key ? (dict.publish[key] as string) : platform;
 }

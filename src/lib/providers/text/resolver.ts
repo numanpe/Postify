@@ -70,6 +70,7 @@ async function callWithFallback<Args extends unknown[], R extends { providerName
 
 function wireTextProvider(candidates: { label: string; provider: TextProvider }[], companyId: string): TextProvider {
   const methodNames: (keyof TextProvider)[] = [
+    "generateReply",
     "generateCaption",
     "generateScript",
     "generateCampaignBrief",

@@ -2,6 +2,8 @@ import "server-only";
 
 import type {
   TextProvider,
+  GenerateReplyInput,
+  GenerateReplyOutput,
   GenerateCaptionInput,
   GenerateCaptionOutput,
   GenerateScriptInput,
@@ -18,6 +20,7 @@ import type {
 } from "./types";
 import { ProviderError } from "./types";
 import {
+  buildReplyPrompt,
   buildCaptionPrompt,
   buildScriptPrompt,
   buildCampaignBriefPrompt,
@@ -300,6 +303,15 @@ export class GeminiTextProvider implements TextProvider {
         error,
       );
     }
+  }
+
+  async generateReply({ context, incomingMessage, kind, authorName }: GenerateReplyInput): Promise<GenerateReplyOutput> {
+    const { system, user } = buildReplyPrompt(context, incomingMessage, kind, authorName);
+    // Same real, measured thinking-token headroom as generateCaption
+    // below — a reply is the same short free-text shape, same risk of
+    // the model's hidden reasoning alone exhausting a smaller budget.
+    const { content, estimatedCostUsd } = await this.generateContent(system, user, { maxTokens: 700 });
+    return { text: content, providerName: this.name, model: GEMINI_TEXT_MODEL, estimatedCostUsd };
   }
 
   async generateCaption({ context, topic }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {

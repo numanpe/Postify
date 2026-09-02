@@ -34,6 +34,11 @@ const MAX_RETRIES = 4;
 export function withDeletionAvoidance(provider: TextProvider, companyId: string): TextProvider {
   return {
     name: provider.name,
+    // Not extended to replies (deliberately, same disclosed scope as
+    // this file's own top comment) — a reply is grounded in a specific
+    // incoming message, not a company-wide topic loop a real "regenerate
+    // the same thing twice" pattern applies to.
+    generateReply: (input) => provider.generateReply(input),
     generateScript: (input) => provider.generateScript(input),
     generateCampaignBrief: (input) => provider.generateCampaignBrief(input),
     expandBackgroundPrompt: (input) => provider.expandBackgroundPrompt(input),

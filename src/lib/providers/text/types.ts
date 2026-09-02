@@ -2,6 +2,27 @@ import type { CompanyContext } from "@/lib/company-context";
 import type { SocialPlatform } from "@prisma/client";
 import type { FallbackInfo } from "../fallback-log";
 
+// Part 2 of the 5-feature request: AI-drafted replies to real inbox
+// comments/DMs (src/lib/inbox.ts). A short, single reply to ONE
+// specific incoming message — not a new post, so it doesn't reuse
+// GenerateCaptionInput's topic-driven shape.
+export interface GenerateReplyInput {
+  context: CompanyContext;
+  incomingMessage: string;
+  kind: "comment" | "dm";
+  // Only used to decide whether addressing them by name reads
+  // naturally — never fabricated when absent.
+  authorName?: string;
+}
+
+export interface GenerateReplyOutput {
+  text: string;
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
+}
+
 export interface GenerateCaptionInput {
   context: CompanyContext;
   topic: string;
@@ -207,6 +228,7 @@ export interface SummarizeBusinessContextOutput {
 
 export interface TextProvider {
   readonly name: string;
+  generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
   generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput>;
   generateScript(input: GenerateScriptInput): Promise<GenerateScriptOutput>;
   generateCampaignBrief(input: GenerateCampaignBriefInput): Promise<GenerateCampaignBriefOutput>;
