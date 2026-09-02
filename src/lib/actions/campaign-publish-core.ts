@@ -58,6 +58,13 @@ interface AggregatorPublishAttempt {
   // native "publish later" of its own.
   scheduledTime?: Date;
   company: Company;
+  // Part 3's real trending-audio option — see AggregatorPostInput's own
+  // doc comment. Only ever meaningful when "instagram" is among
+  // targetPlatforms and mediaKind is "video"; passed straight through
+  // and ignored by the adapter otherwise, never validated here (the
+  // adapter/Zernio's own real publish-time check is the honest source
+  // of truth for whether the track is still attachable).
+  instagramAudioId?: string;
 }
 
 interface AggregatorPublishResult {
@@ -73,7 +80,7 @@ interface AggregatorPublishResult {
 // they're publishing (a CampaignItem vs a bare Poster/Video with no
 // CampaignItem in the picture).
 async function attemptAggregatorPublish(attempt: AggregatorPublishAttempt): Promise<AggregatorPublishResult> {
-  const { mediaAsset, mediaKind, captionText, hashtags, targetPlatforms, scheduledTime, company } = attempt;
+  const { mediaAsset, mediaKind, captionText, hashtags, targetPlatforms, scheduledTime, company, instagramAudioId } = attempt;
 
   if (mediaAsset.storageDeletedAt) {
     return { succeeded: false, errorMessage: "This file was already cleaned up after a previous successful publish." };
@@ -120,6 +127,7 @@ async function attemptAggregatorPublish(attempt: AggregatorPublishAttempt): Prom
       platforms,
       scheduledTime,
       profileHint: accountMap["_PROFILE_"],
+      instagramAudioId,
     });
 
     // The aggregator already has its own copy of the media bytes as of
@@ -228,6 +236,7 @@ export interface StandaloneAggregatorPublishInput {
   hashtags: string[];
   targetPlatforms: SocialPlatform[];
   scheduledTime?: Date;
+  instagramAudioId?: string;
 }
 
 // Media Library's "Share" button (2026-09-02) — the same real
@@ -246,7 +255,7 @@ export interface StandaloneAggregatorPublishInput {
 export async function publishStandaloneAssetViaAggregatorForCompany(
   input: StandaloneAggregatorPublishInput,
 ): Promise<AggregatorPublishResult> {
-  const { company, posterId, videoId, captionText, hashtags, targetPlatforms, scheduledTime } = input;
+  const { company, posterId, videoId, captionText, hashtags, targetPlatforms, scheduledTime, instagramAudioId } = input;
 
   const [poster, video] = await Promise.all([
     posterId ? db.poster.findFirst({ where: { id: posterId, companyId: company.id }, include: { asset: true } }) : null,
@@ -277,6 +286,7 @@ export async function publishStandaloneAssetViaAggregatorForCompany(
       targetPlatforms,
       scheduledTime,
       company,
+      instagramAudioId,
     });
   } finally {
     if (poster) {

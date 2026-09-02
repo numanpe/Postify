@@ -26,6 +26,17 @@ export interface AggregatorPostInput {
   // AggregatorCredential.accountMap's reserved "_PROFILE_" key. Unused
   // by every other adapter.
   profileHint?: string;
+  // Part 3's real trending-audio integration (src/lib/providers/aggregator/zernio-audio.ts).
+  // Zernio-only today (the one real, verified capability — see that
+  // file's own doc comment): attaches a real Instagram-catalog track BY
+  // REFERENCE at the moment Instagram itself publishes this as a Reel —
+  // Meta's own servers do the audio mixing, this app never downloads or
+  // bakes the copyrighted track into mediaBuffer. Only takes effect for
+  // an "instagram" entry in `platforms` and only when mediaKind is
+  // "video" (Reels only — Meta's own real platform restriction); a
+  // provider that doesn't support this silently ignores it rather than
+  // erroring, same as every other adapter-specific optional field here.
+  instagramAudioId?: string;
 }
 
 export interface AggregatorPostOutput {

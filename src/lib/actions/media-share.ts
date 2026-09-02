@@ -18,6 +18,10 @@ const ShareAssetSchema = z
     videoId: z.string().min(1).nullish(),
     caption: z.string().trim().min(1, "Write a caption.").max(2200, "Keep the caption under 2200 characters."),
     scheduledFor: z.string().optional(),
+    // Part 3's real optional trending-audio pick (Instagram Reels via
+    // Zernio only) — see AggregatorPostInput.instagramAudioId's own doc
+    // comment. Silently ignored for any other target; never required.
+    instagramAudioId: z.string().min(1).optional(),
   })
   .refine((data) => Boolean(data.posterId) !== Boolean(data.videoId), {
     message: "Choose exactly one poster or video to share.",
@@ -50,11 +54,12 @@ export async function shareGeneratedAsset(
     videoId: formData.get("videoId") || undefined,
     caption: formData.get("caption"),
     scheduledFor: formData.get("scheduledFor") || undefined,
+    instagramAudioId: formData.get("instagramAudioId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { targetKey, posterId, videoId, caption, scheduledFor } = parsed.data;
+  const { targetKey, posterId, videoId, caption, scheduledFor, instagramAudioId } = parsed.data;
 
   const [via, rest] = targetKey.split(":", 2);
 
@@ -121,6 +126,11 @@ export async function shareGeneratedAsset(
       hashtags,
       targetPlatforms: [rest as SocialPlatform],
       scheduledTime,
+      // Only ever meaningful for an "INSTAGRAM" aggregator target — sent
+      // regardless (attemptAggregatorPublish/the adapter both already
+      // ignore it for any other platform), same "pass through, let the
+      // real layer decide relevance" pattern scheduledTime already uses.
+      instagramAudioId: rest === "INSTAGRAM" ? instagramAudioId : undefined,
     });
 
     if (!result.succeeded) {

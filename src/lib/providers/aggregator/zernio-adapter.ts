@@ -81,7 +81,18 @@ export class ZernioAdapter implements SocialAggregatorAdapter {
     const body: Record<string, unknown> = {
       content,
       mediaItems: [{ url: publicUrl, type: input.mediaKind }],
-      platforms: input.platforms.map((p) => ({ platform: p.platform, accountId: p.accountId })),
+      // Part 3's real trending-audio attachment: audioConfiguration on
+      // InstagramPlatformData, Reels only. Meta rejects (not silently
+      // drops) an audioId that's gone stale by publish time — see
+      // AggregatorPostInput.instagramAudioId's own doc comment on why
+      // this is a real by-reference attachment, never a downloaded/baked
+      // asset. Only the "instagram" entry gets it; every other platform
+      // in the same multi-target publish is untouched.
+      platforms: input.platforms.map((p) =>
+        p.platform === "instagram" && input.instagramAudioId && input.mediaKind === "video"
+          ? { platform: p.platform, accountId: p.accountId, platformSpecificData: { audioConfiguration: { audioId: input.instagramAudioId } } }
+          : { platform: p.platform, accountId: p.accountId },
+      ),
     };
     if (input.scheduledTime) {
       body.scheduledFor = input.scheduledTime.toISOString();

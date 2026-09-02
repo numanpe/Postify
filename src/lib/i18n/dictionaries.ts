@@ -206,6 +206,9 @@ export interface Dictionary {
     shareNoAccounts: string; shareNoAccountsHint: string; shareCaption: string;
     shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
     shareSuccessNow: string; shareSuccessScheduled: string;
+    audioBrowse: string; audioHint: string; audioMusic: string; audioOriginalSound: string;
+    audioSearchPlaceholder: string; audioSearch: string; audioLoading: string; audioNoResults: string;
+    audioUntitled: string; audioSelectedLabel: string; audioClear: string;
   };
   inbox: {
     title: string; subtitle: string;
@@ -768,6 +771,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sharePublishing: "Sharing…",
       shareSuccessNow: "Published.",
       shareSuccessScheduled: "Scheduled to publish.",
+      audioBrowse: "Add trending Instagram audio (optional)",
+      audioHint: "Only applies if you publish this video to Instagram via Zernio above — every other destination is unaffected.",
+      audioMusic: "Music",
+      audioOriginalSound: "Original sounds",
+      audioSearchPlaceholder: "Search by song or artist…",
+      audioSearch: "Search",
+      audioLoading: "Loading…",
+      audioNoResults: "No results.",
+      audioUntitled: "Untitled",
+      audioSelectedLabel: "Selected:",
+      audioClear: "Clear",
     },
     inbox: {
       title: "Inbox",
@@ -1508,6 +1522,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sharePublishing: "جارٍ المشاركة…",
       shareSuccessNow: "تم النشر.",
       shareSuccessScheduled: "تمت الجدولة للنشر.",
+      audioBrowse: "إضافة صوت رائج من إنستغرام (اختياري)",
+      audioHint: "ينطبق فقط عند النشر على إنستغرام عبر زيرنيو أعلاه — لا يؤثر على أي وجهة أخرى.",
+      audioMusic: "موسيقى",
+      audioOriginalSound: "أصوات أصلية",
+      audioSearchPlaceholder: "ابحث باسم الأغنية أو الفنان…",
+      audioSearch: "بحث",
+      audioLoading: "جارٍ التحميل…",
+      audioNoResults: "لا توجد نتائج.",
+      audioUntitled: "بدون عنوان",
+      audioSelectedLabel: "المختار:",
+      audioClear: "إلغاء",
     },
     inbox: {
       title: "الوارد",

@@ -115,6 +115,12 @@ export default async function MediaPage({
     getRealPublishTargets(company, dict),
   ]);
 
+  // Part 3's real trending-audio picker eligibility — Zernio only (the
+  // one aggregator this capability is actually verified for), and only
+  // when an Instagram target is genuinely available to publish to.
+  const instagramAudioAvailable =
+    company.selectedAggregator === "ZERNIO" && publishTargets.some((t) => t.key === "aggregator:INSTAGRAM");
+
   const events: ActivityEvent[] = [];
 
   for (const job of publishJobs) {
@@ -279,6 +285,7 @@ export default async function MediaPage({
                   }
                   targets={publishTargets}
                   connectAccountsHref="/publish"
+                  instagramAudioAvailable={instagramAudioAvailable}
                 />
               )}
               <form action={deleteMedia.bind(null, asset.id)}>

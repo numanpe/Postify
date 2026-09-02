@@ -8,6 +8,7 @@ import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-shee
 import { useDict } from "@/components/i18n/locale-provider";
 import { ActionIcons } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { InstagramAudioPicker } from "@/components/media/instagram-audio-picker";
 
 export interface ShareTargetOption {
   key: string;
@@ -22,6 +23,13 @@ interface ShareAssetModalProps {
   defaultCaption: string;
   targets: ShareTargetOption[];
   connectAccountsHref: string;
+  // Part 3: true only when this company both has an Instagram target
+  // available AND publishes through Zernio specifically — the one real,
+  // verified provider this capability exists for (see
+  // zernio-audio.ts's own doc comment). A company on a different
+  // aggregator with an "aggregator:INSTAGRAM" target still gets no
+  // picker; that provider genuinely has no equivalent API.
+  instagramAudioAvailable?: boolean;
 }
 
 // Media Library's "Share" button (2026-09-02) — a real entry point into
@@ -31,7 +39,14 @@ interface ShareAssetModalProps {
 // comment. BottomSheet is the same shared, mobile-first dialog
 // VideoEditModal already uses — real tap targets, swipe-to-dismiss,
 // RTL-safe by construction.
-export function ShareAssetModal({ assetKind, assetId, defaultCaption, targets, connectAccountsHref }: ShareAssetModalProps) {
+export function ShareAssetModal({
+  assetKind,
+  assetId,
+  defaultCaption,
+  targets,
+  connectAccountsHref,
+  instagramAudioAvailable,
+}: ShareAssetModalProps) {
   const dict = useDict().media;
   const router = useRouter();
   const sheetRef = useRef<BottomSheetHandle>(null);
@@ -90,6 +105,8 @@ export function ShareAssetModal({ assetKind, assetId, defaultCaption, targets, c
                 ))}
               </select>
             </div>
+
+            {assetKind === "video" && instagramAudioAvailable && <InstagramAudioPicker />}
 
             <div className="flex flex-col gap-1">
               <label htmlFor="caption" className="text-sm font-medium">
