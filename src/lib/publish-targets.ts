@@ -5,6 +5,9 @@ import type { Company, SocialPlatform } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { platformLabel } from "@/lib/platform-labels";
+
+export { platformLabel };
 
 // Real, human-readable labels for each aggregator — no existing
 // mapping elsewhere in the app to reuse (campaign-publish-core.ts's
@@ -31,24 +34,6 @@ export interface PublishTarget {
   socialAccountId?: string;
   acceptsImages: boolean;
   acceptsVideo: boolean;
-}
-
-// Same real per-locale platform names /publish's own
-// CreatePublishJobForm already shows (platformLabels in
-// create-publish-job-form.tsx) — the Share button reuses the dictionary
-// rather than re-typing a second translation of the same four strings.
-const PLATFORM_LABEL_KEYS: Record<SocialPlatform, keyof Dictionary["publish"]> = {
-  FACEBOOK: "platformFacebook",
-  INSTAGRAM: "platformInstagram",
-  LINKEDIN: "platformLinkedIn",
-  TIKTOK: "platformTikTok",
-};
-
-// Exported for src/app/(app)/inbox/page.tsx too — same real translated
-// platform names, one place they're derived from the dictionary.
-export function platformLabel(dict: Dictionary, platform: SocialPlatform): string {
-  const key = PLATFORM_LABEL_KEYS[platform];
-  return key ? (dict.publish[key] as string) : platform;
 }
 
 // Real, single source of truth for "what can this company actually

@@ -4,20 +4,87 @@ import { useActionState } from "react";
 
 import {
   saveAggregatorCredential,
+  updateAggregatorAccountMap,
   removeAggregatorCredential,
   setPublishingMode,
 } from "@/lib/actions/aggregator-credentials";
 import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
+import { platformLabel } from "@/lib/platform-labels";
 import { Button } from "@/components/ui/button";
 import { useDict } from "@/components/i18n/locale-provider";
 import { NavIcons, ActionIcons } from "@/components/icons";
 import { Zap } from "lucide-react";
-import type { PublishingMode, SocialAggregatorProvider } from "@prisma/client";
+import type { PublishingMode, SocialAggregatorProvider, SocialPlatform } from "@prisma/client";
 
 interface AggregatorCredentialRow {
   id: string;
   provider: SocialAggregatorProvider;
   keyPreview: string;
+  accountMap: unknown;
+}
+
+// Real UX gap found live (2026-09-03): a saved credential used to
+// collapse to just "•••• 1762" + Remove, with zero visibility into
+// whether accountMap actually had anything in it, and no way to add or
+// fix account IDs afterward short of deleting the whole credential and
+// re-typing the API key. Confirmed via direct DB evidence that this is
+// exactly how a real user ends up with a saved, "Currently in use"
+// credential and a genuinely empty accountMap. This form shows the real
+// current state and lets it be fixed in place.
+function AccountMapStatus({
+  credentialId,
+  provider,
+  accountMap,
+}: {
+  credentialId: string;
+  provider: SocialAggregatorProvider;
+  accountMap: unknown;
+}) {
+  const dict = useDict();
+  const t = dict.publishing;
+  const [state, action, pending] = useActionState(updateAggregatorAccountMap, undefined);
+
+  const map = (accountMap ?? {}) as Record<string, string>;
+  const isUploadPost = provider === "UPLOAD_POST";
+  const mappedPlatforms = isUploadPost
+    ? map["_PROFILE_"]
+      ? ["_PROFILE_"]
+      : []
+    : Object.keys(map).filter((key) => key !== "_PROFILE_");
+  const currentRaw = Object.entries(map)
+    .map(([platform, accountId]) => `${platform}:${accountId}`)
+    .join(", ");
+
+  return (
+    <div className="flex flex-col gap-2">
+      {mappedPlatforms.length === 0 ? (
+        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">{t.accountMapMissingWarning}</p>
+      ) : (
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">
+          {t.accountMapConnectedPrefix}
+          {isUploadPost ? map["_PROFILE_"] : mappedPlatforms.map((p) => platformLabel(dict, p as SocialPlatform)).join(", ")}
+        </p>
+      )}
+      <form action={action} className="flex flex-col gap-1.5">
+        <input type="hidden" name="credentialId" value={credentialId} />
+        <input
+          name="accountMapRaw"
+          type="text"
+          defaultValue={currentRaw}
+          placeholder={t.accountMapPlaceholder}
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 font-mono text-sm"
+        />
+        {state?.error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {state.error}
+          </p>
+        )}
+        <Button type="submit" size="sm" pending={pending} pendingLabel={t.saving}>
+          {t.updateAccountMapButton}
+        </Button>
+      </form>
+    </div>
+  );
 }
 
 function AggregatorCredentialForm({
@@ -35,16 +102,19 @@ function AggregatorCredentialForm({
 
   if (existing) {
     return (
-      <div className="flex items-center justify-between text-sm">
-        <span>•••• {existing.keyPreview}</span>
-        <form action={removeAggregatorCredential.bind(null, existing.id)}>
-          <button
-            type="submit"
-            className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark"
-          >
-            {commonDict.remove}
-          </button>
-        </form>
+      <div className="flex flex-col gap-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span>•••• {existing.keyPreview}</span>
+          <form action={removeAggregatorCredential.bind(null, existing.id)}>
+            <button
+              type="submit"
+              className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark hover:text-ink dark:hover:text-ink-dark"
+            >
+              {commonDict.remove}
+            </button>
+          </form>
+        </div>
+        <AccountMapStatus credentialId={existing.id} provider={provider} accountMap={existing.accountMap} />
       </div>
     );
   }

@@ -93,6 +93,61 @@ export async function saveAggregatorCredential(
   revalidatePath("/settings");
 }
 
+const UpdateAccountMapSchema = z.object({
+  credentialId: z.string().min(1),
+  // Unlike the initial save, this form exists specifically for a
+  // credential that already has zero (or broken) account IDs — a blank
+  // submission here would just be a confusing no-op, so it's required.
+  accountMapRaw: z.string().trim().min(1, "Enter at least one platform account ID.").max(2000),
+});
+
+// Real UX gap found live (2026-09-03): once a credential is saved, the
+// Settings form collapsed to just "•••• 1762" + Remove — no way to see
+// whether accountMap actually has anything in it, and no way to add or
+// fix account IDs afterward short of deleting the whole credential and
+// re-typing the API key from scratch. That's exactly how a real user
+// (confirmed via direct DB evidence on two of this account's own real
+// companies) can save a real key, see "Currently in use," and reasonably
+// believe they're fully connected while accountMap stays {}. This action
+// lets an existing credential's accountMap be added/fixed in place,
+// without touching the encrypted key.
+export async function updateAggregatorAccountMap(
+  _prevState: AggregatorCredentialState,
+  formData: FormData,
+): Promise<AggregatorCredentialState> {
+  const { company } = await requireCompany();
+
+  const parsed = UpdateAccountMapSchema.safeParse({
+    credentialId: formData.get("credentialId"),
+    accountMapRaw: formData.get("accountMapRaw"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const { credentialId, accountMapRaw } = parsed.data;
+  const accountMap = parseAccountMap(accountMapRaw);
+  if (Object.keys(accountMap).length === 0) {
+    return {
+      error:
+        "Couldn't read any platform account IDs from that — check the format (e.g. FACEBOOK:acc_123, INSTAGRAM:acc_456).",
+    };
+  }
+
+  // Multi-tenant isolation: scope by companyId, never trust the
+  // client-supplied credentialId alone — see CLAUDE.md's data-layer rule.
+  const result = await db.aggregatorCredential.updateMany({
+    where: { id: credentialId, companyId: company.id },
+    data: { accountMap },
+  });
+  if (result.count === 0) {
+    return { error: "That credential no longer exists." };
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/media");
+}
+
 export async function removeAggregatorCredential(credentialId: string): Promise<void> {
   const { company } = await requireCompany();
 

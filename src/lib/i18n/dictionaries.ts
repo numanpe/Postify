@@ -323,6 +323,8 @@ export interface Dictionary {
     useThisMethod: string; currentMethod: string;
     apiKeyLabel: string; accountMapLabel: string; accountMapHint: string; accountMapPlaceholder: string;
     saveAndUse: string; saving: string; savedCredential: (provider: string) => string;
+    accountMapMissingWarning: string; accountMapConnectedPrefix: string;
+    updateAccountMapButton: string;
     advancedOptions: string; comingSoon: string; goToDirectMeta: string; tiktokNotIntegrated: string;
     modeAggregatorConnectHint: string; directApiTesterNote: string;
     downloadButton: string; downloadedToast: string;
@@ -1083,6 +1085,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       saveAndUse: "Save & use Zernio",
       saving: "Saving…",
       savedCredential: (provider: string) => `${provider} key saved.`,
+      accountMapMissingWarning: "No platform account IDs added yet — publishing won't work until you add at least one.",
+      accountMapConnectedPrefix: "Connected: ",
+      updateAccountMapButton: "Update account IDs",
       advancedOptions: "Advanced options",
       comingSoon: "Coming soon",
       goToDirectMeta: "Connect Facebook / Instagram →",
@@ -1848,6 +1853,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       saveAndUse: "حفظ واستخدام Zernio",
       saving: "جارٍ الحفظ…",
       savedCredential: (provider: string) => `تم حفظ مفتاح ${provider}.`,
+      accountMapMissingWarning: "لم تُضَف أي معرّفات حسابات منصّات بعد — لن يعمل النشر حتى تضيف واحدًا على الأقل.",
+      accountMapConnectedPrefix: "متصل: ",
+      updateAccountMapButton: "تحديث معرّفات الحسابات",
       advancedOptions: "خيارات متقدمة",
       comingSoon: "قريبًا",
       goToDirectMeta: "ربط فيسبوك / إنستغرام ←",
