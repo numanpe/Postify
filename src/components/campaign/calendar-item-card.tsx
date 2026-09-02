@@ -44,7 +44,13 @@ interface CalendarItemCardProps {
     captionText: string | null;
     hashtags: string[];
     targetPlatforms: SocialPlatform[];
-    poster: { asset: MediaAssetInfo } | null;
+    // publishJobs: real, sufficient evidence a Direct-API auto-publish
+    // attempt already happened for this item (see the "already
+    // attempted" fix below) — publishCampaignItemDirectForCompany only
+    // ever creates one when it genuinely attempts a publish, success or
+    // failure, so its mere existence (any status) is the signal, not a
+    // specific status value.
+    poster: { asset: MediaAssetInfo; publishJobs: { id: string }[] } | null;
     video:
       | {
           id: string;
@@ -106,6 +112,18 @@ export async function CalendarItemCard({
   const eligibleAccounts = connectedAccounts.filter(
     (a) => item.targetPlatforms.length === 0 || item.targetPlatforms.includes(a.platform),
   );
+  // Real bug fixed here: "Will auto-publish at HH:MM" used to keep
+  // showing forever after the scheduled time passed, even once a real
+  // attempt had already resolved — success, failure, or the
+  // targetPlatforms-mismatch case fixed in process-recurring-plans.ts.
+  // status alone can't tell "not yet attempted" from "already
+  // attempted" apart (autoPublishReadyItems never moves a POSTER/video
+  // item off APPROVED either way — see that file's own comment on why
+  // FAILED is deliberately not used), so this checks the real evidence
+  // an attempt happened instead: an aggregator log row, an errorMessage
+  // (the mismatch case), or an actual PublishJob (the Direct case,
+  // success or failure — its mere existence is the signal).
+  const autoPublishAlreadyAttempted = Boolean(lastLog) || Boolean(item.errorMessage) || (item.poster?.publishJobs.length ?? 0) > 0;
 
   return (
     <div
@@ -121,7 +139,7 @@ export async function CalendarItemCard({
         </span>
       </div>
 
-      {autoPublishAt && (item.status === "READY" || item.status === "APPROVED") && (
+      {autoPublishAt && !autoPublishAlreadyAttempted && (item.status === "READY" || item.status === "APPROVED") && (
         <p className="text-amber-700 dark:text-amber-400">
           {dict.recurringPlan.autoPublishItemLabel(autoPublishAt.toISOString().slice(11, 16))}
         </p>

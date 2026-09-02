@@ -34,7 +34,11 @@ export default async function CampaignDetailPage({
       include: {
         items: {
           include: {
-            poster: { include: { asset: true } },
+            // publishJobs: real evidence a Direct-API publish was
+            // already attempted for this poster (see calendar-item-
+            // card.tsx's autoPublishAlreadyAttempted) — id only, its
+            // mere existence is the signal, not any particular status.
+            poster: { include: { asset: true, publishJobs: { select: { id: true } } } },
             video: {
               include: {
                 asset: true,
