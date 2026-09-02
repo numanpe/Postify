@@ -35,13 +35,18 @@ const ShareAssetSchema = z
 //                                   (publish.ts), completely unchanged —
 //                                   same PublishJob row, same immediate-
 //                                   vs-scheduled handling, same cron.
-//   "aggregator:<SocialPlatform>" -> publishStandaloneAssetViaAggregatorForCompany
-//                                   (campaign-publish-core.ts), the same
-//                                   real aggregator adapter call the
-//                                   campaign card's "Publish via Selected
-//                                   Provider" button already makes, just
-//                                   for a bare Poster/Video instead of a
-//                                   CampaignItem.
+//   "aggregator:<SocialPlatform>" -> Upload-Post's single-profile shape
+//                                   only (see AggregatorCredential.
+//                                   accountMap's own doc comment) ->
+//                                   publishStandaloneAssetViaAggregatorForCompany.
+//   "aggregator-account:<id>"     -> a specific real AggregatorAccount
+//                                   (2026-09-03 multi-account redesign)
+//                                   -> publishStandaloneAssetViaAggregatorForCompany,
+//                                   the same real aggregator adapter call
+//                                   the campaign card's "Publish via
+//                                   Selected Provider" button already
+//                                   makes, just for a bare Poster/Video
+//                                   instead of a CampaignItem.
 export async function shareGeneratedAsset(
   _prevState: ShareAssetState,
   formData: FormData,
@@ -82,7 +87,7 @@ export async function shareGeneratedAsset(
     };
   }
 
-  if (via === "aggregator") {
+  if (via === "aggregator" || via === "aggregator-account") {
     // Real ownership check + hashtags/target-platform pre-fill from a
     // linked CampaignItem when one exists — a standalone Studio item
     // (no CampaignItem) just gets an empty hashtag list, same honest
@@ -118,19 +123,40 @@ export async function shareGeneratedAsset(
       }
     }
 
+    // "aggregator-account" targets a specific real AggregatorAccount
+    // (2026-09-03 multi-account redesign) — company-scoped via the
+    // credential join, same multi-tenant isolation every other lookup
+    // here uses. "aggregator" is Upload-Post's single-profile shape,
+    // unchanged: rest is a bare SocialPlatform.
+    let targetPlatform: SocialPlatform;
+    let accountIds: string[] | undefined;
+    if (via === "aggregator-account") {
+      const account = await db.aggregatorAccount.findFirst({
+        where: { id: rest, credential: { companyId: company.id } },
+      });
+      if (!account) {
+        return { error: "That connected account no longer exists." };
+      }
+      targetPlatform = account.platform;
+      accountIds = [account.id];
+    } else {
+      targetPlatform = rest as SocialPlatform;
+    }
+
     const result = await publishStandaloneAssetViaAggregatorForCompany({
       company,
       posterId: posterId ?? undefined,
       videoId: videoId ?? undefined,
       captionText: caption,
       hashtags,
-      targetPlatforms: [rest as SocialPlatform],
+      targetPlatforms: [targetPlatform],
+      accountIds,
       scheduledTime,
       // Only ever meaningful for an "INSTAGRAM" aggregator target — sent
       // regardless (attemptAggregatorPublish/the adapter both already
       // ignore it for any other platform), same "pass through, let the
       // real layer decide relevance" pattern scheduledTime already uses.
-      instagramAudioId: rest === "INSTAGRAM" ? instagramAudioId : undefined,
+      instagramAudioId: targetPlatform === "INSTAGRAM" ? instagramAudioId : undefined,
     });
 
     if (!result.succeeded) {

@@ -22,15 +22,22 @@ export async function searchTrendingInstagramAudioAction(audioType: "music" | "o
   }
   const credential = await db.aggregatorCredential.findUnique({
     where: { companyId_provider: { companyId: company.id, provider: "ZERNIO" } },
+    include: { accounts: { where: { platform: "INSTAGRAM" } } },
   });
   if (!credential) {
     return { error: "Connect Zernio in Settings to browse trending Instagram audio." };
   }
-  const accountMap = credential.accountMap as Record<string, string>;
-  const accountId = accountMap.INSTAGRAM;
-  if (!accountId) {
+  // 2026-09-03 multi-account redesign: an Instagram account's real
+  // accountId now lives in AggregatorAccount, not accountMap.INSTAGRAM.
+  // This picker has no per-account context (it's a search, not a
+  // publish), so it uses the platform's marked default account — the
+  // same real account a scheduled/automatic publish to Instagram would
+  // use if the user didn't pick a specific one via Share.
+  const account = credential.accounts.find((a) => a.isDefault) ?? credential.accounts[0];
+  if (!account) {
     return { error: "Connect an Instagram account through Zernio to browse trending audio." };
   }
+  const accountId = account.accountId;
 
   try {
     const apiKey = decryptSecret(credential.encryptedKey);

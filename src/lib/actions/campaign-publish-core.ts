@@ -65,6 +65,14 @@ interface AggregatorPublishAttempt {
   // adapter/Zernio's own real publish-time check is the honest source
   // of truth for whether the track is still attachable).
   instagramAudioId?: string;
+  // 2026-09-03 multi-account redesign: when a platform has more than one
+  // real connected AggregatorAccount, an explicit user action (Media
+  // Library's Share button) picks a specific one — these real
+  // AggregatorAccount ids override the default-per-platform lookup
+  // below. Left undefined for the CampaignItem/recurring-plan path,
+  // which has no per-publish account picker and always uses each
+  // platform's marked default account.
+  accountIds?: string[];
 }
 
 interface AggregatorPublishResult {
@@ -80,7 +88,7 @@ interface AggregatorPublishResult {
 // they're publishing (a CampaignItem vs a bare Poster/Video with no
 // CampaignItem in the picture).
 async function attemptAggregatorPublish(attempt: AggregatorPublishAttempt): Promise<AggregatorPublishResult> {
-  const { mediaAsset, mediaKind, captionText, hashtags, targetPlatforms, scheduledTime, company, instagramAudioId } = attempt;
+  const { mediaAsset, mediaKind, captionText, hashtags, targetPlatforms, scheduledTime, company, instagramAudioId, accountIds } = attempt;
 
   if (mediaAsset.storageDeletedAt) {
     return { succeeded: false, errorMessage: "This file was already cleaned up after a previous successful publish." };
@@ -91,23 +99,54 @@ async function attemptAggregatorPublish(attempt: AggregatorPublishAttempt): Prom
 
   const credential = await db.aggregatorCredential.findUnique({
     where: { companyId_provider: { companyId: company.id, provider: company.selectedAggregator } },
+    include: { accounts: true },
   });
   if (!credential) {
     return { succeeded: false, errorMessage: "No API key saved for the selected provider — add one in Settings." };
   }
 
-  const accountMap = credential.accountMap as Record<string, string>;
   const isUploadPost = company.selectedAggregator === "UPLOAD_POST";
-  const platforms = targetPlatforms
-    .map((platform) => {
-      const providerPlatformName =
-        company.selectedAggregator === "ZERNIO" ? ZERNIO_PLATFORM_NAMES[platform] : platform.toLowerCase();
-      if (!providerPlatformName) return null;
-      if (isUploadPost) return { platform: providerPlatformName, accountId: "" };
-      const accountId = accountMap[platform];
-      return accountId ? { platform: providerPlatformName, accountId } : null;
-    })
-    .filter((p): p is { platform: string; accountId: string } => p !== null);
+  const providerPlatformName = (platform: SocialPlatform) =>
+    company.selectedAggregator === "ZERNIO" ? ZERNIO_PLATFORM_NAMES[platform] : platform.toLowerCase();
+
+  let platforms: { platform: string; accountId: string }[];
+
+  if (isUploadPost) {
+    // Upload-Post has no per-platform account ID at all — see
+    // AggregatorCredential.accountMap's own doc comment.
+    platforms = targetPlatforms
+      .map((platform) => {
+        const name = providerPlatformName(platform);
+        return name ? { platform: name, accountId: "" } : null;
+      })
+      .filter((p): p is { platform: string; accountId: string } => p !== null);
+  } else if (accountIds && accountIds.length > 0) {
+    // Explicit account(s) chosen by the caller (Share modal) — bypasses
+    // the default-per-platform lookup below.
+    platforms = credential.accounts
+      .filter((a) => accountIds.includes(a.id))
+      .map((a) => {
+        const name = providerPlatformName(a.platform);
+        return name ? { platform: name, accountId: a.accountId } : null;
+      })
+      .filter((p): p is { platform: string; accountId: string } => p !== null);
+  } else {
+    // No explicit account — the CampaignItem/recurring-plan path, which
+    // has no per-publish picker. Each target platform resolves to its
+    // marked default account (see AggregatorAccount.isDefault's own doc
+    // comment); falls back to any account for that platform if somehow
+    // none is marked default.
+    platforms = targetPlatforms
+      .map((platform) => {
+        const name = providerPlatformName(platform);
+        if (!name) return null;
+        const account =
+          credential.accounts.find((a) => a.platform === platform && a.isDefault) ??
+          credential.accounts.find((a) => a.platform === platform);
+        return account ? { platform: name, accountId: account.accountId } : null;
+      })
+      .filter((p): p is { platform: string; accountId: string } => p !== null);
+  }
 
   if (platforms.length === 0) {
     return { succeeded: false, errorMessage: "No account IDs configured in Settings for this item's target platforms." };
@@ -126,7 +165,7 @@ async function attemptAggregatorPublish(attempt: AggregatorPublishAttempt): Prom
       hashtags,
       platforms,
       scheduledTime,
-      profileHint: accountMap["_PROFILE_"],
+      profileHint: (credential.accountMap as Record<string, string>)["_PROFILE_"],
       instagramAudioId,
     });
 
@@ -237,6 +276,7 @@ export interface StandaloneAggregatorPublishInput {
   targetPlatforms: SocialPlatform[];
   scheduledTime?: Date;
   instagramAudioId?: string;
+  accountIds?: string[];
 }
 
 // Media Library's "Share" button (2026-09-02) — the same real
@@ -255,7 +295,7 @@ export interface StandaloneAggregatorPublishInput {
 export async function publishStandaloneAssetViaAggregatorForCompany(
   input: StandaloneAggregatorPublishInput,
 ): Promise<AggregatorPublishResult> {
-  const { company, posterId, videoId, captionText, hashtags, targetPlatforms, scheduledTime, instagramAudioId } = input;
+  const { company, posterId, videoId, captionText, hashtags, targetPlatforms, scheduledTime, instagramAudioId, accountIds } = input;
 
   const [poster, video] = await Promise.all([
     posterId ? db.poster.findFirst({ where: { id: posterId, companyId: company.id }, include: { asset: true } }) : null,
@@ -287,6 +327,7 @@ export async function publishStandaloneAssetViaAggregatorForCompany(
       scheduledTime,
       company,
       instagramAudioId,
+      accountIds,
     });
   } finally {
     if (poster) {

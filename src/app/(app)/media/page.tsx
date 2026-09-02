@@ -118,9 +118,16 @@ export default async function MediaPage({
 
   // Part 3's real trending-audio picker eligibility — Zernio only (the
   // one aggregator this capability is actually verified for), and only
-  // when an Instagram target is genuinely available to publish to.
+  // when an Instagram target is genuinely available to publish to. Real
+  // bug found live (2026-09-03 multi-account redesign): this used to
+  // check for the literal key "aggregator:INSTAGRAM", which stopped
+  // existing once Zernio's Instagram targets became one
+  // "aggregator-account:<id>" entry per real connected account — checked
+  // by platform instead now, so it still matches regardless of how many
+  // real Instagram accounts are connected.
   const instagramAudioAvailable =
-    company.selectedAggregator === "ZERNIO" && publishTargets.some((t) => t.key === "aggregator:INSTAGRAM");
+    company.selectedAggregator === "ZERNIO" &&
+    publishTargets.some((t) => t.via === "AGGREGATOR" && t.platform === "INSTAGRAM");
 
   const events: ActivityEvent[] = [];
 

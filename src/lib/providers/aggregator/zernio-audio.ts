@@ -37,9 +37,9 @@ export interface InstagramAudioAsset {
 }
 
 // GET /v1/accounts/{accountId}/instagram/audio — accountId is the same
-// Zernio-internal Instagram account ID already used for publishing
-// (AggregatorCredential.accountMap.INSTAGRAM). Requires that account be
-// connected to Zernio via Facebook Login specifically; a classic-
+// Zernio-internal Instagram account ID already used for publishing (a
+// real AggregatorAccount row, platform INSTAGRAM). Requires that account
+// be connected to Zernio via Facebook Login specifically; a classic-
 // Instagram-Login connection gets a real 400
 // (instagram_audio_requires_facebook_login), surfaced honestly below
 // rather than an empty result.

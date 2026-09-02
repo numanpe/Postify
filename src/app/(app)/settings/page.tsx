@@ -47,7 +47,13 @@ export default async function SettingsPage() {
     db.aggregatorCredential.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "asc" },
-      select: { id: true, provider: true, keyPreview: true, accountMap: true },
+      select: {
+        id: true,
+        provider: true,
+        keyPreview: true,
+        accountMap: true,
+        accounts: { orderBy: [{ platform: "asc" }, { createdAt: "asc" }] },
+      },
     }),
     db.creativeDna.findUnique({
       where: { companyId: company.id },

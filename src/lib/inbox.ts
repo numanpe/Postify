@@ -82,18 +82,24 @@ export async function getInboxItems(company: Company): Promise<InboxResult> {
 
   const credential = await db.aggregatorCredential.findUnique({
     where: { companyId_provider: { companyId: company.id, provider: "ZERNIO" } },
+    include: { accounts: true },
   });
   if (!credential) {
     return { status: "not_connected" };
   }
 
-  const accountMap = credential.accountMap as Record<string, string>;
-  const connectedPlatforms = Object.keys(accountMap).filter((k) => k !== "_PROFILE_") as SocialPlatform[];
-
+  // 2026-09-03 multi-account redesign: a platform can now have more than
+  // one real connected account, so these are built from every real
+  // AggregatorAccount row rather than one accountId per platform — the
+  // rest of this function already operates on Sets of accountIds, so a
+  // platform contributing 2 real accounts here just works.
+  const connectedPlatforms = [...new Set(credential.accounts.map((a) => a.platform))];
   const commentAccountIds = new Set(
-    connectedPlatforms.filter((p) => ZERNIO_COMMENT_PLATFORMS[p]).map((p) => accountMap[p]),
+    credential.accounts.filter((a) => ZERNIO_COMMENT_PLATFORMS[a.platform]).map((a) => a.accountId),
   );
-  const dmAccountIds = new Set(connectedPlatforms.filter((p) => ZERNIO_DM_PLATFORMS[p]).map((p) => accountMap[p]));
+  const dmAccountIds = new Set(
+    credential.accounts.filter((a) => ZERNIO_DM_PLATFORMS[a.platform]).map((a) => a.accountId),
+  );
   const unsupportedPlatforms = connectedPlatforms.filter((p) => !ZERNIO_COMMENT_PLATFORMS[p] && !ZERNIO_DM_PLATFORMS[p]);
 
   if (commentAccountIds.size === 0 && dmAccountIds.size === 0) {

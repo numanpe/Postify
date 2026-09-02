@@ -325,6 +325,9 @@ export interface Dictionary {
     saveAndUse: string; saving: string; savedCredential: (provider: string) => string;
     accountMapMissingWarning: string; accountMapConnectedPrefix: string;
     updateAccountMapButton: string;
+    addAccountButton: string; accountIdFieldLabel: string; accountLabelFieldLabel: string;
+    accountIdPlaceholder: string; accountLabelPlaceholder: string; platformFieldLabel: string;
+    makeDefaultButton: string; defaultBadge: string; renameButton: string;
     advancedOptions: string; comingSoon: string; goToDirectMeta: string; tiktokNotIntegrated: string;
     modeAggregatorConnectHint: string; directApiTesterNote: string;
     downloadButton: string; downloadedToast: string;
@@ -1088,6 +1091,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       accountMapMissingWarning: "No platform account IDs added yet — publishing won't work until you add at least one.",
       accountMapConnectedPrefix: "Connected: ",
       updateAccountMapButton: "Update account IDs",
+      addAccountButton: "Add account",
+      accountIdFieldLabel: "Account ID",
+      accountLabelFieldLabel: "Label",
+      accountIdPlaceholder: "e.g. acc_123 from your provider's dashboard",
+      accountLabelPlaceholder: "e.g. Downtown Location",
+      platformFieldLabel: "Platform",
+      makeDefaultButton: "Make default",
+      defaultBadge: "Default",
+      renameButton: "Rename",
       advancedOptions: "Advanced options",
       comingSoon: "Coming soon",
       goToDirectMeta: "Connect Facebook / Instagram →",
@@ -1856,6 +1868,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       accountMapMissingWarning: "لم تُضَف أي معرّفات حسابات منصّات بعد — لن يعمل النشر حتى تضيف واحدًا على الأقل.",
       accountMapConnectedPrefix: "متصل: ",
       updateAccountMapButton: "تحديث معرّفات الحسابات",
+      addAccountButton: "إضافة حساب",
+      accountIdFieldLabel: "معرّف الحساب",
+      accountLabelFieldLabel: "التسمية",
+      accountIdPlaceholder: "مثال: acc_123 من لوحة تحكم مزوّدك",
+      accountLabelPlaceholder: "مثال: فرع وسط المدينة",
+      platformFieldLabel: "المنصّة",
+      makeDefaultButton: "تعيين كافتراضي",
+      defaultBadge: "افتراضي",
+      renameButton: "إعادة تسمية",
       advancedOptions: "خيارات متقدمة",
       comingSoon: "قريبًا",
       goToDirectMeta: "ربط فيسبوك / إنستغرام ←",

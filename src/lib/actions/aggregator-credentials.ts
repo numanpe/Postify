@@ -101,16 +101,17 @@ const UpdateAccountMapSchema = z.object({
   accountMapRaw: z.string().trim().min(1, "Enter at least one platform account ID.").max(2000),
 });
 
-// Real UX gap found live (2026-09-03): once a credential is saved, the
-// Settings form collapsed to just "•••• 1762" + Remove — no way to see
-// whether accountMap actually has anything in it, and no way to add or
-// fix account IDs afterward short of deleting the whole credential and
-// re-typing the API key from scratch. That's exactly how a real user
-// (confirmed via direct DB evidence on two of this account's own real
-// companies) can save a real key, see "Currently in use," and reasonably
-// believe they're fully connected while accountMap stays {}. This action
-// lets an existing credential's accountMap be added/fixed in place,
-// without touching the encrypted key.
+// Real UX gap found live (2026-09-03), fixed here for Upload-Post only —
+// the one real provider that still genuinely uses accountMap (its
+// reserved "_PROFILE_" key; see AggregatorCredential.accountMap's own
+// doc comment). Every other provider's account IDs now live in real
+// AggregatorAccount rows, managed by the CRUD actions below instead.
+// Once a credential is saved, the Settings form used to collapse to
+// just "•••• 1762" + Remove — no way to see whether a profile name was
+// actually set, and no way to add/fix it afterward short of deleting
+// the whole credential and re-typing the API key. This action lets an
+// existing credential's accountMap be added/fixed in place, without
+// touching the encrypted key.
 export async function updateAggregatorAccountMap(
   _prevState: AggregatorCredentialState,
   formData: FormData,
@@ -146,6 +147,153 @@ export async function updateAggregatorAccountMap(
 
   revalidatePath("/settings");
   revalidatePath("/media");
+}
+
+const SOCIAL_PLATFORM_VALUES = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "TIKTOK"] as [string, ...string[]];
+
+const AddAccountSchema = z.object({
+  credentialId: z.string().min(1),
+  platform: z.enum(SOCIAL_PLATFORM_VALUES),
+  accountId: z.string().trim().min(1, "Enter the real account ID from your provider's dashboard.").max(200),
+  label: z.string().trim().min(1, "Give this account a short label so it's distinguishable from others.").max(80),
+});
+
+// 2026-09-03 multi-account redesign — Part 2/3: a company can have more
+// than one real connected account on the same platform (e.g. two real
+// Facebook Pages), which the old single accountMap field genuinely
+// couldn't represent (confirmed by reading every real consumer — see
+// project_zernio_accountmap_edit_in_settings). Each add is one real
+// AggregatorAccount row; the first account added for a given platform on
+// this credential becomes that platform's default automatically (used by
+// the CampaignItem/recurring-plan path, which has no per-publish account
+// picker) — see AggregatorAccount.isDefault's own doc comment.
+export async function addAggregatorAccount(
+  _prevState: AggregatorCredentialState,
+  formData: FormData,
+): Promise<AggregatorCredentialState> {
+  const { company } = await requireCompany();
+
+  const parsed = AddAccountSchema.safeParse({
+    credentialId: formData.get("credentialId"),
+    platform: formData.get("platform"),
+    accountId: formData.get("accountId"),
+    label: formData.get("label"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { credentialId, platform, accountId, label } = parsed.data;
+
+  // Multi-tenant isolation: scope by companyId, never trust the
+  // client-supplied credentialId alone — see CLAUDE.md's data-layer rule.
+  const credential = await db.aggregatorCredential.findFirst({
+    where: { id: credentialId, companyId: company.id },
+    include: { accounts: { where: { platform: platform as never } } },
+  });
+  if (!credential) {
+    return { error: "That credential no longer exists." };
+  }
+
+  const existing = credential.accounts.find((a) => a.accountId === accountId);
+  if (existing) {
+    return { error: "That account ID is already added for this platform." };
+  }
+
+  await db.aggregatorAccount.create({
+    data: {
+      credentialId,
+      platform: platform as never,
+      accountId,
+      label,
+      isDefault: credential.accounts.length === 0,
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/media");
+}
+
+const RenameAccountSchema = z.object({
+  accountId: z.string().min(1),
+  label: z.string().trim().min(1, "Give this account a short label.").max(80),
+});
+
+export async function renameAggregatorAccount(
+  _prevState: AggregatorCredentialState,
+  formData: FormData,
+): Promise<AggregatorCredentialState> {
+  const { company } = await requireCompany();
+
+  const parsed = RenameAccountSchema.safeParse({
+    accountId: formData.get("accountId"),
+    label: formData.get("label"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  // Company-scoped via the credential relation, same isolation pattern
+  // as every other mutation in this file.
+  const result = await db.aggregatorAccount.updateMany({
+    where: { id: parsed.data.accountId, credential: { companyId: company.id } },
+    data: { label: parsed.data.label },
+  });
+  if (result.count === 0) {
+    return { error: "That account no longer exists." };
+  }
+
+  revalidatePath("/settings");
+}
+
+export async function removeAggregatorAccount(accountId: string): Promise<void> {
+  const { company } = await requireCompany();
+
+  const account = await db.aggregatorAccount.findFirst({
+    where: { id: accountId, credential: { companyId: company.id } },
+  });
+  if (!account) return;
+
+  await db.aggregatorAccount.delete({ where: { id: account.id } });
+
+  // If the removed account was its platform's default, promote another
+  // real account on the same platform (if any real one is left) — a
+  // platform with connected accounts should never be left with none
+  // marked default, since the CampaignItem/recurring-plan path relies on
+  // that to pick which one to use.
+  if (account.isDefault) {
+    const nextAccount = await db.aggregatorAccount.findFirst({
+      where: { credentialId: account.credentialId, platform: account.platform },
+      orderBy: { createdAt: "asc" },
+    });
+    if (nextAccount) {
+      await db.aggregatorAccount.update({ where: { id: nextAccount.id }, data: { isDefault: true } });
+    }
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/media");
+}
+
+export async function setDefaultAggregatorAccount(accountId: string): Promise<void> {
+  const { company } = await requireCompany();
+
+  const account = await db.aggregatorAccount.findFirst({
+    where: { id: accountId, credential: { companyId: company.id } },
+  });
+  if (!account) return;
+
+  // Exactly one default per (credentialId, platform), enforced here in
+  // application code — same "exactly one X" pattern this app already
+  // uses for a company's own selectedAggregator, not a new concept.
+  await db.$transaction([
+    db.aggregatorAccount.updateMany({
+      where: { credentialId: account.credentialId, platform: account.platform },
+      data: { isDefault: false },
+    }),
+    db.aggregatorAccount.update({ where: { id: account.id }, data: { isDefault: true } }),
+  ]);
+
+  revalidatePath("/settings");
 }
 
 export async function removeAggregatorCredential(credentialId: string): Promise<void> {

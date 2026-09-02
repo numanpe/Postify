@@ -983,17 +983,51 @@ model AggregatorCredential {
   provider     SocialAggregatorProvider
   encryptedKey String
   keyPreview   String
-  // Maps this app's SocialPlatform values (e.g. "FACEBOOK") to the
-  // account ID the aggregator itself assigned when the user connected
-  // that account on the aggregator's own dashboard — e.g. Zernio's
-  // 24-character accountId. The aggregator, not this app, owns that
-  // connection; this is just the pointer to it. Record<string, string>.
+  // Real per-platform connected accounts now live in AggregatorAccount
+  // below (2026-09-03 redesign — a company can have more than one real
+  // Facebook Page, for example). This field's only remaining real use is
+  // Upload-Post's reserved "_PROFILE_" key: that provider groups
+  // connected platforms under one named profile rather than a per-
+  // platform account ID (see campaign-publish-core.ts's isUploadPost
+  // branch) — a genuinely different real API shape, not multi-account.
   accountMap Json @default("{}")
+  accounts   AggregatorAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, provider])
+}
+
+// One real connected account on the aggregator's own dashboard for one
+// platform. A credential can have more than one per platform (e.g. two
+// real Facebook Pages) — see AggregatorCredential's own doc comment for
+// why Upload-Post is excluded from this and still uses accountMap.
+model AggregatorAccount {
+  id           String               @id @default(cuid())
+  credentialId String
+  credential   AggregatorCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  platform  SocialPlatform
+  accountId String
+  // User-chosen (or migrated-default) display name so multiple accounts
+  // on the same platform are actually distinguishable — e.g. "Downtown
+  // Location" vs "Uptown Location", both Facebook.
+  label     String
+  // The account a scheduled/automatic publish (campaign items, the
+  // recurring daily plan) uses for this platform when there's more than
+  // one — an explicit user action's Share modal always lets them pick
+  // among all real accounts for that platform instead. Exactly one
+  // account per (credentialId, platform) should be default; enforced in
+  // application code, not the schema, the same way this app already
+  // handles "exactly one selectedAggregator per company."
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([credentialId, platform, accountId])
+  @@index([credentialId])
 }
 
 // Append-only audit log of "Publish via Selected Provider" attempts from

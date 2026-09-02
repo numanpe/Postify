@@ -25,12 +25,11 @@ export interface PublishTarget {
   via: "DIRECT" | "AGGREGATOR";
   platform: SocialPlatform;
   displayName: string;
-  // Only set for DIRECT — the aggregator path resolves its own account
-  // ID server-side from AggregatorCredential.accountMap, the same way
-  // the campaign card's "Publish via Selected Provider" button already
-  // does (no per-publish account picker for that path, since a company
-  // has at most one connected account per platform per aggregator
-  // today — see AggregatorCredential.accountMap's own doc comment).
+  // Only set for DIRECT — the aggregator path resolves its own real
+  // AggregatorAccount server-side from this target's key
+  // ("aggregator-account:<id>"), the same way Upload-Post's fixed
+  // "aggregator:<platform>" key resolves via its own accountMap
+  // profile.
   socialAccountId?: string;
   acceptsImages: boolean;
   acceptsVideo: boolean;
@@ -90,35 +89,55 @@ export async function getRealPublishTargets(company: Company, dict: Dictionary):
   if (company.selectedAggregator) {
     const credential = await db.aggregatorCredential.findUnique({
       where: { companyId_provider: { companyId: company.id, provider: company.selectedAggregator } },
+      include: { accounts: true },
     });
     if (credential) {
-      const accountMap = credential.accountMap as Record<string, string>;
       const isUploadPost = company.selectedAggregator === "UPLOAD_POST";
       const providerName = AGGREGATOR_DISPLAY_NAMES[company.selectedAggregator] ?? company.selectedAggregator;
-      const mappedPlatforms = isUploadPost
-        ? (["FACEBOOK", "INSTAGRAM"] as SocialPlatform[]) // Upload-Post groups accounts under one profile (accountMap["_PROFILE_"]), not a per-platform account ID — see campaign-publish-core.ts's isUploadPost branch. Still only ever the platforms this app actually generates content for.
-        : (Object.keys(accountMap).filter((key) => key !== "_PROFILE_") as SocialPlatform[]);
 
-      // Real, confirmed-live case: a saved, selected credential with an
-      // empty/unparseable accountMap (never possible for Upload-Post,
-      // whose mappedPlatforms is always a fixed 2-element list above).
-      if (mappedPlatforms.length === 0) {
-        aggregatorMisconfigured = true;
-      }
+      if (isUploadPost) {
+        // Upload-Post groups connected platforms under one profile
+        // (accountMap["_PROFILE_"]), not a per-platform account ID — a
+        // genuinely different real API shape, so it's excluded from the
+        // 2026-09-03 multi-account redesign below (see
+        // AggregatorCredential.accountMap's own doc comment).
+        const accountMap = credential.accountMap as Record<string, string>;
+        const hasProfile = Boolean(accountMap["_PROFILE_"]);
+        if (!hasProfile) aggregatorMisconfigured = true;
+        for (const platform of ["FACEBOOK", "INSTAGRAM"] as SocialPlatform[]) {
+          if (!hasProfile) continue;
+          targets.push({
+            key: `aggregator:${platform}`,
+            via: "AGGREGATOR",
+            platform,
+            displayName: `${platformLabel(dict, platform)} — via ${providerName}`,
+            acceptsImages: true,
+            acceptsVideo: true,
+          });
+        }
+      } else {
+        // Real, confirmed-live case: a saved, selected credential with
+        // zero real connected accounts (the field left blank in
+        // Settings — see project_zernio_accountmap_edit_in_settings).
+        if (credential.accounts.length === 0) {
+          aggregatorMisconfigured = true;
+        }
 
-      for (const platform of mappedPlatforms) {
-        targets.push({
-          key: `aggregator:${platform}`,
-          via: "AGGREGATOR",
-          platform,
-          // providerName (Zernio, PostProxy, ...) is a real brand name,
-          // left as-is in both locales — same convention as the rest of
-          // the app (e.g. "Zernio" isn't given an Arabic transliteration
-          // anywhere else either).
-          displayName: `${platformLabel(dict, platform)} — via ${providerName}`,
-          acceptsImages: true,
-          acceptsVideo: true,
-        });
+        for (const account of credential.accounts) {
+          // One target per real connected account, not per platform — a
+          // company can have more than one real Facebook Page (2026-09-03
+          // multi-account redesign). The account's own label disambiguates
+          // them; providerName (Zernio, PostProxy, ...) is a real brand
+          // name, left as-is in both locales, same convention as before.
+          targets.push({
+            key: `aggregator-account:${account.id}`,
+            via: "AGGREGATOR",
+            platform: account.platform,
+            displayName: `${account.label} (${platformLabel(dict, account.platform)}) — via ${providerName}`,
+            acceptsImages: true,
+            acceptsVideo: true,
+          });
+        }
       }
     }
   }
