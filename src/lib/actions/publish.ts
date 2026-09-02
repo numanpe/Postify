@@ -152,6 +152,19 @@ export async function createPublishJob(
     if (outcome === "succeeded" && assetId) {
       await cleanupMediaStorage(assetId);
     }
+    // Real bug found live via the Media Library Share button (2026-09-02):
+    // this "now" path used to fall through to `undefined` regardless of
+    // outcome, so a synchronous publish that actually failed (e.g. a bad
+    // token) was indistinguishable from success — media-share.ts's caller
+    // took the absence of `.error` as "Published now." and told the user
+    // so, while Recent Activity simultaneously showed the real failure.
+    // /publish's own form already renders `state.error` (see
+    // create-publish-job-form.tsx), it just never had a failure to show.
+    if (outcome === "failed") {
+      const failed = await db.publishJob.findUnique({ where: { id: job.id }, select: { errorMessage: true } });
+      revalidatePath("/publish");
+      return { error: failed?.errorMessage ?? "Publish failed." };
+    }
   }
 
   revalidatePath("/publish");

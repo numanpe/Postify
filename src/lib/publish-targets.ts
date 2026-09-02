@@ -4,6 +4,7 @@ import type { Company, SocialPlatform } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { isVideoOnlyPlatform } from "@/lib/providers/social/platform-status";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
 
 // Real, human-readable labels for each aggregator — no existing
 // mapping elsewhere in the app to reuse (campaign-publish-core.ts's
@@ -32,6 +33,22 @@ export interface PublishTarget {
   acceptsVideo: boolean;
 }
 
+// Same real per-locale platform names /publish's own
+// CreatePublishJobForm already shows (platformLabels in
+// create-publish-job-form.tsx) — the Share button reuses the dictionary
+// rather than re-typing a second translation of the same four strings.
+const PLATFORM_LABEL_KEYS: Record<SocialPlatform, keyof Dictionary["publish"]> = {
+  FACEBOOK: "platformFacebook",
+  INSTAGRAM: "platformInstagram",
+  LINKEDIN: "platformLinkedIn",
+  TIKTOK: "platformTikTok",
+};
+
+function platformLabel(dict: Dictionary, platform: SocialPlatform): string {
+  const key = PLATFORM_LABEL_KEYS[platform];
+  return key ? (dict.publish[key] as string) : platform;
+}
+
 // Real, single source of truth for "what can this company actually
 // publish to right now" — merges Direct Meta connections (SocialAccount)
 // with the company's single selected aggregator's mapped accounts
@@ -40,7 +57,13 @@ export interface PublishTarget {
 // Built for Media Library's Share button (2026-09-02), but deliberately
 // not scoped to that feature specifically — any future publish entry
 // point can reuse this instead of re-deriving the same merge.
-export async function getRealPublishTargets(company: Company): Promise<PublishTarget[]> {
+//
+// `dict` is the caller's own getDictionary(locale) result — needed so
+// displayName is a real translated platform name in Arabic, not the
+// raw English enum string sitting untranslated inside an otherwise
+// fully-RTL modal (a real gap found via live Arabic verification of
+// the Share button, fixed here rather than shipped).
+export async function getRealPublishTargets(company: Company, dict: Dictionary): Promise<PublishTarget[]> {
   const targets: PublishTarget[] = [];
 
   const socialAccounts = await db.socialAccount.findMany({
@@ -53,7 +76,7 @@ export async function getRealPublishTargets(company: Company): Promise<PublishTa
       key: `direct:${account.id}`,
       via: "DIRECT",
       platform: account.platform,
-      displayName: `${account.platform} — ${account.displayName}`,
+      displayName: `${platformLabel(dict, account.platform)} — ${account.displayName}`,
       socialAccountId: account.id,
       acceptsImages: !videoOnly,
       acceptsVideo: videoOnly,
@@ -77,7 +100,11 @@ export async function getRealPublishTargets(company: Company): Promise<PublishTa
           key: `aggregator:${platform}`,
           via: "AGGREGATOR",
           platform,
-          displayName: `${platform} — via ${providerName}`,
+          // providerName (Zernio, PostProxy, ...) is a real brand name,
+          // left as-is in both locales — same convention as the rest of
+          // the app (e.g. "Zernio" isn't given an Arabic transliteration
+          // anywhere else either).
+          displayName: `${platformLabel(dict, platform)} — via ${providerName}`,
           acceptsImages: true,
           acceptsVideo: true,
         });

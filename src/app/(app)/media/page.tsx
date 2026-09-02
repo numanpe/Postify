@@ -112,7 +112,7 @@ export default async function MediaPage({
     // Real connected-account listing for the Share button — the same
     // Direct SocialAccount + aggregator accountMap merge
     // campaign-publish-core.ts already reads, not a new source.
-    getRealPublishTargets(company),
+    getRealPublishTargets(company, dict),
   ]);
 
   const events: ActivityEvent[] = [];
