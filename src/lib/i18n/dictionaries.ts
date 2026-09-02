@@ -205,6 +205,7 @@ export interface Dictionary {
     shareButton: string; shareTitle: string; shareCancel: string; shareTo: string;
     shareNoAccounts: string; shareNoAccountsHint: string; shareCaption: string;
     shareNoEligibleAccountsVideo: string; shareNoEligibleAccountsPoster: string; shareNoEligibleAccountsHint: string;
+    shareAggregatorMisconfigured: string; shareAggregatorMisconfiguredHint: string;
     shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
     shareSuccessNow: string; shareSuccessScheduled: string;
     audioBrowse: string; audioHint: string; audioMusic: string; audioOriginalSound: string;
@@ -772,6 +773,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareNoEligibleAccountsVideo: "None of your connected accounts support video posts yet.",
       shareNoEligibleAccountsPoster: "None of your connected accounts support photo posts yet.",
       shareNoEligibleAccountsHint: "Connect a publishing provider like Zernio or Upload-Post in Settings → Publishing to unlock this.",
+      shareAggregatorMisconfigured: "Your publishing provider is connected, but no platform account IDs are set up yet.",
+      shareAggregatorMisconfiguredHint: "Add your account IDs in Settings → Publishing to finish connecting it.",
       shareCaption: "Caption",
       shareWhen: "When",
       shareWhenHint: "(leave blank to publish now)",
@@ -1539,6 +1542,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareNoEligibleAccountsVideo: "لا يدعم أي من حساباتك المتصلة نشر الفيديو بعد.",
       shareNoEligibleAccountsPoster: "لا يدعم أي من حساباتك المتصلة نشر الصور بعد.",
       shareNoEligibleAccountsHint: "اربط مزوّد نشر مثل زيرنيو أو Upload-Post من الإعدادات ← النشر لإتاحة ذلك.",
+      shareAggregatorMisconfigured: "مزوّد النشر متصل، لكن لم يتم إعداد معرّفات حسابات المنصات بعد.",
+      shareAggregatorMisconfiguredHint: "أضف معرّفات حساباتك من الإعدادات ← النشر لإكمال الربط.",
       shareCaption: "التعليق",
       shareWhen: "الموعد",
       shareWhenHint: "(اتركه فارغًا للنشر الآن)",

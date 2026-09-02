@@ -51,9 +51,30 @@ export async function saveAggregatorCredential(
   }
 
   const { provider, apiKey, accountMapRaw } = parsed.data;
+  const accountMap = parseAccountMap(accountMapRaw);
+
+  // Real bug found live (2026-09-03): parseAccountMap silently drops
+  // any pair that doesn't match PLATFORM:accountId (no colon, wrong
+  // separator, etc.) with zero feedback — a company could end up with
+  // a real, saved, selected credential and an empty accountMap, which
+  // getRealPublishTargets then correctly resolves to zero real
+  // targets. Media Library's Share modal used to render that
+  // identically to "nothing connected at all," pointing the user at
+  // /publish — which doesn't even list aggregator connections — instead
+  // of the real fix (this exact field). A genuinely blank field is
+  // still allowed through unblocked (adding account IDs later is a
+  // real, legitimate flow); only real typed content that failed to
+  // parse into anything usable is rejected here, at the source, rather
+  // than saved into a silently broken state.
+  if (accountMapRaw && accountMapRaw.trim().length > 0 && Object.keys(accountMap).length === 0) {
+    return {
+      error:
+        "Couldn't read any platform account IDs from that — check the format (e.g. FACEBOOK:acc_123, INSTAGRAM:acc_456).",
+    };
+  }
+
   const encryptedKey = encryptSecret(apiKey);
   const keyPreview = apiKey.slice(-4);
-  const accountMap = parseAccountMap(accountMapRaw);
 
   await db.aggregatorCredential.upsert({
     where: { companyId_provider: { companyId: company.id, provider: provider as never } },

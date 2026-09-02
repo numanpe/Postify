@@ -30,6 +30,17 @@ interface ShareAssetModalProps {
   // aggregator with an "aggregator:INSTAGRAM" target still gets no
   // picker; that provider genuinely has no equivalent API.
   instagramAudioAvailable?: boolean;
+  // Real bug found live (2026-09-03): a company can have a genuinely
+  // saved, selected aggregator credential (real API key) whose
+  // accountMap is empty or failed to parse — most commonly "Platform
+  // account IDs" left blank or typed without the required
+  // PLATFORM:accountId format in Settings, which saveAggregatorCredential's
+  // own parseAccountMap silently drops with no validation feedback (see
+  // that file's own fix for the save-time half of this). That company
+  // has a real connection but zero usable targets — used to render
+  // identically to "nothing connected at all," pointing the user at
+  // /publish, which doesn't even list aggregator connections.
+  aggregatorMisconfigured?: boolean;
 }
 
 // Media Library's "Share" button (2026-09-02) — a real entry point into
@@ -46,6 +57,7 @@ export function ShareAssetModal({
   targets,
   connectAccountsHref,
   instagramAudioAvailable,
+  aggregatorMisconfigured,
 }: ShareAssetModalProps) {
   const dict = useDict().media;
   const router = useRouter();
@@ -89,15 +101,33 @@ export function ShareAssetModal({
                 page), not Settings' aggregator options, which is what
                 would actually unlock this. Never a redirect either way —
                 just a link inside this same modal. */}
+            {/* A second, more specific empty case found live
+                (2026-09-03): a company can have a genuinely saved,
+                selected Zernio credential with zero usable targets
+                because its account-ID mapping is empty/unparseable —
+                real connection, still "no accounts" from targets.length's
+                point of view, but "connect an account" is false (one IS
+                connected) and /publish is the wrong destination (it
+                never lists aggregator connections at all). Checked
+                first since it's the most specific real cause. */}
             <p className="text-ink-soft dark:text-ink-soft-dark">
               {targets.length > 0
                 ? assetKind === "video"
                   ? dict.shareNoEligibleAccountsVideo
                   : dict.shareNoEligibleAccountsPoster
-                : dict.shareNoAccounts}
+                : aggregatorMisconfigured
+                  ? dict.shareAggregatorMisconfigured
+                  : dict.shareNoAccounts}
             </p>
-            <a href={targets.length > 0 ? "/settings" : connectAccountsHref} className="underline underline-offset-2">
-              {targets.length > 0 ? dict.shareNoEligibleAccountsHint : dict.shareNoAccountsHint}
+            <a
+              href={targets.length > 0 || aggregatorMisconfigured ? "/settings" : connectAccountsHref}
+              className="underline underline-offset-2"
+            >
+              {targets.length > 0
+                ? dict.shareNoEligibleAccountsHint
+                : aggregatorMisconfigured
+                  ? dict.shareAggregatorMisconfiguredHint
+                  : dict.shareNoAccountsHint}
             </a>
           </div>
         ) : (

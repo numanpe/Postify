@@ -65,8 +65,25 @@ export function platformLabel(dict: Dictionary, platform: SocialPlatform): strin
 // raw English enum string sitting untranslated inside an otherwise
 // fully-RTL modal (a real gap found via live Arabic verification of
 // the Share button, fixed here rather than shipped).
-export async function getRealPublishTargets(company: Company, dict: Dictionary): Promise<PublishTarget[]> {
+export interface PublishTargetsResult {
+  targets: PublishTarget[];
+  // Real bug found live (2026-09-03): a company can have a genuinely
+  // saved, selected aggregator credential (real API key, real
+  // selectedAggregator) whose accountMap is empty or unparseable —
+  // most commonly because "Platform account IDs" was left blank or
+  // typed without the required PLATFORM:accountId format, which
+  // saveAggregatorCredential's own parseAccountMap silently drops with
+  // no validation feedback. That company has a real connection but
+  // zero usable targets, which used to render identically to "nothing
+  // connected at all" — this flag lets a caller tell the two apart and
+  // point the user at the real fix (Settings' account-ID field, not
+  // /publish, which doesn't even list aggregator connections).
+  aggregatorMisconfigured: boolean;
+}
+
+export async function getRealPublishTargets(company: Company, dict: Dictionary): Promise<PublishTargetsResult> {
   const targets: PublishTarget[] = [];
+  let aggregatorMisconfigured = false;
 
   const socialAccounts = await db.socialAccount.findMany({
     where: { companyId: company.id },
@@ -97,6 +114,13 @@ export async function getRealPublishTargets(company: Company, dict: Dictionary):
         ? (["FACEBOOK", "INSTAGRAM"] as SocialPlatform[]) // Upload-Post groups accounts under one profile (accountMap["_PROFILE_"]), not a per-platform account ID — see campaign-publish-core.ts's isUploadPost branch. Still only ever the platforms this app actually generates content for.
         : (Object.keys(accountMap).filter((key) => key !== "_PROFILE_") as SocialPlatform[]);
 
+      // Real, confirmed-live case: a saved, selected credential with an
+      // empty/unparseable accountMap (never possible for Upload-Post,
+      // whose mappedPlatforms is always a fixed 2-element list above).
+      if (mappedPlatforms.length === 0) {
+        aggregatorMisconfigured = true;
+      }
+
       for (const platform of mappedPlatforms) {
         targets.push({
           key: `aggregator:${platform}`,
@@ -114,5 +138,5 @@ export async function getRealPublishTargets(company: Company, dict: Dictionary):
     }
   }
 
-  return targets;
+  return { targets, aggregatorMisconfigured };
 }

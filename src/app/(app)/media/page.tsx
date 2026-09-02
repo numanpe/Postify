@@ -49,7 +49,7 @@ export default async function MediaPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
 
-  const [assets, totalAssetCount, sceneMediaAssets, publishJobs, aggregatorLogs, failedItems, publishTargets] = await Promise.all([
+  const [assets, totalAssetCount, sceneMediaAssets, publishJobs, aggregatorLogs, failedItems, publishTargetsResult] = await Promise.all([
     db.mediaAsset.findMany({
       where: { companyId: company.id },
       orderBy: { createdAt: "desc" },
@@ -114,6 +114,7 @@ export default async function MediaPage({
     // campaign-publish-core.ts already reads, not a new source.
     getRealPublishTargets(company, dict),
   ]);
+  const { targets: publishTargets, aggregatorMisconfigured } = publishTargetsResult;
 
   // Part 3's real trending-audio picker eligibility — Zernio only (the
   // one aggregator this capability is actually verified for), and only
@@ -274,6 +275,7 @@ export default async function MediaPage({
                   }
                   targets={publishTargets}
                   connectAccountsHref="/publish"
+                  aggregatorMisconfigured={aggregatorMisconfigured}
                 />
               )}
               {!asset.storageDeletedAt && asset.videoOutput && (
@@ -286,6 +288,7 @@ export default async function MediaPage({
                   targets={publishTargets}
                   connectAccountsHref="/publish"
                   instagramAudioAvailable={instagramAudioAvailable}
+                  aggregatorMisconfigured={aggregatorMisconfigured}
                 />
               )}
               <form action={deleteMedia.bind(null, asset.id)}>
