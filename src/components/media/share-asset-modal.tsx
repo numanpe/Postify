@@ -77,9 +77,27 @@ export function ShareAssetModal({
       <BottomSheet ref={sheetRef} title={dict.shareTitle} closeLabel={dict.shareCancel}>
         {eligibleTargets.length === 0 ? (
           <div className="flex flex-col gap-2 pb-4 text-sm">
-            <p className="text-ink-soft dark:text-ink-soft-dark">{dict.shareNoAccounts}</p>
-            <a href={connectAccountsHref} className="underline underline-offset-2">
-              {dict.shareNoAccountsHint}
+            {/* Real bug fixed here (found live via a Direct-Facebook-only
+                company sharing a video): targets.length > 0 but
+                eligibleTargets.length === 0 means the company HAS real
+                connected accounts, none of which support this asset's
+                kind (Direct Meta never supports video — see
+                platform-status.ts's VIDEO_ONLY_PLATFORMS). The old copy
+                said "No connected accounts yet" regardless, which reads
+                as "you haven't connected anything" when that's false —
+                and its only link pointed to /publish (the Direct-connect
+                page), not Settings' aggregator options, which is what
+                would actually unlock this. Never a redirect either way —
+                just a link inside this same modal. */}
+            <p className="text-ink-soft dark:text-ink-soft-dark">
+              {targets.length > 0
+                ? assetKind === "video"
+                  ? dict.shareNoEligibleAccountsVideo
+                  : dict.shareNoEligibleAccountsPoster
+                : dict.shareNoAccounts}
+            </p>
+            <a href={targets.length > 0 ? "/settings" : connectAccountsHref} className="underline underline-offset-2">
+              {targets.length > 0 ? dict.shareNoEligibleAccountsHint : dict.shareNoAccountsHint}
             </a>
           </div>
         ) : (

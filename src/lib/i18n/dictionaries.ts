@@ -204,6 +204,7 @@ export interface Dictionary {
     uploadFilesLabel: string;
     shareButton: string; shareTitle: string; shareCancel: string; shareTo: string;
     shareNoAccounts: string; shareNoAccountsHint: string; shareCaption: string;
+    shareNoEligibleAccountsVideo: string; shareNoEligibleAccountsPoster: string; shareNoEligibleAccountsHint: string;
     shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
     shareSuccessNow: string; shareSuccessScheduled: string;
     audioBrowse: string; audioHint: string; audioMusic: string; audioOriginalSound: string;
@@ -767,6 +768,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareTo: "Publish to",
       shareNoAccounts: "No connected accounts yet.",
       shareNoAccountsHint: "Connect an account in Settings → Publish to share directly from your library.",
+      shareNoEligibleAccountsVideo: "None of your connected accounts support video posts yet.",
+      shareNoEligibleAccountsPoster: "None of your connected accounts support photo posts yet.",
+      shareNoEligibleAccountsHint: "Connect a publishing provider like Zernio or Upload-Post in Settings → Publishing to unlock this.",
       shareCaption: "Caption",
       shareWhen: "When",
       shareWhenHint: "(leave blank to publish now)",
@@ -1528,6 +1532,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareTo: "النشر إلى",
       shareNoAccounts: "لا توجد حسابات متصلة بعد.",
       shareNoAccountsHint: "اربط حسابًا من الإعدادات ← النشر لتتمكن من المشاركة مباشرة من مكتبتك.",
+      shareNoEligibleAccountsVideo: "لا يدعم أي من حساباتك المتصلة نشر الفيديو بعد.",
+      shareNoEligibleAccountsPoster: "لا يدعم أي من حساباتك المتصلة نشر الصور بعد.",
+      shareNoEligibleAccountsHint: "اربط مزوّد نشر مثل زيرنيو أو Upload-Post من الإعدادات ← النشر لإتاحة ذلك.",
       shareCaption: "التعليق",
       shareWhen: "الموعد",
       shareWhenHint: "(اتركه فارغًا للنشر الآن)",
