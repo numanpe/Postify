@@ -228,6 +228,8 @@ export interface Dictionary {
     voiceEngineFree: string; voiceEngineFreeDescription: string;
     voiceEngineByok: string; voiceEngineByokDescription: string;
     voiceEngineSave: string; voiceEngineSaved: string;
+    weeklyDigestTitle: string; weeklyDigestSubtitle: string; weeklyDigestLabel: string;
+    weeklyDigestSave: string; weeklyDigestSaved: string;
     apiKeyGuideTitle: string; apiKeyGuideSubtitle: string;
     openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
     elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
@@ -815,6 +817,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "Higher, studio-grade voice quality. Requires an OpenAI or ElevenLabs key saved below — narration will fail until one is added.",
       voiceEngineSave: "Save",
       voiceEngineSaved: "Saved.",
+      weeklyDigestTitle: "Weekly performance email",
+      weeklyDigestSubtitle: "A weekly summary of what was generated, what was published, and a real insight from your engagement data — sent to the company owner's email.",
+      weeklyDigestLabel: "Send me the weekly performance email",
+      weeklyDigestSave: "Save",
+      weeklyDigestSaved: "Saved.",
       apiKeyGuideTitle: "How to get an API key",
       apiKeyGuideSubtitle: "Step-by-step, for anyone who hasn't done this before.",
       openaiGuideTitle: "OpenAI (scripts + AI images + voice)",
@@ -1529,6 +1536,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         "جودة صوت أعلى بمستوى استوديو احترافي. يتطلب حفظ مفتاح OpenAI أو ElevenLabs أدناه — سيفشل إنشاء التعليق الصوتي حتى تتم إضافة مفتاح.",
       voiceEngineSave: "حفظ",
       voiceEngineSaved: "تم الحفظ.",
+      weeklyDigestTitle: "رسالة الأداء الأسبوعية",
+      weeklyDigestSubtitle: "ملخص أسبوعي لما تم إنشاؤه وما تم نشره ورؤية حقيقية مستخلصة من بيانات تفاعلك — تُرسل إلى بريد مالك الشركة.",
+      weeklyDigestLabel: "أرسل لي رسالة الأداء الأسبوعية",
+      weeklyDigestSave: "حفظ",
+      weeklyDigestSaved: "تم الحفظ.",
       apiKeyGuideTitle: "كيفية الحصول على مفتاح API",
       apiKeyGuideSubtitle: "خطوة بخطوة، لمن لم يفعل هذا من قبل.",
       openaiGuideTitle: "OpenAI (النصوص + الصور بالذكاء الاصطناعي + الصوت)",

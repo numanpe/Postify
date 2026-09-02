@@ -7,6 +7,7 @@ import { getCompaniesRelyingOnSharedCredential } from "@/lib/providers/shared-pr
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
 import { ProviderCredentialRow } from "@/components/settings/provider-credential-row";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
+import { WeeklyDigestToggle } from "@/components/settings/weekly-digest-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { MusicCredits } from "@/components/settings/music-credits";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
@@ -184,6 +185,8 @@ export default async function SettingsPage() {
       <ProviderCredentialForm showScopeChoice={companyCount > 1} />
 
       <VoiceEngineToggle currentEngine={company.voiceEngine} />
+
+      <WeeklyDigestToggle enabled={company.weeklyDigestEnabled} />
 
       <ApiKeyGuide dict={dict.settings} />
 

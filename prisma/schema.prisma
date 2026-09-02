@@ -177,6 +177,17 @@ model Company {
   publishingMode     PublishingMode            @default(MANUAL)
   selectedAggregator SocialAggregatorProvider?
 
+  // Weekly Performance Digest (src/lib/jobs/weekly-digest.ts). On by
+  // default — real per-company opt-out via a signed unsubscribe link in
+  // the email itself, not a default-off feature nobody discovers.
+  weeklyDigestEnabled  Boolean   @default(true)
+  // UTC instant of the last successful send — null means never sent.
+  // Same "last run" convention as RecurringPlan.lastRunDate below, used
+  // both to define "the past week"'s real window (falls back to 7 days
+  // ago for a first-ever send) and to guard against a double-send if the
+  // cron is ever manually re-triggered the same week.
+  lastWeeklyDigestSentAt DateTime?
+
   members               CompanyMember[]
   brandKit              BrandKit?
   creativeDna           CreativeDna?
