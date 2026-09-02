@@ -204,15 +204,48 @@ async function autoPublishReadyItems(): Promise<number> {
         const accounts = await db.socialAccount.findMany({
           where: { companyId: company.id, platform: { in: due.targetPlatforms as SocialPlatform[] } },
         });
-        for (const account of accounts) {
-          await publishCampaignItemDirectForCompany(item, company, account.id);
+        if (accounts.length > 0) {
+          for (const account of accounts) {
+            await publishCampaignItemDirectForCompany(item, company, account.id);
+          }
+          publishedCount += 1;
+        } else {
+          // Real bug found while auditing publish surfaces for the
+          // ShareAssetModal eligibility-messaging fix, extended here to
+          // the automated path: the company genuinely has DIRECT_API
+          // configured as its auto-publish method, but no
+          // currently-connected account matches this item's real
+          // targetPlatforms (set at generation time — see
+          // CampaignItem.targetPlatforms's own schema comment; drifts
+          // if the connected account changes after generation, same
+          // real cause as calendar-item-card.tsx's manual-button fix).
+          // Previously silent: the item just stayed APPROVED forever
+          // with no errorMessage and no log anywhere, indistinguishable
+          // from a company that never configured an auto-publish
+          // method at all (see the comment below — that IS a genuine,
+          // expected non-error case, unlike this one). Status
+          // deliberately left as APPROVED, not FAILED —
+          // regenerateCampaignItem's "Retry" path would re-run the full
+          // generation pipeline, discarding perfectly good existing
+          // content to fix what's actually a connection problem, not a
+          // content problem. errorMessage alone already renders on the
+          // card regardless of status (see its own unconditional
+          // {item.errorMessage && ...} block).
+          await db.campaignItem.update({
+            where: { id: due.id },
+            data: {
+              errorMessage: `Auto-publish couldn't find a connected account matching this item's target platform(s) (${due.targetPlatforms.join(", ")}).`,
+            },
+          });
         }
-        if (accounts.length > 0) publishedCount += 1;
       }
       // Else: no real connected publishing method for this item (or a
       // VIDEO item under DIRECT_API, which has no real direct-publish
       // path anywhere in this app) — left APPROVED, a real, visible,
-      // downloadable state, never a fabricated failure.
+      // downloadable state, never a fabricated failure. Genuinely
+      // different from the branch above: here, no auto-publish method
+      // was ever configured/applicable, so silence is honest — nothing
+      // was expected to happen automatically.
     } catch {
       // Real per-item failure isolation, same shape as every other job
       // in this codebase. The publish helpers already record their own
