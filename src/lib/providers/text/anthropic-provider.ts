@@ -21,6 +21,8 @@ import type {
   GeneratePosterHighlightsOutput,
   EditPosterInput,
   EditPosterOutput,
+  GenerateTopicSuggestionsInput,
+  GenerateTopicSuggestionsOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -39,6 +41,8 @@ import {
   parsePosterHighlightsResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
+  buildTopicSuggestionsPrompt,
+  parseTopicSuggestionsResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -275,5 +279,20 @@ export class AnthropicTextProvider implements TextProvider {
       providerName: this.name,
       estimatedCostUsd,
     };
+  }
+
+  async generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput> {
+    const { system, user } = buildTopicSuggestionsPrompt(input);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 500);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed topic-suggestions JSON.", error);
+    }
+
+    const suggestions = parseTopicSuggestionsResponse(parsed, this.name, input.count);
+    return { available: true, suggestions, providerName: this.name, estimatedCostUsd };
   }
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { generateWizardStep1 } from "@/lib/actions/studio-wizard";
+import { generateWizardStep1, getSmartTopicSuggestions } from "@/lib/actions/studio-wizard";
 import { Button } from "@/components/ui/button";
 import { VoiceInputButton } from "@/components/ui/voice-input-button";
 import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
@@ -28,6 +28,11 @@ export function WizardStep1Form({
   const [state, action, pending] = useActionState(generateWizardStep1, undefined);
   const [chosenIndex, setChosenIndex] = useState(0);
   const [topic, setTopic] = useState(defaultTopic ?? "");
+  // Explicit, user-initiated only — see getSmartTopicSuggestions's own
+  // doc comment for why this never fires automatically on page load.
+  const [suggestions, setSuggestions] = useState(topicSuggestions);
+  const [suggestionsSource, setSuggestionsSource] = useState<"ai" | "template">("template");
+  const [smartPending, startSmartTransition] = useTransition();
   // Real fix, not cosmetic: the free tier's caption picker is fully
   // deterministic given identical inputs (see studio-wizard.ts), so
   // re-submitting the same topic (or clicking Auto-Generate again the
@@ -112,7 +117,28 @@ export function WizardStep1Form({
           />
         </div>
 
-        <TopicSuggestions suggestions={topicSuggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
+        <TopicSuggestions suggestions={suggestions} currentValue={topic} onSelect={setTopic} label={topicGuardDict.suggestionsLabel} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={smartPending}
+            onClick={() =>
+              startSmartTransition(async () => {
+                const result = await getSmartTopicSuggestions();
+                if (result?.status === "success") {
+                  setSuggestions(result.suggestions);
+                  setSuggestionsSource(result.source);
+                }
+              })
+            }
+            className="text-xs font-medium text-primary underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-primary-dark"
+          >
+            {smartPending ? dict.smartSuggestionsLoading : dict.smartSuggestions}
+          </button>
+          {suggestionsSource === "ai" && (
+            <span className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.smartSuggestionsAiLabel}</span>
+          )}
+        </div>
 
         {duration && !durationDismissed && (
           <div className="flex flex-col gap-2 rounded-md border border-paper-border bg-paper-card p-3 text-sm dark:border-night-border dark:bg-night-card">

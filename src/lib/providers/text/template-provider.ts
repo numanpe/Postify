@@ -20,6 +20,7 @@ import type {
   GeneratePosterHighlightsOutput,
   PosterBenefit,
   EditPosterOutput,
+  GenerateTopicSuggestionsOutput,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
@@ -613,6 +614,20 @@ export class TemplateTextProvider implements TextProvider {
     return {
       available: false,
       unavailableReason: "Editing a poster with a written instruction needs a connected AI provider — add one in Settings.",
+      providerName: this.name,
+    };
+  }
+
+  // Same real "no" as editPosterSpec above — reasoning about business
+  // context + learned preference signals to produce genuinely fresh
+  // suggestions needs actual language understanding this tier doesn't
+  // have. The free tier's real fallback is getTopicSuggestionChips's
+  // day-rotated pool (company-context.ts), not a fake personalized
+  // answer here.
+  async generateTopicSuggestions(): Promise<GenerateTopicSuggestionsOutput> {
+    return {
+      available: false,
+      unavailableReason: "Smarter, AI-personalized suggestions need a connected AI provider — add one in Settings.",
       providerName: this.name,
     };
   }

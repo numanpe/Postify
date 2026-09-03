@@ -2,6 +2,8 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import { type Industry, type IndustryPack, resolveIndustry, resolveIndustryPack } from "@/lib/industry-packs";
+import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
+import type { LearnedTopicSignal } from "@/lib/providers/text/types";
 
 export interface CompanyContext {
   companyId: string;
@@ -119,8 +121,13 @@ export function getCompanyTopicPool(context: CompanyContext): string[] {
 // autoGenerate already does, so a company opening Studio on different
 // days sees genuinely different chips, not a coincidental reshuffle,
 // while staying stable within one session/day (no reshuffle mid-edit).
-// A company with neither secondaryNiches nor extra pool items beyond
-// the original 5 sees unchanged behavior.
+// pack.autoTopics (always 3 real items) is added unconditionally, so
+// EVERY company gets real day-to-day rotation now, not just ones with
+// secondaryNiches set — confirmed via a direct test: with zero niches,
+// pool is still pack.topicSuggestions(5) + autoTopics(3) = 8, above the
+// 5-chip rotation threshold. The "unchanged for a tiny pool" case only
+// applies if a future pack's topicSuggestions+autoTopics together ever
+// shrink to 5 or fewer, not to any real pack today.
 export function getTopicSuggestionChips(
   context: CompanyContext,
   referenceDate: Date = new Date(),
@@ -147,4 +154,32 @@ export function getTopicSuggestionChips(
     chips.push(candidate);
   }
   return chips;
+}
+
+// Real learned-preference input for the AI-driven half of "smarter
+// topic suggestions" (see GenerateTopicSuggestionsInput's own doc
+// comment for why real-time trend data was excluded). Reads Creative
+// DNA's two independent real signal sources — confidenceScores.topics
+// (real post-engagement performance, learning.ts) and
+// confidenceScores.preferences.topics (everyday-usage signals:
+// delete/publish/edit/regenerate reactions, aggregate.ts) — and only
+// returns ones that already cleared CreativeDna's own real
+// sufficient-evidence bar (confidenceTier !== "low"), the same
+// "preferences visibly shift only with sufficient evidence" discipline
+// CLAUDE.md's Phase 7 requires elsewhere. A brand-new company with no
+// usage history yet correctly gets an empty array, not a guess.
+export async function getLearnedTopicSignals(companyId: string): Promise<LearnedTopicSignal[]> {
+  const creativeDna = await db.creativeDna.findUnique({ where: { companyId }, select: { confidenceScores: true } });
+  const scores = (creativeDna?.confidenceScores ?? {}) as Partial<CreativeDnaConfidenceScores>;
+
+  const signals: LearnedTopicSignal[] = [];
+  for (const [label, s] of Object.entries(scores.topics ?? {})) {
+    if (s.confidenceTier === "low") continue;
+    signals.push({ label, kind: "engagement", score: s.relativeScore, sampleSize: s.sampleSize });
+  }
+  for (const [label, s] of Object.entries(scores.preferences?.topics ?? {})) {
+    if (s.confidenceTier === "low") continue;
+    signals.push({ label, kind: "preference", score: s.score, sampleSize: s.sampleSize });
+  }
+  return signals;
 }

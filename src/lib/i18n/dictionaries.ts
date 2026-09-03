@@ -89,6 +89,7 @@ export interface Dictionary {
     stepOf: (step: number) => string;
     step1Title: string; step1Subtitle: (name: string) => string;
     topicLabel: string; topicPlaceholder: string; autoGenerate: string; autoGenerateHint: string; showAnotherIdea: string;
+    smartSuggestions: string; smartSuggestionsLoading: string; smartSuggestionsAiLabel: string;
     generate: string; generating: string;
     chooseHint: string; hashtagsLabel: string; nextCreateAsset: string;
     step2Title: string; toggleStaticPoster: string; toggleMotionVideo: string; nextPreviewPublish: string;
@@ -490,6 +491,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       autoGenerate: "Auto-Generate Daily Idea",
       autoGenerateHint: "Today's suggested idea — the same one all day by design. Want a different one right now?",
       showAnotherIdea: "Show me another idea",
+      smartSuggestions: "Get smarter suggestions",
+      smartSuggestionsLoading: "Thinking...",
+      smartSuggestionsAiLabel: "AI-personalized for your business",
       generate: "Generate",
       generating: "Generating…",
       chooseHint: "Pick the caption you like best — you can still edit it in the next step.",
@@ -1288,6 +1292,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       autoGenerate: "اقترح فكرة اليوم تلقائيًا",
       autoGenerateHint: "فكرة اليوم المقترحة — نفس الفكرة طوال اليوم بالتصميم. تريد فكرة مختلفة الآن؟",
       showAnotherIdea: "أرني فكرة أخرى",
+      smartSuggestions: "احصل على اقتراحات أذكى",
+      smartSuggestionsLoading: "جارٍ التفكير...",
+      smartSuggestionsAiLabel: "مخصصة بالذكاء الاصطناعي لعملك",
       generate: "إنشاء",
       generating: "جارٍ الإنشاء…",
       chooseHint: "اختر التسمية التوضيحية التي تفضلها — يمكنك تعديلها في الخطوة التالية.",

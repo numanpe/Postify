@@ -3,10 +3,11 @@
 import { z } from "zod";
 
 import { requireCompany } from "@/lib/session";
-import { getCompanyContext, getCompanyTopicPool } from "@/lib/company-context";
+import { getCompanyContext, getCompanyTopicPool, getTopicSuggestionChips, getLearnedTopicSignals } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import { guardTopic, TopicGuardError } from "@/lib/actions/topic-guard";
+import type { TopicSuggestion } from "@/components/ui/topic-suggestions";
 
 export type WizardStep1State =
   | { status: "error"; error: string }
@@ -124,4 +125,33 @@ export async function generateWizardStep1(
   }
 
   return { status: "success", topic, captions, hashtags: context.pack.hashtags, wasClarified };
+}
+
+export type SmartSuggestionsState =
+  | { status: "success"; suggestions: TopicSuggestion[]; source: "ai" | "template" }
+  | undefined;
+
+// Explicit, user-initiated action — NOT called automatically on page
+// load. A real LLM call (even against the free shared pool) has real
+// cost/latency and consumes real shared quota, unlike the always-free,
+// instant getTopicSuggestionChips default this page already renders —
+// see the two-click-rule/free-first discipline this app already
+// follows for every other paid-capable feature. Never throws: the
+// resolver's own candidate chain always terminates at
+// TemplateTextProvider.generateTopicSuggestions(), which never throws
+// (see poster-edit.ts's editPosterSpec caller for the identical,
+// already-established pattern of not needing a try/catch here).
+export async function getSmartTopicSuggestions(): Promise<SmartSuggestionsState> {
+  const { company } = await requireCompany();
+  const context = await getCompanyContext(company.id);
+  const textProvider = await getTextProviderForCompany(company.id);
+  const learnedSignals = await getLearnedTopicSignals(company.id);
+
+  const result = await textProvider.generateTopicSuggestions({ context, learnedSignals, count: 5 });
+  if (result.available && result.suggestions && result.suggestions.length > 0) {
+    return { status: "success", suggestions: result.suggestions, source: "ai" };
+  }
+  // Free tier, or a real shared-pool attempt that genuinely failed —
+  // never worse than what the page already shows by default.
+  return { status: "success", suggestions: getTopicSuggestionChips(context), source: "template" };
 }

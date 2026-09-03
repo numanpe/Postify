@@ -21,6 +21,8 @@ import type {
   GeneratePosterHighlightsOutput,
   EditPosterInput,
   EditPosterOutput,
+  GenerateTopicSuggestionsInput,
+  GenerateTopicSuggestionsOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -39,6 +41,8 @@ import {
   parsePosterHighlightsResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
+  buildTopicSuggestionsPrompt,
+  parseTopicSuggestionsResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 import { GEMINI_TEXT_MODEL } from "../gemini-models";
@@ -247,6 +251,24 @@ const POSTER_EDIT_RESPONSE_SCHEMA = {
     newImageRequest: { type: "STRING", nullable: true },
   },
   required: ["canApply", "explanation"],
+};
+
+const TOPIC_SUGGESTIONS_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    suggestions: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          label: { type: "STRING" },
+          topic: { type: "STRING" },
+        },
+        required: ["label", "topic"],
+      },
+    },
+  },
+  required: ["suggestions"],
 };
 
 export class GeminiTextProvider implements TextProvider {
@@ -544,5 +566,25 @@ export class GeminiTextProvider implements TextProvider {
       providerName: this.name,
       estimatedCostUsd,
     };
+  }
+
+  async generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput> {
+    const { system, user } = buildTopicSuggestionsPrompt(input);
+    // 700 — the same measured-headroom baseline generateScript already
+    // proved sufficient for a comparably simple JSON schema (an array of
+    // short label/topic pairs here, vs. 5 flat string fields there); see
+    // editPosterSpec's own doc comment above for why a schema this size
+    // genuinely needs at least this much room once thinking tokens are
+    // accounted for.
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 700,
+      responseSchema: TOPIC_SUGGESTIONS_RESPONSE_SCHEMA,
+    });
+
+    const parsed = this.parseJsonOrThrow("generateTopicSuggestions", "topic suggestions", content, finishReason);
+    const suggestions = parseTopicSuggestionsResponse(parsed, this.name, input.count);
+
+    return { available: true, suggestions, providerName: this.name, estimatedCostUsd };
   }
 }

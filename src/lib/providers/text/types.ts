@@ -317,6 +317,58 @@ export interface EditPosterOutput {
   fallbackFrom?: FallbackInfo[];
 }
 
+// Smarter topic suggestions (2026-09-04) — the AI-driven half. Grounded
+// in two real, already-existing inputs only: business context already
+// extracted (CompanyContext) and real learned preference signals
+// (Creative DNA's confidenceScores — see getLearnedTopicSignals in
+// company-context.ts). Real-time "what's trending in [industry] right
+// now" was investigated and deliberately excluded from this pass:
+// Gemini's real google_search grounding tool cannot be combined with
+// responseSchema in the same call (confirmed against Google's own docs
+// and a corroborating googleapis/python-genai issue) — a 2-call
+// pipeline would work but roughly doubles cost/latency per suggestion
+// for an uncertain relevance payoff, and the user chose to skip it
+// rather than build that speculatively. Revisit if that API constraint
+// ever changes.
+export interface LearnedTopicSignal {
+  // The real campaignType category this signal is about (e.g.
+  // "Educational", "Product Launch") — never a fabricated label.
+  label: string;
+  // Which real signal source this came from — kept raw/factual (see
+  // buildTopicSuggestionsPrompt) rather than pre-classified into a
+  // binary "liked/disliked" here, so the prompt states the real number
+  // rather than this code's own interpretation of it.
+  kind: "engagement" | "preference";
+  score: number;
+  sampleSize: number;
+}
+
+export interface GenerateTopicSuggestionsInput {
+  context: CompanyContext;
+  // Only signals that already cleared CreativeDna's own real
+  // sufficient-evidence bar (confidenceTier !== "low") — see
+  // getLearnedTopicSignals. Empty array is a real, valid state (a new
+  // company with no usage history yet), not an error.
+  learnedSignals: LearnedTopicSignal[];
+  count: number;
+}
+
+export interface GenerateTopicSuggestionsOutput {
+  // False only for the free/template tier (genuinely no AI available to
+  // reason about business context + learned signals — the free tier's
+  // real fallback here is getTopicSuggestionChips's day-rotated pool,
+  // not a fake personalized answer), OR when a real shared-pool attempt
+  // was genuinely made but failed this one time — same distinction
+  // EditPosterOutput's own doc comment establishes, wired the same way
+  // in shared-pool.ts.
+  available: boolean;
+  unavailableReason?: string;
+  suggestions?: { label: string; topic: string }[];
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+}
+
 export interface TextProvider {
   readonly name: string;
   generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
@@ -328,6 +380,7 @@ export interface TextProvider {
   clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput>;
   generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput>;
   editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput>;
+  generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

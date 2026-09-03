@@ -21,6 +21,8 @@ import type {
   GeneratePosterHighlightsOutput,
   EditPosterInput,
   EditPosterOutput,
+  GenerateTopicSuggestionsInput,
+  GenerateTopicSuggestionsOutput,
 } from "./types";
 import { GeminiTextProvider, GeminiQuotaExhaustedError } from "./gemini-provider";
 import { TemplateTextProvider } from "./template-provider";
@@ -170,6 +172,41 @@ function tryShared<Args extends unknown[], R>(
   };
 }
 
+// Shared by editPosterSpec and generateTopicSuggestions — the two
+// TextProvider methods with a user-FACING "why is this unavailable"
+// string (every other method just silently produces alternate CONTENT
+// on fallback, so tryShared's generic catch-all is fine for them). Real,
+// confirmed-live bug (2026-09-04, editPosterSpec): the free template's
+// "needs a connected AI provider" message is actively misleading when
+// we're in this catch branch specifically — that only happens because a
+// real shared-pool key WAS configured and genuinely attempted (the
+// caller-side apiKey/exhaustion check already ruled out "never
+// configured" before this function is ever invoked), not because no
+// provider exists. Distinguishes that from the genuinely-unconfigured
+// case, which keeps the original, accurate, unchanged message.
+function tryShareWithHonestUnavailable<
+  Args extends unknown[],
+  R extends { available: boolean; unavailableReason?: string },
+>(sharedMethod: (...args: Args) => Promise<R>, templateMethod: () => Promise<R>): (...args: Args) => Promise<R> {
+  return async (...args: Args) => {
+    try {
+      const result = await sharedMethod(...args);
+      await recordSharedPoolSuccess();
+      return result;
+    } catch (error) {
+      if (error instanceof GeminiQuotaExhaustedError) {
+        await recordSharedPoolExhaustion();
+      }
+      const fallbackResult = await templateMethod();
+      return {
+        ...fallbackResult,
+        unavailableReason:
+          "Free AI is temporarily unavailable right now — try again shortly, or add your own key in Settings for guaranteed access.",
+      };
+    }
+  };
+}
+
 // The free-tier resolver (getTextProviderForCompany in resolver.ts)
 // calls this only when a company has no BYOK text credential. Tries
 // the platform-held shared Gemini pool first (if configured and not
@@ -224,39 +261,19 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
       shared.generatePosterHighlights.bind(shared),
       template.generatePosterHighlights.bind(template),
     ),
-    // NOT tryShared — real, confirmed-live bug (2026-09-04): every other
-    // method here silently produces alternate CONTENT on fallback, so a
-    // generic catch-all is fine for them. editPosterSpec is the one
-    // method with a user-FACING "why is this unavailable" string, and
-    // template.editPosterSpec()'s message ("needs a connected AI
-    // provider — add one in Settings") is actively misleading when we're
-    // in this catch branch specifically — that only happens because a
-    // real shared-pool key WAS configured and genuinely attempted (see
-    // resolveSharedOrTemplateTextProvider's own apiKey/exhaustion check
-    // above this object literal), not because no provider exists. A real
-    // root cause of exactly this (editPosterSpec's Gemini call truncating
-    // on an undersized token budget) was found and fixed separately in
-    // gemini-provider.ts; this fixes the SEPARATE, still-real problem
-    // that ANY failure here — that one, a genuine exhaustion, or a future
-    // transient error — would keep showing the same "no provider"
-    // message even after that fix, since a temporary failure is still a
-    // real possibility this wording needs to describe honestly.
-    editPosterSpec: async (...args: Parameters<TextProvider["editPosterSpec"]>) => {
-      try {
-        const result = await shared.editPosterSpec(...args);
-        await recordSharedPoolSuccess();
-        return result;
-      } catch (error) {
-        if (error instanceof GeminiQuotaExhaustedError) {
-          await recordSharedPoolExhaustion();
-        }
-        const fallbackResult = await template.editPosterSpec();
-        return {
-          ...fallbackResult,
-          unavailableReason:
-            "Free AI is temporarily unavailable for editing right now — try again shortly, or add your own key in Settings for guaranteed access.",
-        };
-      }
-    },
+    // A real root cause of editPosterSpec's own past failures (the
+    // Gemini call truncating on an undersized token budget) was found
+    // and fixed separately in gemini-provider.ts; tryShareWithHonestUnavailable
+    // fixes the SEPARATE, still-real problem that ANY failure here — a
+    // genuine exhaustion or a future transient error — would keep
+    // showing the same misleading "no provider" message otherwise.
+    editPosterSpec: tryShareWithHonestUnavailable<[EditPosterInput], EditPosterOutput>(
+      shared.editPosterSpec.bind(shared),
+      template.editPosterSpec.bind(template),
+    ),
+    generateTopicSuggestions: tryShareWithHonestUnavailable<
+      [GenerateTopicSuggestionsInput],
+      GenerateTopicSuggestionsOutput
+    >(shared.generateTopicSuggestions.bind(shared), template.generateTopicSuggestions.bind(template)),
   };
 }

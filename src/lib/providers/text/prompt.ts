@@ -14,6 +14,7 @@ import type {
   PosterBenefit,
   EditPosterInput,
   PosterEditSpec,
+  GenerateTopicSuggestionsInput,
 } from "./types";
 import { ProviderError } from "./types";
 import { validateTopic } from "@/lib/topic-validation";
@@ -673,4 +674,72 @@ export function parsePosterEditResponse(
       : null;
 
   return { canApply: true, explanation: explanation || "Updated.", updatedSpec, newImageRequest };
+}
+
+// Smarter topic suggestions — see GenerateTopicSuggestionsInput's own
+// doc comment (types.ts) for the real inputs this is grounded in and
+// why real-time trend data was deliberately excluded.
+export function buildTopicSuggestionsPrompt(input: GenerateTopicSuggestionsInput): { system: string; user: string } {
+  const { context, learnedSignals, count } = input;
+  const { name, industry, tone, secondaryNiches, locale, businessDescription, targetMarket } = context;
+
+  const languageInstruction =
+    locale === "AR"
+      ? "Write every label and topic in natural, idiomatic Arabic — never a literal word-for-word translation."
+      : "Write every label and topic in natural English.";
+
+  const nicheLine = secondaryNiches.length ? ` Also focuses on: ${secondaryNiches.join(", ")}.` : "";
+  const descriptionLine = businessDescription ? ` About the company: ${businessDescription}` : "";
+  const marketLine = targetMarket ? ` Mainly serves ${targetMarket}.` : "";
+
+  const signalLines = learnedSignals.length
+    ? learnedSignals
+        .map((s) =>
+          s.kind === "engagement"
+            ? `- Real published posts about "${s.label}" have averaged ${s.score.toFixed(1)}x this company's typical engagement (${s.sampleSize} posts measured).`
+            : `- The user has shown a real, ${s.score >= 0 ? "positive" : "negative"} (score ${s.score.toFixed(1)}) preference toward "${s.label}"-category content, from ${s.sampleSize} real actions (published/edited/deleted/regenerated).`,
+        )
+        .join("\n")
+    : "(No real learned preference signals yet — this company doesn't have enough usage history. Do not invent any; just lean on the business context above.)";
+
+  const system = [
+    `You suggest real, specific topic ideas for ${name}'s next social media post — a ${industry} business. Brand tone: ${tone}.`,
+    "Ground every suggestion in the REAL business context and REAL learned signals given to you. Never invent a specific product, promotion, statistic, or claim this company hasn't told you about — a generic-but-honest idea beats a specific-but-fabricated one.",
+    'Each suggestion needs a short "label" (shown on a button, e.g. "New harvest ready") and a "topic" (a short noun phrase safe to splice into a sentence like "{{topic}} means...") — singular/mass-noun phrasing, never plural, never a full sentence, never ending in punctuation.',
+    languageInstruction,
+    `Return exactly ${count} suggestions, each genuinely different from the others — different angles, products, or occasions, not the same idea reworded twice.`,
+    'Respond with ONLY a JSON object: {"suggestions": [{"label": "...", "topic": "..."}]}.',
+  ].join(" ");
+
+  const user = `Company: ${name}.${nicheLine}${descriptionLine}${marketLine}\n\nReal learned signals for this company:\n${signalLines}`;
+
+  return { system, user };
+}
+
+export function parseTopicSuggestionsResponse(
+  parsed: unknown,
+  providerName: string,
+  count: number,
+): { label: string; topic: string }[] {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Topic-suggestions response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  const raw = record.suggestions;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new ProviderError(providerName, "Topic-suggestions response has no suggestions.");
+  }
+
+  const suggestions: { label: string; topic: string }[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const { label, topic } = item as Record<string, unknown>;
+    if (typeof label === "string" && label.trim() && typeof topic === "string" && topic.trim()) {
+      suggestions.push({ label: label.trim(), topic: topic.trim().replace(/[.!?]+$/, "") });
+    }
+  }
+  if (suggestions.length === 0) {
+    throw new ProviderError(providerName, "Topic-suggestions response had no valid label/topic pairs.");
+  }
+  return suggestions.slice(0, count);
 }
