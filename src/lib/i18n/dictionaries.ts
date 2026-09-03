@@ -115,6 +115,7 @@ export interface Dictionary {
     templateModernBannerName: string; templateModernBannerDescription: string;
     templateBadgeOfferName: string; templateBadgeOfferDescription: string;
     templateMinimalistFrameName: string; templateMinimalistFrameDescription: string;
+    templateInfographicShowcaseName: string; templateInfographicShowcaseDescription: string;
     regenerateBackground: string; regeneratingBackground: string; regenerateBackgroundSuccess: string;
   };
   video: {
@@ -239,6 +240,7 @@ export interface Dictionary {
     extractionSourceHeuristic: string; extractionSourceAi: (providerName: string) => string;
     bioTitle: string; bioSubtitle: string; bioEnabledLabel: string; bioLinkLabel: string;
     bioWebsiteLabel: string; bioWebsitePlaceholder: string; bioWhatsappLabel: string; bioWhatsappPlaceholder: string;
+    bioPhoneLabel: string; bioPhonePlaceholder: string; bioContactEmailLabel: string; bioContactEmailPlaceholder: string;
     bioSave: string; bioSaved: string;
   };
   settings: {
@@ -545,6 +547,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templateBadgeOfferDescription: "A centered accent-color card holds the whole message — built for a sale or offer.",
       templateMinimalistFrameName: "Minimalist Frame",
       templateMinimalistFrameDescription: "Clean bottom text with a thin brand-color border frame and a subtle logo watermark.",
+      templateInfographicShowcaseName: "Infographic Showcase",
+      templateInfographicShowcaseDescription: "A structured, icon-driven layout with benefit callouts, contact info, and trust badges — for a detailed product or service showcase.",
       regenerateBackground: "Regenerate background",
       regeneratingBackground: "Regenerating…",
       regenerateBackgroundSuccess: "New background generated — see it above.",
@@ -869,6 +873,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       bioWebsitePlaceholder: "https://yourbusiness.com",
       bioWhatsappLabel: "WhatsApp number (optional)",
       bioWhatsappPlaceholder: "+971 50 123 4567",
+      bioPhoneLabel: "Business phone (optional)",
+      bioPhonePlaceholder: "+971 4 123 4567",
+      bioContactEmailLabel: "Business email (optional)",
+      bioContactEmailPlaceholder: "hello@yourbusiness.com",
       bioSave: "Save",
       bioSaved: "Saved.",
     },
@@ -1326,6 +1334,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       templateBadgeOfferDescription: "بطاقة مركزية بلون العلامة تحمل الرسالة كاملة — مصمّمة للتخفيضات والعروض.",
       templateMinimalistFrameName: "إطار بسيط",
       templateMinimalistFrameDescription: "نص سفلي نظيف مع إطار رفيع بلون العلامة وعلامة مائية خفيفة للشعار.",
+      templateInfographicShowcaseName: "عرض إنفوجرافيك",
+      templateInfographicShowcaseDescription: "تصميم منظّم قائم على الأيقونات مع نقاط مزايا ومعلومات تواصل وشارات ثقة — لعرض تفصيلي لمنتج أو خدمة.",
       regenerateBackground: "إعادة توليد الخلفية",
       regeneratingBackground: "جارٍ إعادة التوليد…",
       regenerateBackgroundSuccess: "تم توليد خلفية جديدة — شاهدها أعلاه.",
@@ -1650,6 +1660,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       bioWebsitePlaceholder: "https://yourbusiness.com",
       bioWhatsappLabel: "رقم واتساب (اختياري)",
       bioWhatsappPlaceholder: "+971 50 123 4567",
+      bioPhoneLabel: "هاتف العمل (اختياري)",
+      bioPhonePlaceholder: "+971 4 123 4567",
+      bioContactEmailLabel: "بريد العمل الإلكتروني (اختياري)",
+      bioContactEmailPlaceholder: "hello@yourbusiness.com",
       bioSave: "حفظ",
       bioSaved: "تم الحفظ.",
     },

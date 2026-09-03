@@ -22,4 +22,5 @@ export const TEMPLATE_IDS = [
   "MODERN_BANNER",
   "BADGE_OFFER",
   "MINIMALIST_FRAME",
+  "INFOGRAPHIC_SHOWCASE",
 ] as const;

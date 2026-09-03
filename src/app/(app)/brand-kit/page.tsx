@@ -51,6 +51,8 @@ export default async function BrandKitPage() {
         enabled={company.publicBioEnabled}
         websiteUrl={company.websiteUrl}
         whatsappNumber={company.whatsappNumber}
+        phone={company.phone}
+        contactEmail={company.contactEmail}
       />
     </div>
   );

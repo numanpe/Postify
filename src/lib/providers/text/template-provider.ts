@@ -16,6 +16,9 @@ import type {
   SummarizeBusinessContextInput,
   SummarizeBusinessContextOutput,
   ClarifyTopicOutput,
+  GeneratePosterHighlightsInput,
+  GeneratePosterHighlightsOutput,
+  PosterBenefit,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
@@ -524,6 +527,48 @@ export class TemplateTextProvider implements TextProvider {
   // ask the user to fix it", never as license to guess.
   async clarifyTopic(): Promise<ClarifyTopicOutput> {
     return { clarifiedTopic: null, providerName: this.name };
+  }
+
+  // INFOGRAPHIC_SHOWCASE template's free-tier fallback (2026-09-03) —
+  // honest per GeneratePosterHighlightsInput's own doc comment: this
+  // deterministic tier can't genuinely understand the specific
+  // headline's semantics the way a real LLM call (the BYOK providers'
+  // implementation) can, so rather than fake that specificity it reuses
+  // real, already-differentiated per-industry content (pack.hooks/
+  // valueProps — the same pools generateCaption already draws from),
+  // picked deterministically so the same headline always yields the
+  // same highlights.
+  async generatePosterHighlights({ context, topic }: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput> {
+    const { pack, name, companyId } = context;
+    const vars = { company: name, topic, niches: "" };
+    const seed = `${companyId}:highlights:${topic}`;
+
+    const stripTrailingPeriod = (s: string) => s.replace(/\.\s*$/, "");
+
+    const hookCount = pack.hooks.length;
+    const benefitHeadlineIndexes = [0, 1, 2, 3].map((i) => pickIndex(`${seed}:bh${i}`, hookCount));
+    const usedHeadlineIndexes = new Set<number>();
+    const benefits: PosterBenefit[] = benefitHeadlineIndexes.map((idx, i) => {
+      // Real distinctness, not just a seeded coincidence: if two of the
+      // 3 picks landed on the same hook, walk forward to the next
+      // unused one (wrapping) so a company never sees the same benefit
+      // headline twice on one poster.
+      let realIdx = idx;
+      while (usedHeadlineIndexes.has(realIdx) && usedHeadlineIndexes.size < hookCount) {
+        realIdx = (realIdx + 1) % hookCount;
+      }
+      usedHeadlineIndexes.add(realIdx);
+      const headline = stripTrailingPeriod(fillTemplate(pack.hooks[realIdx], vars));
+      const valueProp = pick(`${seed}:bv${i}`, "v", pack.valueProps, vars);
+      return { headline, subtext: valueProp.text };
+    });
+
+    const remainingHookIndexes = Array.from({ length: hookCount }, (_, i) => i).filter((i) => !usedHeadlineIndexes.has(i));
+    const badgePool = remainingHookIndexes.length >= 2 ? remainingHookIndexes : Array.from({ length: hookCount }, (_, i) => i);
+    const badgeIndexes = [0, 1].map((i) => badgePool[pickIndex(`${seed}:tb${i}`, badgePool.length)]);
+    const trustBadges = [...new Set(badgeIndexes)].map((idx) => stripTrailingPeriod(fillTemplate(pack.hooks[idx], vars)));
+
+    return { benefits, trustBadges, providerName: this.name };
   }
 }
 

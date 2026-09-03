@@ -17,6 +17,8 @@ import type {
   SummarizeBusinessContextOutput,
   ClarifyTopicInput,
   ClarifyTopicOutput,
+  GeneratePosterHighlightsInput,
+  GeneratePosterHighlightsOutput,
 } from "./types";
 import { GeminiTextProvider, GeminiQuotaExhaustedError } from "./gemini-provider";
 import { TemplateTextProvider } from "./template-provider";
@@ -216,5 +218,9 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
     // own clarifyTopic() (always returns null) is correct and
     // unchanged either way.
     clarifyTopic: template.clarifyTopic.bind(template),
+    generatePosterHighlights: tryShared<[GeneratePosterHighlightsInput], GeneratePosterHighlightsOutput>(
+      shared.generatePosterHighlights.bind(shared),
+      template.generatePosterHighlights.bind(template),
+    ),
   };
 }

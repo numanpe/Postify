@@ -23,6 +23,13 @@ export interface RenderPosterInput {
     secondary?: string | null;
     accent?: string | null;
   };
+  // INFOGRAPHIC_SHOWCASE only — see templates.tsx's own doc comment on
+  // that template for why these are optional here rather than required
+  // across every template.
+  companyName?: string;
+  benefits?: { headline: string; subtext: string }[];
+  trustBadges?: string[];
+  contact?: { phone: string | null; whatsapp: string | null; email: string | null; website: string | null };
 }
 
 export interface RenderPosterOutput {
@@ -68,6 +75,10 @@ export async function renderPoster(input: RenderPosterInput): Promise<RenderPost
     backgroundDataUri,
     logoDataUri,
     brandColors: input.brandColors,
+    companyName: input.companyName ?? "",
+    benefits: input.benefits,
+    trustBadges: input.trustBadges,
+    contact: input.contact,
   });
 
   const svg = await satori(tree, {

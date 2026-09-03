@@ -77,6 +77,7 @@ export function PosterForm({
     MODERN_BANNER: dict.templateModernBannerName,
     BADGE_OFFER: dict.templateBadgeOfferName,
     MINIMALIST_FRAME: dict.templateMinimalistFrameName,
+    INFOGRAPHIC_SHOWCASE: dict.templateInfographicShowcaseName,
   };
   const templateDescriptions: Record<(typeof TEMPLATE_IDS)[number], string> = {
     MINIMAL: dict.templateMinimalDescription,
@@ -86,6 +87,7 @@ export function PosterForm({
     MODERN_BANNER: dict.templateModernBannerDescription,
     BADGE_OFFER: dict.templateBadgeOfferDescription,
     MINIMALIST_FRAME: dict.templateMinimalistFrameDescription,
+    INFOGRAPHIC_SHOWCASE: dict.templateInfographicShowcaseDescription,
   };
 
   return (

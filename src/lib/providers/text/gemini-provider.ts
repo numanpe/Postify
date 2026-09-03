@@ -17,6 +17,8 @@ import type {
   SummarizeBusinessContextOutput,
   ClarifyTopicInput,
   ClarifyTopicOutput,
+  GeneratePosterHighlightsInput,
+  GeneratePosterHighlightsOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -31,6 +33,8 @@ import {
   parseBusinessContextResponse,
   buildClarifyTopicPrompt,
   parseClarifyTopicResponse,
+  buildPosterHighlightsPrompt,
+  parsePosterHighlightsResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 import { GEMINI_TEXT_MODEL } from "../gemini-models";
@@ -180,6 +184,24 @@ const CLARIFY_TOPIC_RESPONSE_SCHEMA = {
     topic: { type: "STRING", nullable: true },
   },
   required: ["topic"],
+};
+
+const POSTER_BENEFIT_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    headline: { type: "STRING" },
+    subtext: { type: "STRING" },
+  },
+  required: ["headline", "subtext"],
+};
+
+const POSTER_HIGHLIGHTS_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    benefits: { type: "ARRAY", items: POSTER_BENEFIT_SCHEMA },
+    trustBadges: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["benefits", "trustBadges"],
 };
 
 export class GeminiTextProvider implements TextProvider {
@@ -422,5 +444,19 @@ export class GeminiTextProvider implements TextProvider {
 
     const clarifiedTopic = parseClarifyTopicResponse(parsed, this.name);
     return { clarifiedTopic, providerName: this.name };
+  }
+
+  async generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput> {
+    const { system, user } = buildPosterHighlightsPrompt(input);
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 500,
+      responseSchema: POSTER_HIGHLIGHTS_RESPONSE_SCHEMA,
+    });
+
+    const parsed = this.parseJsonOrThrow("generatePosterHighlights", "poster highlights", content, finishReason);
+
+    const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
+    return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
   }
 }

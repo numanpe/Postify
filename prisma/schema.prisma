@@ -171,6 +171,13 @@ model Company {
   // shown on the bio page, never a placeholder.
   websiteUrl      String?
   whatsappNumber  String?
+  // Real business contact fields (2026-09-03, infographic poster
+  // template's contact row) — deliberately distinct from User.email
+  // (the owner's own login address, never a public business contact).
+  // Both null = the contact row simply omits that line, never a
+  // placeholder — same convention as websiteUrl/whatsappNumber above.
+  phone           String?
+  contactEmail    String?
   // On by default once a slug exists (see publicBioSlug below), same
   // opt-out-not-opt-in convention as Company.weeklyDigestEnabled.
   publicBioEnabled Boolean @default(true)
@@ -440,6 +447,7 @@ enum PosterTemplate {
   MODERN_BANNER
   BADGE_OFFER
   MINIMALIST_FRAME
+  INFOGRAPHIC_SHOWCASE
 }
 
 // A rendered poster. The pipeline (src/lib/poster/) always produces a

@@ -17,6 +17,8 @@ import type {
   SummarizeBusinessContextOutput,
   ClarifyTopicInput,
   ClarifyTopicOutput,
+  GeneratePosterHighlightsInput,
+  GeneratePosterHighlightsOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -31,6 +33,8 @@ import {
   parseBusinessContextResponse,
   buildClarifyTopicPrompt,
   parseClarifyTopicResponse,
+  buildPosterHighlightsPrompt,
+  parsePosterHighlightsResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -218,5 +222,20 @@ export class OpenAITextProvider implements TextProvider {
 
     const clarifiedTopic = parseClarifyTopicResponse(parsed, this.name);
     return { clarifiedTopic, providerName: this.name };
+  }
+
+  async generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput> {
+    const { system, user } = buildPosterHighlightsPrompt(input);
+    const { content, estimatedCostUsd } = await this.chatCompletion(system, user, { jsonMode: true, maxTokens: 400 });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      throw new ProviderError(this.name, "OpenAI returned malformed poster-highlights JSON.", error);
+    }
+
+    const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
+    return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
   }
 }

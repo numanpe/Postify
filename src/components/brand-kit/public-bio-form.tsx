@@ -11,11 +11,15 @@ export function PublicBioForm({
   enabled,
   websiteUrl,
   whatsappNumber,
+  phone,
+  contactEmail,
 }: {
   bioUrl: string;
   enabled: boolean;
   websiteUrl: string | null;
   whatsappNumber: string | null;
+  phone: string | null;
+  contactEmail: string | null;
 }) {
   const [state, action, pending] = useActionState(updatePublicBioSettings, undefined);
   const dict = useDict().brandKit;
@@ -63,6 +67,34 @@ export function PublicBioForm({
           type="tel"
           defaultValue={whatsappNumber ?? ""}
           placeholder={dict.bioWhatsappPlaceholder}
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="phone" className="text-sm font-medium">
+          {dict.bioPhoneLabel}
+        </label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          defaultValue={phone ?? ""}
+          placeholder={dict.bioPhonePlaceholder}
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="contactEmail" className="text-sm font-medium">
+          {dict.bioContactEmailLabel}
+        </label>
+        <input
+          id="contactEmail"
+          name="contactEmail"
+          type="email"
+          defaultValue={contactEmail ?? ""}
+          placeholder={dict.bioContactEmailPlaceholder}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
       </div>

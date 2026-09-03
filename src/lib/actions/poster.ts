@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 export type GeneratePosterState =
@@ -42,14 +43,16 @@ const PosterSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   aspectRatio: z.enum(["SQUARE", "STORY", "LANDSCAPE"]),
-  // Real, separately-found bug (unrelated to Creative DNA signals, but
-  // touched the same "template" concept directly): this enum only had
-  // 4 of PosterTemplate's real 7 values, missing MODERN_BANNER/
-  // BADGE_OFFER/MINIMALIST_FRAME even though poster-form.tsx's
-  // TEMPLATE_IDS and templates.tsx's actual renderers have all 7 —
-  // selecting any of the 3 missing ones failed real form submissions
-  // with "Invalid input."
-  template: z.enum(["MINIMAL", "BOLD_HEADLINE", "PROMOTIONAL_BANNER", "SPLIT_PRODUCT", "MODERN_BANNER", "BADGE_OFFER", "MINIMALIST_FRAME"]),
+  // Real, previously-found bug (unrelated to Creative DNA signals, but
+  // touched the same "template" concept directly): this used to be a
+  // separately hand-maintained z.enum([...]) literal that drifted out
+  // of sync with poster-form.tsx's TEMPLATE_IDS/templates.tsx's actual
+  // renderers — missing 3 real values once, then INFOGRAPHIC_SHOWCASE a
+  // second time (confirmed live: selecting it failed real form
+  // submissions with "Invalid enum value... received
+  // 'INFOGRAPHIC_SHOWCASE'"). Derived from TEMPLATE_IDS directly now so
+  // a future new template can't silently repeat this same drift.
+  template: z.enum(TEMPLATE_IDS),
   backgroundSource: z.enum(["BRAND", "PHOTO", "AI"]),
   // .nullish() (not .optional()) — formData.get() returns null, not
   // undefined, for a field that's absent from the form entirely (the

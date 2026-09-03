@@ -226,6 +226,34 @@ export interface SummarizeBusinessContextOutput {
   fallbackFrom?: FallbackInfo[];
 }
 
+// INFOGRAPHIC_SHOWCASE poster template's icon-benefit rows + trust-badge
+// row (2026-09-03) — real, topic-specific short phrases, not hardcoded
+// generic claims. BYOK providers make a genuine LLM call grounded in the
+// real headline; the free template tier (template-provider.ts) can't
+// genuinely understand the headline's specific semantics without an
+// LLM, so it honestly falls back to real per-industry content already
+// in INDUSTRY_PACKS (hooks/valueProps) rather than faking topic-
+// specificity it doesn't have — same tradeoff expandBackgroundPrompt's
+// own free-tier implementation already makes.
+export interface GeneratePosterHighlightsInput {
+  context: CompanyContext;
+  topic: string;
+}
+
+export interface PosterBenefit {
+  headline: string;
+  subtext: string;
+}
+
+export interface GeneratePosterHighlightsOutput {
+  benefits: PosterBenefit[];
+  trustBadges: string[];
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
+}
+
 export interface TextProvider {
   readonly name: string;
   generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
@@ -235,6 +263,7 @@ export interface TextProvider {
   expandBackgroundPrompt(input: ExpandBackgroundPromptInput): Promise<ExpandBackgroundPromptOutput>;
   summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput>;
   clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput>;
+  generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

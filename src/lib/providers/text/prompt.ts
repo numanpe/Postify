@@ -9,6 +9,8 @@ import type {
   SummarizeBusinessContextInput,
   SummarizeBusinessContextOutput,
   ClarifyTopicInput,
+  GeneratePosterHighlightsInput,
+  PosterBenefit,
 } from "./types";
 import { ProviderError } from "./types";
 import { validateTopic } from "@/lib/topic-validation";
@@ -498,4 +500,62 @@ export function parseClarifyTopicResponse(parsed: unknown, providerName: string)
   // original bug's own detector would reject.
   if (validateTopic(candidate).flagged) return null;
   return candidate;
+}
+
+// INFOGRAPHIC_SHOWCASE poster template (2026-09-03) — real, topic-
+// specific benefit callouts and trust badges, grounded in the actual
+// headline rather than generic filler. Same "never invent specific
+// facts" and buzzword-prohibition rules as buildCampaignBriefPrompt.
+export function buildPosterHighlightsPrompt(input: GeneratePosterHighlightsInput): { system: string; user: string } {
+  const { context, topic } = input;
+  const { name, industry, tone, locale } = context;
+
+  const languageInstruction =
+    locale === "AR"
+      ? "Write every field in natural, culturally idiomatic Arabic — not a literal word-for-word translation."
+      : "Write every field in English.";
+
+  const system = [
+    `You are a marketing copywriter for a company in the ${industry} industry.`,
+    `Brand tone: ${tone}.`,
+    "Given a poster's real headline, write exactly 4 short benefit callouts (each a 1-4 word headline plus a short,",
+    "one-line supporting phrase) that genuinely relate to that specific headline/topic — not generic claims that",
+    "could apply to any business. Also write exactly 2 short trust-badge phrases (2-5 words each, e.g. the kind of",
+    'short claim shown as a small badge — never invent specific facts (prices, certifications, dates, guarantees)',
+    "that weren't given to you; keep badges general enough to be honest without a specific fact backing them",
+    '(e.g. "Trusted by Locals" is fine, "ISO 9001 Certified" is not unless that was actually stated).',
+    "STRICTLY PROHIBITED: corporate buzzwords/filler like \"unleash\", \"delve\", \"game-changer\", \"elevate\",",
+    "\"unlock\", \"revolutionize\", \"seamless\", \"leverage\". Write like a real person.",
+    languageInstruction,
+    'Respond with ONLY a JSON object: {"benefits": [{"headline": "...", "subtext": "..."}, ...] (exactly 4),',
+    '"trustBadges": ["...", "..."] (exactly 2)}',
+  ].join(" ");
+
+  const user = `Company: ${name}.\n\nPoster headline/topic: ${topic}`;
+
+  return { system, user };
+}
+
+export function parsePosterHighlightsResponse(
+  parsed: unknown,
+  providerName: string,
+): { benefits: PosterBenefit[]; trustBadges: string[] } {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Poster-highlights response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  if (!Array.isArray(record.benefits) || record.benefits.length === 0) {
+    throw new ProviderError(providerName, "Poster-highlights response is missing benefits.");
+  }
+  const benefits: PosterBenefit[] = record.benefits
+    .filter((b): b is Record<string, unknown> => typeof b === "object" && b !== null)
+    .map((b) => ({ headline: String(b.headline ?? "").trim(), subtext: String(b.subtext ?? "").trim() }))
+    .filter((b) => b.headline && b.subtext);
+  if (benefits.length === 0) {
+    throw new ProviderError(providerName, "Poster-highlights response had no usable benefits.");
+  }
+  const trustBadges = Array.isArray(record.trustBadges)
+    ? record.trustBadges.filter((t): t is string => typeof t === "string" && t.trim().length > 0).map((t) => t.trim())
+    : [];
+  return { benefits, trustBadges };
 }

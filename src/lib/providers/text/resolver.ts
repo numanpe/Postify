@@ -68,16 +68,31 @@ async function callWithFallback<Args extends unknown[], R extends { providerName
   throw new Error("Text provider fallback chain had no candidates.");
 }
 
+// Real bug found live (2026-09-03): methodNames below used to be a
+// plain (keyof TextProvider)[] literal, the same shape as
+// withDeletionAvoidance's own explicit-delegation list — and it drifted
+// out of sync the same way that one almost did, missing
+// generatePosterHighlights entirely and throwing "provider.
+// generatePosterHighlights is not a function" at real generation time
+// despite `tsc` passing clean (a plain string-array literal has no way
+// to be checked for completeness against an interface). This
+// Record<K,true> forces the opposite: TypeScript rejects the object
+// literal below if it's missing any real TextProvider method, or lists
+// one that doesn't exist — a genuine compile-time exhaustiveness check,
+// not just a correctly-typed list.
+const METHOD_PRESENCE: Record<Exclude<keyof TextProvider, "name">, true> = {
+  generateReply: true,
+  generateCaption: true,
+  generateScript: true,
+  generateCampaignBrief: true,
+  expandBackgroundPrompt: true,
+  summarizeBusinessContext: true,
+  clarifyTopic: true,
+  generatePosterHighlights: true,
+};
+
 function wireTextProvider(candidates: { label: string; provider: TextProvider }[], companyId: string): TextProvider {
-  const methodNames: (keyof TextProvider)[] = [
-    "generateReply",
-    "generateCaption",
-    "generateScript",
-    "generateCampaignBrief",
-    "expandBackgroundPrompt",
-    "summarizeBusinessContext",
-    "clarifyTopic",
-  ];
+  const methodNames = Object.keys(METHOD_PRESENCE) as (keyof TextProvider)[];
   const wired = {} as TextProvider;
   for (const methodName of methodNames) {
     (wired as any)[methodName] = (...args: unknown[]) =>

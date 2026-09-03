@@ -64,9 +64,20 @@ export async function generatePosterCore(
 ): Promise<GeneratePosterCoreResult> {
   const { width, height } = POSTER_DIMENSIONS[input.aspectRatio];
 
-  const [context, brandKit] = await Promise.all([
+  const isInfographic = input.template === "INFOGRAPHIC_SHOWCASE";
+
+  const [context, brandKit, contactInfo] = await Promise.all([
     getCompanyContext(input.companyId),
     db.brandKit.findUnique({ where: { companyId: input.companyId }, include: { logoAsset: true } }),
+    // Only fetched for INFOGRAPHIC_SHOWCASE — every other template has
+    // no use for these, no reason to add a column read to every poster
+    // generation.
+    isInfographic
+      ? db.company.findUnique({
+          where: { id: input.companyId },
+          select: { phone: true, contactEmail: true, whatsappNumber: true, websiteUrl: true },
+        })
+      : null,
   ]);
 
   const gate = runPosterQualityGate({
@@ -204,6 +215,26 @@ export async function generatePosterCore(
     }
   }
 
+  // INFOGRAPHIC_SHOWCASE's icon-benefit rows + trust badges — real,
+  // topic-grounded text via the resolved text provider (free tier falls
+  // back to real per-industry content, see TemplateProvider's own doc
+  // comment on generatePosterHighlights). Only fetched for this
+  // template; every other template has no use for it.
+  let highlights: { benefits: { headline: string; subtext: string }[]; trustBadges: string[] } | undefined;
+  if (isInfographic) {
+    const textProvider = await getTextProviderForCompany(input.companyId);
+    try {
+      const result = await textProvider.generatePosterHighlights({ context, topic: input.headline });
+      highlights = { benefits: result.benefits, trustBadges: result.trustBadges };
+      if (result.fallbackFrom) fallbackFrom.push(...result.fallbackFrom);
+    } catch (error) {
+      if (error instanceof ProviderError) {
+        throw new PosterGenerationError(`${error.providerName}: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
   const rendered = await renderPoster({
     headline: input.headline,
     subhead: input.subhead,
@@ -214,6 +245,12 @@ export async function generatePosterCore(
     backgroundMimeType,
     logoBuffer,
     logoMimeType,
+    companyName: context.name,
+    benefits: highlights?.benefits,
+    trustBadges: highlights?.trustBadges,
+    contact: contactInfo
+      ? { phone: contactInfo.phone, whatsapp: contactInfo.whatsappNumber, email: contactInfo.contactEmail, website: contactInfo.websiteUrl }
+      : undefined,
     brandColors: {
       primary: brandKit?.primaryColor,
       secondary: brandKit?.secondaryColor,

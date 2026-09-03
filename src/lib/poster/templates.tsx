@@ -25,6 +25,12 @@ export interface TemplateRenderProps {
   backgroundDataUri: string;
   logoDataUri: string | null;
   brandColors: { primary?: string | null; secondary?: string | null; accent?: string | null };
+  // INFOGRAPHIC_SHOWCASE only (see that template's own doc comment) —
+  // every other template ignores these.
+  companyName: string;
+  benefits?: { headline: string; subtext: string }[];
+  trustBadges?: string[];
+  contact?: { phone: string | null; whatsapp: string | null; email: string | null; website: string | null };
 }
 
 export interface PosterTemplateDefinition {
@@ -739,6 +745,384 @@ function renderMinimalistFrame(props: TemplateRenderProps): ReactElement {
   );
 }
 
+// ---------- INFOGRAPHIC_SHOWCASE ----------
+// A real step up in layout sophistication from the other 7 templates
+// (2026-09-03): icon-based benefit callouts, an organic curved photo/
+// text divide, a company-name banner, a real contact row, a trust-badge
+// row, and a decorative border. Feasibility was verified empirically
+// against the real installed satori (0.29.1) + resvg pipeline before
+// writing any of this, not assumed:
+//   - clip-path: path("<svg path data>") is genuinely supported (found
+//     satori's real clip-path parser recognizing path()/polygon()/
+//     circle()/ellipse()/inset() in node_modules/satori/dist/index.js)
+//     — the curved divide below is a true organic curve, not an
+//     approximation.
+//   - A nested <svg> subtree (used for every icon here) gets embedded
+//     by satori as an <image> with an image/svg+xml data URI — and
+//     resvg (render.tsx's actual PNG rasterizer) genuinely rasterizes
+//     that correctly, confirmed by rendering a real test icon through
+//     the full satori->resvg pipeline and inspecting the output PNG.
+//     Icons are built as plain {type,props} tree objects with
+//     kebab-case SVG attributes (stroke-width, not strokeWidth) to
+//     exactly match what that empirical test verified, rather than
+//     real JSX's camelCase SVG attributes, which were never tested
+//     through satori's nested-SVG embedding path.
+//
+// contrastSpec is "panel": every real piece of text here sits on a
+// solid, fully opaque background — none of it overlays the photo
+// directly. The banner uses readableTextColor(primary) directly, same
+// exact-math guarantee PROMOTIONAL_BANNER/SPLIT_PRODUCT/BADGE_OFFER
+// already rely on. The text-zone/contact/trust bands use a fixed light
+// neutral (or a brand color mixed 85% toward white — see
+// mixTowardWhite) with fixed dark text instead: mixing any color 85%
+// toward white guarantees every channel >= ~217/255, which is light
+// enough that dark text passes contrast regardless of the original
+// brand color's own lightness — a real, checked guarantee (worst case
+// is a starting channel of 0), not a readableTextColor call, but not a
+// guess either. No new quality-gate mechanics needed.
+//
+// The optional two-column price-comparison box described in the
+// reference is deliberately never rendered here: there is no real
+// pricing/tier data source anywhere in this app today (confirmed by
+// reading the schema before building this), and CLAUDE.md's own rule
+// is "never fake it" — this degrades cleanly (the box is simply absent)
+// rather than showing empty/invented placeholders, exactly what the
+// task's own verification asked for.
+interface SatoriNode {
+  type: string;
+  props: Record<string, unknown>;
+}
+
+function svgEl(type: string, props: Record<string, unknown>, children?: SatoriNode[]): SatoriNode {
+  return { type, props: children ? { ...props, children } : props };
+}
+
+type InfographicIconKind = "check" | "star" | "shield" | "leaf" | "phone" | "chat" | "mail" | "globe";
+
+function infographicIcon(kind: InfographicIconKind, size: number, color: string): SatoriNode {
+  const common = { width: size, height: size, viewBox: "0 0 24 24" };
+  switch (kind) {
+    case "check":
+      return svgEl("svg", common, [
+        svgEl("circle", { cx: 12, cy: 12, r: 10, fill: "none", stroke: color, "stroke-width": 2 }),
+        svgEl("path", { d: "M7.5 12.5 L10.5 15.5 L16.5 9", fill: "none", stroke: color, "stroke-width": 2 }),
+      ]);
+    case "star":
+      return svgEl("svg", common, [
+        svgEl("path", {
+          d: "M12 2 L14.7 9 L22 9.5 L16.5 14.3 L18.2 21.5 L12 17.6 L5.8 21.5 L7.5 14.3 L2 9.5 L9.3 9 Z",
+          fill: color,
+        }),
+      ]);
+    case "shield":
+      return svgEl("svg", common, [
+        svgEl("path", {
+          d: "M12 2 L20 5.5 L20 11 C20 16 16.5 20 12 22 C7.5 20 4 16 4 11 L4 5.5 Z",
+          fill: "none",
+          stroke: color,
+          "stroke-width": 2,
+        }),
+        svgEl("path", { d: "M8.5 12 L11 14.5 L15.5 9.5", fill: "none", stroke: color, "stroke-width": 2 }),
+      ]);
+    case "leaf":
+      return svgEl("svg", common, [
+        svgEl("path", { d: "M4 20 C4 10 12 3 21 3 C21 12 14 20 4 20 Z", fill: color }),
+      ]);
+    case "phone":
+      return svgEl("svg", common, [
+        svgEl("path", {
+          d: "M6 3 L9.5 3 L11 7 L8.8 8.6 C9.7 11.2 12.6 14.1 15.2 15 L16.8 12.8 L21 14.3 L21 17.8 C21 19.2 19.7 20.3 18.3 20 C10.9 18.6 5.6 13.3 4.2 5.9 C3.9 4.5 5 3 6 3 Z",
+          fill: color,
+        }),
+      ]);
+    case "chat":
+      return svgEl("svg", common, [
+        svgEl("path", {
+          d: "M4 5 H20 C21.1 5 22 5.9 22 7 V15 C22 16.1 21.1 17 20 17 H9 L4 21 V17 C2.9 17 2 16.1 2 15 V7 C2 5.9 2.9 5 4 5 Z",
+          fill: color,
+        }),
+      ]);
+    case "mail":
+      return svgEl("svg", common, [
+        svgEl("rect", { x: 3, y: 5, width: 18, height: 14, rx: 2, fill: "none", stroke: color, "stroke-width": 2 }),
+        svgEl("path", { d: "M3.5 6.5 L12 13 L20.5 6.5", fill: "none", stroke: color, "stroke-width": 2 }),
+      ]);
+    case "globe":
+      return svgEl("svg", common, [
+        svgEl("circle", { cx: 12, cy: 12, r: 9, fill: "none", stroke: color, "stroke-width": 2 }),
+        svgEl("ellipse", { cx: 12, cy: 12, rx: 4, ry: 9, fill: "none", stroke: color, "stroke-width": 1.5 }),
+        svgEl("path", { d: "M3 12 H21 M4.5 7 H19.5 M4.5 17 H19.5", fill: "none", stroke: color, "stroke-width": 1.5 }),
+      ]);
+  }
+}
+
+const BENEFIT_ICON_ROTATION: InfographicIconKind[] = ["check", "star", "shield", "leaf"];
+
+function renderInfographicShowcase(props: TemplateRenderProps): ReactElement {
+  const { width, height } = props;
+  const scaleBasis = Math.min(width, height);
+  const isRtl = props.direction === "rtl";
+  const padding = Math.round(scaleBasis * 0.055);
+
+  const primary = props.brandColors.primary ?? DEFAULT_GRADIENT[0];
+  const secondary = props.brandColors.secondary ?? DEFAULT_GRADIENT[1];
+  const accent = props.brandColors.accent ?? primary;
+  // panelBg is a fixed light neutral, always paired with dark text —
+  // readableTextColor isn't needed here the way it is for brand-color
+  // bands below, since this isn't derived from an arbitrary brand color.
+  const panelBg = "#faf9f6";
+  const panelText = "#1a1a1a";
+  const bannerText = readableTextColor(primary);
+  const contactBandBg = mixTowardWhite(secondary, 0.85);
+  const contactText = "#1a1a1a";
+
+  // Organic curved photo/text divide — a real clip-path: path(), not an
+  // approximation (see this template's own top comment). photoBoxHeight
+  // is deliberately taller than the visible photo region so the curve's
+  // downward dip never exposes empty space beneath the clipped shape.
+  const photoVisibleHeight = Math.round(height * 0.33);
+  const curveAmplitude = Math.round(height * 0.03);
+  const photoBoxHeight = photoVisibleHeight + curveAmplitude;
+  const curvePath = `M0,0 L${width},0 L${width},${photoVisibleHeight} C${Math.round(width * 0.68)},${photoVisibleHeight + curveAmplitude} ${Math.round(width * 0.32)},${photoVisibleHeight - curveAmplitude} 0,${photoVisibleHeight} Z`;
+
+  const benefits = (props.benefits ?? []).slice(0, 4);
+  const trustBadges = (props.trustBadges ?? []).slice(0, 3);
+  const contact = props.contact;
+  const contactRows: { kind: InfographicIconKind; label: string }[] = [];
+  if (contact?.phone) contactRows.push({ kind: "phone", label: contact.phone });
+  if (contact?.whatsapp) contactRows.push({ kind: "chat", label: contact.whatsapp });
+  if (contact?.email) contactRows.push({ kind: "mail", label: contact.email });
+  if (contact?.website) contactRows.push({ kind: "globe", label: contact.website.replace(/^https?:\/\//, "") });
+
+  const iconSize = Math.round(scaleBasis * 0.032);
+
+  return (
+    <div style={{ width, height, display: "flex", flexDirection: "column", position: "relative", fontFamily: props.fontFamily, background: panelBg }}>
+      {/* Photo zone with organic curved bottom edge */}
+      <div style={{ display: "flex", position: "relative", width, height: photoBoxHeight }}>
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width,
+            height: photoBoxHeight,
+            clipPath: `path('${curvePath}')`,
+          }}
+        >
+          <img src={props.backgroundDataUri} alt="" style={{ width, height: photoBoxHeight, objectFit: "cover" }} />
+        </div>
+        {props.logoDataUri && (
+          <div
+            style={{
+              display: "flex",
+              position: "absolute",
+              top: Math.round(padding * 0.7),
+              ...(isRtl ? { right: Math.round(padding * 0.7) } : { left: Math.round(padding * 0.7) }),
+              width: Math.round(scaleBasis * 0.14),
+              height: Math.round(scaleBasis * 0.14),
+              borderRadius: "50%",
+              background: "#ffffff",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            }}
+          >
+            <img
+              src={props.logoDataUri}
+              alt=""
+              style={{ width: "76%", height: "76%", objectFit: "contain", borderRadius: "50%" }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Text zone: product name + tagline + benefit rows. overflow:
+          hidden is a real defensive clip (satori supports it, per its
+          own README's overflow row) — a real bug was found live where
+          this zone's natural content height exceeded its available
+          space and visually bled into the banner below; sizes were
+          re-tuned to fit, and this stays as a backstop against an
+          unusually long real headline/benefit text doing the same. */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          width,
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          padding: `${Math.round(scaleBasis * 0.02)}px ${padding}px`,
+          gap: Math.round(scaleBasis * 0.014),
+          direction: props.direction,
+        }}
+      >
+        <div
+          style={{
+            display: "block",
+            fontSize: Math.round(scaleBasis * 0.044),
+            fontWeight: 800,
+            color: panelText,
+            lineHeight: 1.15,
+            textAlign: props.textAlign,
+            lineClamp: 2,
+          }}
+        >
+          {props.headline}
+        </div>
+        {props.subhead && (
+          <div
+            style={{
+              display: "block",
+              fontSize: Math.round(scaleBasis * 0.022),
+              fontWeight: 400,
+              color: primary,
+              lineHeight: 1.3,
+              textAlign: props.textAlign,
+              lineClamp: 1,
+            }}
+          >
+            {props.subhead}
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: Math.round(scaleBasis * 0.015), marginTop: Math.round(scaleBasis * 0.012) }}>
+          {benefits.map((benefit, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                flexDirection: isRtl ? "row-reverse" : "row",
+                alignItems: "center",
+                gap: Math.round(scaleBasis * 0.018),
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: Math.round(iconSize * 1.7),
+                  height: Math.round(iconSize * 1.7),
+                  borderRadius: "50%",
+                  background: mixTowardWhite(accent, 0.85),
+                  flexShrink: 0,
+                }}
+              >
+                {infographicIcon(BENEFIT_ICON_ROTATION[i % BENEFIT_ICON_ROTATION.length], iconSize, accent) as unknown as ReactElement}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <div style={{ display: "block", fontSize: Math.round(scaleBasis * 0.02), fontWeight: 700, color: panelText, textAlign: props.textAlign, lineClamp: 1 }}>
+                  {benefit.headline}
+                </div>
+                <div style={{ display: "block", fontSize: Math.round(scaleBasis * 0.015), fontWeight: 400, color: "#555555", textAlign: props.textAlign, lineClamp: 1 }}>
+                  {benefit.subtext}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Full-width company-name banner */}
+      <div
+        style={{
+          display: "flex",
+          width,
+          justifyContent: "center",
+          alignItems: "center",
+          background: primary,
+          padding: `${Math.round(scaleBasis * 0.014)}px ${padding}px`,
+        }}
+      >
+        <div style={{ display: "flex", fontSize: Math.round(scaleBasis * 0.026), fontWeight: 800, color: bannerText, letterSpacing: Math.round(scaleBasis * 0.002), textAlign: "center" }}>
+          {props.companyName}
+        </div>
+      </div>
+
+      {/* Contact row — only real, set fields; never a placeholder */}
+      {contactRows.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            width,
+            justifyContent: "center",
+            alignItems: "center",
+            background: contactBandBg,
+            padding: `${Math.round(scaleBasis * 0.01)}px ${padding}px`,
+            gap: Math.round(scaleBasis * 0.024),
+            direction: props.direction,
+          }}
+        >
+          {contactRows.map((row, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: Math.round(scaleBasis * 0.008) }}>
+              {infographicIcon(row.kind, Math.round(iconSize * 0.85), primary) as unknown as ReactElement}
+              <div style={{ display: "flex", fontSize: Math.round(scaleBasis * 0.014), fontWeight: 500, color: contactText }}>{row.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Trust badge row */}
+      {trustBadges.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            width,
+            justifyContent: "center",
+            alignItems: "center",
+            background: panelBg,
+            padding: `${Math.round(scaleBasis * 0.008)}px ${padding}px`,
+            gap: Math.round(scaleBasis * 0.024),
+            direction: props.direction,
+          }}
+        >
+          {trustBadges.map((badge, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: Math.round(scaleBasis * 0.006) }}>
+              {infographicIcon("shield", Math.round(iconSize * 0.75), secondary) as unknown as ReactElement}
+              <div style={{ display: "flex", fontSize: Math.round(scaleBasis * 0.013), fontWeight: 600, color: "#444444" }}>{badge}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Decorative bottom border — small alternating diamonds, plain
+          divs (not SVG) to match this file's existing decorative-
+          element convention (MODERN_BANNER's accent bar, MINIMALIST_
+          FRAME's border). */}
+      <div style={{ display: "flex", width, height: Math.round(scaleBasis * 0.014), background: primary, alignItems: "center", justifyContent: "space-around" }}>
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              width: Math.round(scaleBasis * 0.009),
+              height: Math.round(scaleBasis * 0.009),
+              background: i % 2 === 0 ? accent : "#ffffff",
+              transform: "rotate(45deg)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function mixTowardWhite(hex: string, t: number): string {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const num = parseInt(full, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  const mix = (c: number) => Math.round(c + (255 - c) * t);
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
+}
+
 export const POSTER_TEMPLATES: Record<PosterTemplate, PosterTemplateDefinition> = {
   MINIMAL: {
     id: "MINIMAL",
@@ -788,5 +1172,12 @@ export const POSTER_TEMPLATES: Record<PosterTemplate, PosterTemplateDefinition> 
     description: "Clean bottom text on a full photo, with a thin brand-color border frame and a subtle logo watermark.",
     contrastSpec: { kind: "overlay", scrimStops: MINIMALIST_FRAME_SCRIM, headlineNearEdgeFraction: (ar) => bottomStackNearEdgeFraction(ar, MINIMALIST_FRAME_SIZES) },
     render: renderMinimalistFrame,
+  },
+  INFOGRAPHIC_SHOWCASE: {
+    id: "INFOGRAPHIC_SHOWCASE",
+    name: "Infographic Showcase",
+    description: "A structured, icon-driven layout with benefit callouts, contact info, and trust badges — for a detailed product or service showcase.",
+    contrastSpec: { kind: "panel" },
+    render: renderInfographicShowcase,
   },
 };
