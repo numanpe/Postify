@@ -252,7 +252,7 @@ export class TemplateTextProvider implements TextProvider {
   }
 
   async generateCaption({ context, topic, variantIndex }: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
-    const { pack, name, tone, secondaryNiches, companyId, targetMarket } = context;
+    const { pack, name, tone, secondaryNiches, companyId, targetMarket, locale } = context;
     const vars = { company: name, topic, niches: secondaryNiches.join(", ") };
     // Same topic + same companyId is otherwise fully deterministic (see
     // GenerateCaptionInput.variantIndex's doc comment) — folding the
@@ -280,13 +280,33 @@ export class TemplateTextProvider implements TextProvider {
       hook.usedCompany || valueProp.usedCompany,
       hook.usedTopic || valueProp.usedTopic,
     );
+    // Real, confirmed-live gap (found while verifying the Arabic
+    // industry packs, 2026-09-03): these two lines were hardcoded
+    // English regardless of company.locale, so any AR company with
+    // secondaryNiches/targetMarket set got an English sentence spliced
+    // into an otherwise-fully-Arabic caption — the exact "English-plus-
+    // a-translation-layer" failure CLAUDE.md's Arabic requirement
+    // exists to prevent. Both AR phrasings are nominal/agentless
+    // constructions on purpose: secondaryNiches and targetMarket are
+    // arbitrary free text with unknown grammatical gender, so unlike
+    // the industry packs' own {{topic}} rule (which controls the
+    // template, not the filler), there's no way to conjugate a verb
+    // to agree with them safely. "بخبرة خاصة في" has no verb at all;
+    // "نخدم بفخر" conjugates for the company ("we"), never for the
+    // market name that follows it as an object.
     const nicheLine = secondaryNiches.length
-      ? ` Specializing in ${secondaryNiches.join(", ")}.`
+      ? locale === "AR"
+        ? ` بخبرة خاصة في ${secondaryNiches.join("، ")}.`
+        : ` Specializing in ${secondaryNiches.join(", ")}.`
       : "";
     // Real, not decorative — see Company.targetMarket's own schema
     // comment. Same "always the same sentence, never invented" honesty
     // this deterministic system already applies everywhere else.
-    const marketLine = targetMarket ? ` Proudly serving ${targetMarket}.` : "";
+    const marketLine = targetMarket
+      ? locale === "AR"
+        ? ` نخدم بفخر ${targetMarket}.`
+        : ` Proudly serving ${targetMarket}.`
+      : "";
 
     const text = `${hook.text} ${valueProp.text}${nicheLine}${marketLine} ${cta.text}`.replace(/\s+/g, " ").trim();
 
