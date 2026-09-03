@@ -64,7 +64,15 @@ export default async function StudioWizardStep3Page({
             mediaHeight={poster.asset.height}
             companyName={company.name}
             logoUrl={logoUrl}
-            captionText={[poster.headline, poster.subhead, poster.cta].filter(Boolean).join("\n\n")}
+            // Real bug, found live (2026-09-03): this used to
+            // reconstruct headline/subhead/cta here, which are already
+            // baked into the poster's own pixels by the render
+            // pipeline — the previewer's overlay drew that same text a
+            // second time on top of the image itself. A Studio-
+            // generated poster has no separate, independently-composed
+            // social caption, so the honest fix is no caption here, not
+            // a duplicated one.
+            captionText={null}
           />
         )}
 

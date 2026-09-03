@@ -146,6 +146,18 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
   const tabId = (platform: PreviewPlatform) => `${uid}-tab-${platform}`;
   const panelId = `${uid}-panel`;
 
+  // Real bug, found live (2026-09-03): TikTok's own real, wired API
+  // integration is video-only (platform-status.ts's VIDEO_ONLY_PLATFORMS
+  // — the image-posting adapters have no video path and vice versa), so
+  // an image asset can never actually be published to TikTok through
+  // this app, full stop. Showing a full TikTok preview tab (crop
+  // warning, "original audio," like/comment chrome) for a destination
+  // that's structurally impossible for this exact asset is exactly the
+  // "fake functionality" CLAUDE.md's own hard rule exists to prevent —
+  // so the tab itself doesn't exist for an image, rather than existing
+  // and silently misleading.
+  const tabOrder = mediaType === "image" ? TAB_ORDER.filter((platform) => platform !== "TIKTOK") : TAB_ORDER;
+
   const sourceRatio = mediaWidth / mediaHeight;
   const isVertical = Math.abs(sourceRatio - 9 / 16) < 0.08;
   const showInstagramStory = sourceRatio < 0.75; // portrait-leaning source -> Story, not Feed
@@ -169,7 +181,7 @@ export function SocialMediaPreviewer(props: SocialMediaPreviewerProps) {
         role="tablist"
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto border-b border-paper-border text-sm font-medium dark:border-night-border"
       >
-        {TAB_ORDER.map((platform) => (
+        {tabOrder.map((platform) => (
           <button
             key={platform}
             type="button"

@@ -178,7 +178,19 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
                     mediaHeight={poster.asset.height}
                     companyName={companyName}
                     logoUrl={companyLogoUrl}
-                    captionText={poster.headline}
+                    // Real bug, found live (2026-09-03): this used to
+                    // pass poster.headline here, which is already baked
+                    // into the poster's own pixels by the render
+                    // pipeline — the previewer's overlay then drew that
+                    // same text a second time on top of the image
+                    // itself. A Studio-generated poster has no separate,
+                    // independently-composed social caption (unlike a
+                    // campaign item's own real item.captionText, see
+                    // calendar-item-card.tsx), so the honest fix is no
+                    // caption here, not a duplicated one — the
+                    // previewer's own placeholder makes that clear
+                    // rather than fabricating one.
+                    captionText={null}
                   />
                 )}
                 {poster.backgroundSource === "AI" && <RegenerateBackgroundButton posterId={poster.id} />}
