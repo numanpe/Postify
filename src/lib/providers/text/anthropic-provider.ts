@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  EditPosterInput,
+  EditPosterOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -35,6 +37,8 @@ import {
   parseClarifyTopicResponse,
   buildPosterHighlightsPrompt,
   parsePosterHighlightsResponse,
+  buildPosterEditPrompt,
+  parsePosterEditResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 
@@ -239,5 +243,28 @@ export class AnthropicTextProvider implements TextProvider {
 
     const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
     return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
+  }
+
+  async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
+    const { system, user } = buildPosterEditPrompt(input);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 500);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed poster-edit JSON.", error);
+    }
+
+    const validAssetIds = new Set(input.availablePhotos.map((p) => p.id));
+    const { explanation, updatedSpec, newImageRequest } = parsePosterEditResponse(parsed, this.name, validAssetIds);
+    return {
+      available: true,
+      updatedSpec: updatedSpec ?? undefined,
+      explanation,
+      newImageRequest: newImageRequest ?? undefined,
+      providerName: this.name,
+      estimatedCostUsd,
+    };
   }
 }

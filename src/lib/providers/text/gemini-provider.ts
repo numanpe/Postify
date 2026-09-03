@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  EditPosterInput,
+  EditPosterOutput,
 } from "./types";
 import { ProviderError } from "./types";
 import {
@@ -35,9 +37,12 @@ import {
   parseClarifyTopicResponse,
   buildPosterHighlightsPrompt,
   parsePosterHighlightsResponse,
+  buildPosterEditPrompt,
+  parsePosterEditResponse,
 } from "./prompt";
 import { fetchWithRetry } from "../http";
 import { GEMINI_TEXT_MODEL } from "../gemini-models";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 
 // Verified against Google's real official docs (ai.google.dev) before
 // writing this, same discipline as the Gemini image provider.
@@ -202,6 +207,46 @@ const POSTER_HIGHLIGHTS_RESPONSE_SCHEMA = {
     trustBadges: { type: "ARRAY", items: { type: "STRING" } },
   },
   required: ["benefits", "trustBadges"],
+};
+
+// Real schema-level constraint (2026-09-03 natural-language poster
+// editing), not just prompt instructions — Gemini's own responseSchema
+// enforces `template`/`backgroundSource` can only ever be one of this
+// app's real values, per Part 2.4's own "constrain what the schema
+// allows to what the template system can actually render" requirement.
+const POSTER_EDIT_COLORS_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    primary: { type: "STRING" },
+    secondary: { type: "STRING" },
+    accent: { type: "STRING" },
+  },
+  required: ["primary", "secondary", "accent"],
+};
+
+const POSTER_EDIT_SPEC_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    template: { type: "STRING", enum: [...TEMPLATE_IDS] },
+    headline: { type: "STRING" },
+    subhead: { type: "STRING", nullable: true },
+    cta: { type: "STRING", nullable: true },
+    backgroundSource: { type: "STRING", enum: ["BRAND", "PHOTO", "AI"] },
+    backgroundAssetId: { type: "STRING", nullable: true },
+    colors: POSTER_EDIT_COLORS_SCHEMA,
+  },
+  required: ["template", "headline", "backgroundSource", "colors"],
+};
+
+const POSTER_EDIT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    canApply: { type: "BOOLEAN" },
+    explanation: { type: "STRING" },
+    updatedSpec: { ...POSTER_EDIT_SPEC_SCHEMA, nullable: true },
+    newImageRequest: { type: "STRING", nullable: true },
+  },
+  required: ["canApply", "explanation"],
 };
 
 export class GeminiTextProvider implements TextProvider {
@@ -458,5 +503,27 @@ export class GeminiTextProvider implements TextProvider {
 
     const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
     return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
+  }
+
+  async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
+    const { system, user } = buildPosterEditPrompt(input);
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 600,
+      responseSchema: POSTER_EDIT_RESPONSE_SCHEMA,
+    });
+
+    const parsed = this.parseJsonOrThrow("editPosterSpec", "poster edit", content, finishReason);
+
+    const validAssetIds = new Set(input.availablePhotos.map((p) => p.id));
+    const { explanation, updatedSpec, newImageRequest } = parsePosterEditResponse(parsed, this.name, validAssetIds);
+    return {
+      available: true,
+      updatedSpec: updatedSpec ?? undefined,
+      explanation,
+      newImageRequest: newImageRequest ?? undefined,
+      providerName: this.name,
+      estimatedCostUsd,
+    };
   }
 }

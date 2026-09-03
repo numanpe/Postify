@@ -19,6 +19,7 @@ import type {
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
   PosterBenefit,
+  EditPosterOutput,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
@@ -569,6 +570,19 @@ export class TemplateTextProvider implements TextProvider {
     const trustBadges = [...new Set(badgeIndexes)].map((idx) => stripTrailingPeriod(fillTemplate(pack.hooks[idx], vars)));
 
     return { benefits, trustBadges, providerName: this.name };
+  }
+
+  // Real, honest "no" — unlike original poster generation (which has a
+  // genuine deterministic template path), interpreting an arbitrary
+  // free-form edit instruction needs actual language understanding this
+  // tier doesn't have. Same "no" as clarifyTopic's own doc comment, not
+  // a fake best-effort attempt.
+  async editPosterSpec(): Promise<EditPosterOutput> {
+    return {
+      available: false,
+      unavailableReason: "Editing a poster with a written instruction needs a connected AI provider — add one in Settings.",
+      providerName: this.name,
+    };
   }
 }
 

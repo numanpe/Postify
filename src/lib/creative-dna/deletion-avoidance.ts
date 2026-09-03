@@ -45,6 +45,7 @@ export function withDeletionAvoidance(provider: TextProvider, companyId: string)
     summarizeBusinessContext: (input) => provider.summarizeBusinessContext(input),
     clarifyTopic: (input) => provider.clarifyTopic(input),
     generatePosterHighlights: (input) => provider.generatePosterHighlights(input),
+    editPosterSpec: (input) => provider.editPosterSpec(input),
     async generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput> {
       let result = await provider.generateCaption(input);
       let attempt = input.variantIndex ?? 0;

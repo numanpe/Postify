@@ -1,4 +1,5 @@
-import type { SocialPlatform } from "@prisma/client";
+import type { SocialPlatform, PosterTemplate, BackgroundSource } from "@prisma/client";
+import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 
 import type { CompanyContext } from "@/lib/company-context";
 import type {
@@ -11,6 +12,8 @@ import type {
   ClarifyTopicInput,
   GeneratePosterHighlightsInput,
   PosterBenefit,
+  EditPosterInput,
+  PosterEditSpec,
 } from "./types";
 import { ProviderError } from "./types";
 import { validateTopic } from "@/lib/topic-validation";
@@ -558,4 +561,116 @@ export function parsePosterHighlightsResponse(
     ? record.trustBadges.filter((t): t is string => typeof t === "string" && t.trim().length > 0).map((t) => t.trim())
     : [];
   return { benefits, trustBadges };
+}
+
+const BACKGROUND_SOURCE_VALUES = ["BRAND", "PHOTO", "AI"] as const;
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+// Natural-language poster editing (2026-09-03). The real, honest scope
+// boundary lives in this prompt itself, not just in application code:
+// the model is told directly what it can and can't do, so a request
+// for true freeform repositioning gets an honest "can't do that" back
+// instead of a silently-ignored or hallucinated attempt.
+export function buildPosterEditPrompt(input: EditPosterInput): { system: string; user: string } {
+  const { context, currentSpec, instruction, availablePhotos } = input;
+  const { locale } = context;
+
+  const languageInstruction =
+    locale === "AR"
+      ? "Write explanation and any edited headline/subhead/cta text in natural, culturally idiomatic Arabic if the instruction itself is in Arabic, or matches the current spec's own language — never force a language switch the user didn't ask for."
+      : "Write explanation and any edited text in English unless the instruction is itself in another language, in which case match it.";
+
+  const photoList =
+    availablePhotos.length > 0
+      ? availablePhotos.map((p) => `- id "${p.id}": ${p.fileName}`).join("\n")
+      : "(none — this company has no other real uploaded photos right now)";
+
+  const system = [
+    "You edit a structured poster specification based on a real user's plain-language instruction. You do NOT generate pixels or images directly — you only produce an updated version of the same JSON structure, which a separate real rendering pipeline draws exactly as given.",
+    "",
+    `Valid "template" values, each a genuinely different layout (this is the only way to "move" where things sit — there is no way to reposition one element within a single template): ${JSON.stringify(TEMPLATE_IDS)}.`,
+    `Valid "backgroundSource" values: ${JSON.stringify(BACKGROUND_SOURCE_VALUES)}. "PHOTO" requires a real backgroundAssetId from the list below; "AI" means a new background image will be generated separately — set newImageRequest to describe what it should show.`,
+    "colors.primary/secondary/accent must each be a real 6-digit hex color (e.g. \"#1a2b3c\") — either kept from the current spec or a genuine, sensible new color if the instruction asks for a color change. Never leave a color empty or invent a non-hex value.",
+    "headline/subhead/cta are free text — edit only what the instruction actually asks about; leave every other field byte-identical to the current spec.",
+    "",
+    "Real capability boundary — be honest about this, don't attempt what isn't real:",
+    "- You CAN: change which template/layout is used, edit headline/subhead/cta text, change colors, swap the background photo for one of the real photos listed below, or request a new AI-generated background image.",
+    "- You CANNOT: move, resize, or reposition one specific element within a single template's fixed layout (e.g. \"move the logo to the bottom-right\") — a template's internal layout is fixed. If asked for this, set canApply to false and explain honestly in plain language that this isn't something the system can do, without attempting a broken or partial workaround.",
+    "- You CANNOT: true pixel-level painting, erasing, or freeform drawing — this only edits the structured fields above.",
+    "",
+    `Real photos already in this company's Media Library, available to swap in directly instead of generating a new AI image:\n${photoList}`,
+    "",
+    languageInstruction,
+    'Respond with ONLY a JSON object: {"canApply": true|false, "explanation": "...", "updatedSpec": {"template": "...", "headline": "...", "subhead": "..."|null, "cta": "..."|null, "backgroundSource": "...", "backgroundAssetId": "..."|null, "colors": {"primary": "#...", "secondary": "#...", "accent": "#..."}} | null, "newImageRequest": "..."|null}',
+    "updatedSpec must be null when canApply is false. newImageRequest must be null unless backgroundSource is \"AI\" and no real photo fit.",
+  ].join(" ");
+
+  const user = `Current poster spec:\n${JSON.stringify(currentSpec)}\n\nUser's instruction: "${instruction}"`;
+
+  return { system, user };
+}
+
+export function parsePosterEditResponse(
+  parsed: unknown,
+  providerName: string,
+  validAssetIds: Set<string>,
+): { canApply: boolean; explanation: string; updatedSpec: PosterEditSpec | null; newImageRequest: string | null } {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Poster-edit response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  const canApply = record.canApply === true;
+  const explanation = typeof record.explanation === "string" && record.explanation.trim() ? record.explanation.trim() : "";
+  if (!canApply) {
+    return { canApply: false, explanation: explanation || "That isn't something this editor can do.", updatedSpec: null, newImageRequest: null };
+  }
+
+  const specRaw = record.updatedSpec as Record<string, unknown> | undefined;
+  if (typeof specRaw !== "object" || specRaw === null) {
+    throw new ProviderError(providerName, "Poster-edit response said canApply but is missing updatedSpec.");
+  }
+
+  const template = specRaw.template;
+  if (typeof template !== "string" || !(TEMPLATE_IDS as readonly string[]).includes(template)) {
+    throw new ProviderError(providerName, `Poster-edit response has an invalid template value: ${String(template)}.`);
+  }
+  const backgroundSource = specRaw.backgroundSource;
+  if (typeof backgroundSource !== "string" || !(BACKGROUND_SOURCE_VALUES as readonly string[]).includes(backgroundSource)) {
+    throw new ProviderError(providerName, `Poster-edit response has an invalid backgroundSource value: ${String(backgroundSource)}.`);
+  }
+  const backgroundAssetId =
+    typeof specRaw.backgroundAssetId === "string" && specRaw.backgroundAssetId.trim() ? specRaw.backgroundAssetId.trim() : null;
+  // Real, defensive re-check: never trust the model's own claim that an
+  // asset id is real — only accept one this company actually has.
+  if (backgroundSource === "PHOTO" && (!backgroundAssetId || !validAssetIds.has(backgroundAssetId))) {
+    throw new ProviderError(providerName, "Poster-edit response picked a photo that isn't a real asset this company has.");
+  }
+
+  const colorsRaw = specRaw.colors as Record<string, unknown> | undefined;
+  const colors = { primary: colorsRaw?.primary, secondary: colorsRaw?.secondary, accent: colorsRaw?.accent };
+  for (const [key, value] of Object.entries(colors)) {
+    if (typeof value !== "string" || !HEX_COLOR_RE.test(value)) {
+      throw new ProviderError(providerName, `Poster-edit response has an invalid ${key} color: ${String(value)}.`);
+    }
+  }
+
+  const updatedSpec: PosterEditSpec = {
+    template: template as PosterTemplate,
+    headline: typeof specRaw.headline === "string" && specRaw.headline.trim() ? specRaw.headline.trim() : "",
+    subhead: typeof specRaw.subhead === "string" && specRaw.subhead.trim() ? specRaw.subhead.trim() : null,
+    cta: typeof specRaw.cta === "string" && specRaw.cta.trim() ? specRaw.cta.trim() : null,
+    backgroundSource: backgroundSource as BackgroundSource,
+    backgroundAssetId: backgroundSource === "PHOTO" ? backgroundAssetId : null,
+    colors: colors as { primary: string; secondary: string; accent: string },
+  };
+  if (!updatedSpec.headline) {
+    throw new ProviderError(providerName, "Poster-edit response has an empty headline.");
+  }
+
+  const newImageRequest =
+    updatedSpec.backgroundSource === "AI" && typeof record.newImageRequest === "string" && record.newImageRequest.trim()
+      ? record.newImageRequest.trim()
+      : null;
+
+  return { canApply: true, explanation: explanation || "Updated.", updatedSpec, newImageRequest };
 }

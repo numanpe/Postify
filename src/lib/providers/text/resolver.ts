@@ -89,6 +89,7 @@ const METHOD_PRESENCE: Record<Exclude<keyof TextProvider, "name">, true> = {
   summarizeBusinessContext: true,
   clarifyTopic: true,
   generatePosterHighlights: true,
+  editPosterSpec: true,
 };
 
 function wireTextProvider(candidates: { label: string; provider: TextProvider }[], companyId: string): TextProvider {

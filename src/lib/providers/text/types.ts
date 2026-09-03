@@ -1,5 +1,5 @@
 import type { CompanyContext } from "@/lib/company-context";
-import type { SocialPlatform } from "@prisma/client";
+import type { SocialPlatform, PosterTemplate, BackgroundSource } from "@prisma/client";
 import type { FallbackInfo } from "../fallback-log";
 
 // Part 2 of the 5-feature request: AI-drafted replies to real inbox
@@ -254,6 +254,64 @@ export interface GeneratePosterHighlightsOutput {
   fallbackFrom?: FallbackInfo[];
 }
 
+// Natural-language poster editing (2026-09-03) — a real, addressable,
+// structured representation of a generated poster's current state:
+// exactly the fields the render pipeline (generate.ts/templates.tsx)
+// actually consumes, nothing invented (e.g. no per-element "position" —
+// the real renderer has no such concept; see this feature's own scope-
+// boundary doc comment in poster-edit.ts). colors are the RESOLVED
+// values already in effect (a poster's own override, or the company's
+// real BrandKit default) — never null here even when the underlying
+// override field is null, so the AI always sees real color values to
+// reason about.
+export interface PosterEditSpec {
+  template: PosterTemplate;
+  headline: string;
+  subhead: string | null;
+  cta: string | null;
+  backgroundSource: BackgroundSource;
+  // Only meaningful when backgroundSource is "PHOTO" — the real
+  // MediaAsset id currently filling the image slot.
+  backgroundAssetId: string | null;
+  colors: { primary: string; secondary: string; accent: string };
+}
+
+export interface EditPosterInput {
+  context: CompanyContext;
+  currentSpec: PosterEditSpec;
+  instruction: string;
+  // Real Media Library photos this company actually has, id+fileName
+  // only (cheap) — per the "prefer a real photo over generating a new
+  // AI image" rule: if the instruction wants different imagery and one
+  // of these genuinely fits, the AI should point at it directly rather
+  // than requesting a new AI generation.
+  availablePhotos: { id: string; fileName: string }[];
+}
+
+export interface EditPosterOutput {
+  // False only for the free/template tier — genuinely no AI available
+  // to interpret free-form instructions (unlike original generation,
+  // there's no honest deterministic fallback for this). True for a real
+  // BYOK or shared-pool call, regardless of whether it could satisfy
+  // the specific instruction.
+  available: boolean;
+  unavailableReason?: string;
+  // Set together: the AI's real understanding of what it changed (or
+  // honestly couldn't) — always shown to the user, never silently
+  // dropped, per this feature's own honest-scope-boundary requirement.
+  updatedSpec?: PosterEditSpec;
+  explanation?: string;
+  // Set when the AI decided new/different imagery is needed and no
+  // availablePhotos entry genuinely fit — a real request for the
+  // existing AI background pipeline to fulfill as a separate step, not
+  // an image this method generates itself.
+  newImageRequest?: string;
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
+}
+
 export interface TextProvider {
   readonly name: string;
   generateReply(input: GenerateReplyInput): Promise<GenerateReplyOutput>;
@@ -264,6 +322,7 @@ export interface TextProvider {
   summarizeBusinessContext(input: SummarizeBusinessContextInput): Promise<SummarizeBusinessContextOutput>;
   clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput>;
   generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput>;
+  editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

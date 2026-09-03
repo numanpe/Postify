@@ -33,6 +33,24 @@ export interface GeneratePosterCoreInput {
   template: PosterTemplate;
   backgroundSource: BackgroundSource;
   backgroundAssetId?: string;
+  // Natural-language poster editing (2026-09-03) — a real per-poster
+  // color override that takes precedence over the company's own
+  // BrandKit colors for this generation only. Undefined (not just a
+  // missing key) for every caller except the edit flow, which always
+  // resolves and passes an explicit override even when unchanged from
+  // BrandKit — see poster-edit.ts's own doc comment for why.
+  colorOverrides?: { primary?: string | null; secondary?: string | null; accent?: string | null };
+  // Real edit lineage — set together by the edit flow only. Neither is
+  // ever set for an original, non-edited poster.
+  parentPosterId?: string;
+  editInstruction?: string;
+  // Natural-language editing's "add a picture of X" case: the AI
+  // background pipeline's real subject cue, when it should be driven by
+  // the specific edit instruction rather than the poster's own headline
+  // text (which may be about something else entirely, e.g. a headline
+  // about a sale with an edit asking for "a delivery truck" background).
+  // Defaults to the headline for every other caller, unchanged.
+  backgroundTopicHint?: string;
 }
 
 export interface GeneratePosterCoreResult {
@@ -80,6 +98,17 @@ export async function generatePosterCore(
       : null,
   ]);
 
+  // Natural-language editing's color override, resolved once — takes
+  // precedence over the company's own BrandKit colors wherever this
+  // poster's colors are read below (background generation included, not
+  // just the text/logo overlay, so an edited color genuinely shows up
+  // everywhere a color is used).
+  const resolvedColors = {
+    primary: input.colorOverrides?.primary ?? brandKit?.primaryColor,
+    secondary: input.colorOverrides?.secondary ?? brandKit?.secondaryColor,
+    accent: input.colorOverrides?.accent ?? brandKit?.accentColor,
+  };
+
   const gate = runPosterQualityGate({
     headline: input.headline,
     companyLocale: context.locale,
@@ -103,18 +132,15 @@ export async function generatePosterCore(
   let resolvedBackgroundAssetId: string | undefined;
   let backgroundProviderName: string | undefined;
   const fallbackFrom: FallbackInfo[] = [];
+  const backgroundTopic = input.backgroundTopicHint ?? input.headline;
 
   if (input.backgroundSource === "BRAND") {
-    const provider = getBrandGradientProvider({
-      primary: brandKit?.primaryColor,
-      secondary: brandKit?.secondaryColor,
-      accent: brandKit?.accentColor,
-    });
+    const provider = getBrandGradientProvider(resolvedColors);
     const result = await provider.generateBackground({
       companyName: context.name,
       industry: context.industry,
       tone: context.tone,
-      topic: input.headline,
+      topic: backgroundTopic,
       widthPx: width,
       heightPx: height,
     });
@@ -158,7 +184,7 @@ export async function generatePosterCore(
       brandKit,
       logoBuffer,
       logoMimeType,
-      headline: input.headline,
+      headline: backgroundTopic,
       template: input.template,
     });
 
@@ -166,7 +192,7 @@ export async function generatePosterCore(
     let expanded;
     try {
       expanded = await textProvider.expandBackgroundPrompt({
-        rawUserPrompt: input.headline,
+        rawUserPrompt: backgroundTopic,
         industry: backgroundGeneratorContext.industry,
         visualTone: backgroundGeneratorContext.visualTone,
         accentColorsForBackground: backgroundGeneratorContext.accentColorsForBackground,
@@ -187,17 +213,13 @@ export async function generatePosterCore(
     // Cloudflare pool (no key) falls through to the brand gradient
     // internally on any failure; BYOK still throws real errors below,
     // caught same as always. See resolver.ts / shared-image-pool.ts.
-    const provider = await getAiImageProviderForPoster(input.companyId, {
-      primary: brandKit?.primaryColor,
-      secondary: brandKit?.secondaryColor,
-      accent: brandKit?.accentColor,
-    });
+    const provider = await getAiImageProviderForPoster(input.companyId, resolvedColors);
     try {
       const result = await provider.generateBackground({
         companyName: context.name,
         industry: context.industry,
         tone: context.tone,
-        topic: input.headline,
+        topic: backgroundTopic,
         widthPx: width,
         heightPx: height,
         expandedPrompt: expanded.expandedVisualPrompt,
@@ -251,11 +273,7 @@ export async function generatePosterCore(
     contact: contactInfo
       ? { phone: contactInfo.phone, whatsapp: contactInfo.whatsappNumber, email: contactInfo.contactEmail, website: contactInfo.websiteUrl }
       : undefined,
-    brandColors: {
-      primary: brandKit?.primaryColor,
-      secondary: brandKit?.secondaryColor,
-      accent: brandKit?.accentColor,
-    },
+    brandColors: resolvedColors,
   });
 
   const storageKey = buildStorageKey(input.companyId, `poster-${input.aspectRatio.toLowerCase()}.png`);
@@ -282,6 +300,14 @@ export async function generatePosterCore(
     },
   });
 
+  // Only persisted as a real override when it genuinely differs from
+  // the company's own current BrandKit color — an edit that didn't
+  // touch colors shouldn't leave a redundant override sitting on the
+  // new poster; a later real BrandKit color change should still show
+  // up on this poster the same way it would on any unedited one.
+  const colorOverrideToStore = (resolved: string | null | undefined, brandDefault: string | null | undefined) =>
+    resolved && resolved !== brandDefault ? resolved : null;
+
   const poster = await db.poster.create({
     data: {
       companyId: input.companyId,
@@ -293,6 +319,11 @@ export async function generatePosterCore(
       template: input.template,
       backgroundSource: input.backgroundSource,
       backgroundAssetId: resolvedBackgroundAssetId,
+      overridePrimaryColor: colorOverrideToStore(resolvedColors.primary, brandKit?.primaryColor),
+      overrideSecondaryColor: colorOverrideToStore(resolvedColors.secondary, brandKit?.secondaryColor),
+      overrideAccentColor: colorOverrideToStore(resolvedColors.accent, brandKit?.accentColor),
+      parentPosterId: input.parentPosterId,
+      editInstruction: input.editInstruction,
     },
   });
 

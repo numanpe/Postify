@@ -475,6 +475,31 @@ model Poster {
   backgroundAssetId String?
   backgroundAsset   MediaAsset?      @relation("PosterBackgroundSource", fields: [backgroundAssetId], references: [id], onDelete: SetNull)
 
+  // Real per-poster color override (2026-09-03, natural-language
+  // editing) — null means "use the company's real BrandKit colors",
+  // same non-fake convention as every other nullable color field in
+  // this app. A poster only gets its own override when an edit
+  // explicitly asked for a color change; the original/unedited poster
+  // always has all three null.
+  overridePrimaryColor   String?
+  overrideSecondaryColor String?
+  overrideAccentColor    String?
+
+  // Real edit lineage (2026-09-03) — this app never edits a poster in
+  // place (see regeneratePosterBackground's own doc comment); every
+  // edit creates a brand-new Poster row instead. parentPosterId links
+  // that new row back to the one it was edited from, and editInstruction
+  // records the real plain-language instruction that produced it (null
+  // for an original, non-edited poster) — together these are what let
+  // the UI show a real "what was asked and changed" trail and a real
+  // before/after comparison, by walking the chain. SetNull (not
+  // Cascade) so deleting an earlier version never deletes its
+  // descendants — same reasoning as backgroundAsset above.
+  parentPosterId String?
+  parentPoster   Poster?  @relation("PosterEditLineage", fields: [parentPosterId], references: [id], onDelete: SetNull)
+  editInstruction String?
+  edits          Poster[] @relation("PosterEditLineage")
+
   createdAt DateTime @default(now())
 
   // Media Library's "Share" button (2026-09-02) publishes a poster

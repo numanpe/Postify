@@ -117,6 +117,10 @@ export interface Dictionary {
     templateMinimalistFrameName: string; templateMinimalistFrameDescription: string;
     templateInfographicShowcaseName: string; templateInfographicShowcaseDescription: string;
     regenerateBackground: string; regeneratingBackground: string; regenerateBackgroundSuccess: string;
+    editWithAI: string; editTitle: string; editInstructionLabel: string; editInstructionPlaceholder: string;
+    editSubmit: string; editSubmitting: string; editCancel: string;
+    editUnavailable: string; editCannotApply: string;
+    editHistoryTitle: string; editHistoryOriginal: string;
   };
   video: {
     title: string; subtitle: (name: string) => string; previousVideos: string; topic: string;
@@ -552,6 +556,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       regenerateBackground: "Regenerate background",
       regeneratingBackground: "Regenerating…",
       regenerateBackgroundSuccess: "New background generated — see it above.",
+      editWithAI: "Edit with AI",
+      editTitle: "Edit this poster",
+      editInstructionLabel: "What would you like changed?",
+      editInstructionPlaceholder: "e.g. Make the CTA button green, or use a bolder layout",
+      editSubmit: "Apply edit",
+      editSubmitting: "Applying…",
+      editCancel: "Cancel",
+      editUnavailable: "Editing with a written instruction needs a connected AI provider — add one in Settings, or ask your team to.",
+      editCannotApply: "That request isn't something this editor can do:",
+      editHistoryTitle: "Edit history",
+      editHistoryOriginal: "Original",
       generate: "Generate poster",
       generating: "Generating…",
     },
@@ -1339,6 +1354,17 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       regenerateBackground: "إعادة توليد الخلفية",
       regeneratingBackground: "جارٍ إعادة التوليد…",
       regenerateBackgroundSuccess: "تم توليد خلفية جديدة — شاهدها أعلاه.",
+      editWithAI: "تعديل بالذكاء الاصطناعي",
+      editTitle: "تعديل هذا الملصق",
+      editInstructionLabel: "ما الذي تودّ تغييره؟",
+      editInstructionPlaceholder: "مثال: اجعل زر الدعوة لاتخاذ إجراء أخضر، أو استخدم تخطيطًا أكثر جرأة",
+      editSubmit: "تطبيق التعديل",
+      editSubmitting: "جارٍ التطبيق…",
+      editCancel: "إلغاء",
+      editUnavailable: "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات، أو اطلب من فريقك ذلك.",
+      editCannotApply: "هذا الطلب ليس شيئًا يمكن لهذا المحرر فعله:",
+      editHistoryTitle: "سجل التعديلات",
+      editHistoryOriginal: "الأصلي",
       generate: "إنشاء الملصق",
       generating: "جارٍ الإنشاء…",
     },

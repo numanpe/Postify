@@ -40,6 +40,7 @@ import {
   Building2,
   HelpCircle,
   Inbox,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +72,7 @@ export const ActionIcons = {
   publishProvider: Send,
   generate: Zap,
   share: Share2,
+  edit: Wand2,
 } satisfies Record<string, LucideIcon>;
 
 // lucide-react no longer ships per-brand logo marks (Instagram/

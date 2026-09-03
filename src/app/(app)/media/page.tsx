@@ -17,6 +17,7 @@ import { NavIcons } from "@/components/icons";
 import { PaginationNav } from "@/components/ui/pagination-nav";
 import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { RegenerateBackgroundButton } from "@/components/poster/regenerate-background-button";
+import { PosterEditModal } from "@/components/poster/poster-edit-modal";
 import { ShareAssetModal } from "@/components/media/share-asset-modal";
 import { appendMusicCredit } from "@/lib/video/music-credit";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
@@ -267,6 +268,7 @@ export default async function MediaPage({
               {!asset.storageDeletedAt && asset.posterOutput?.backgroundSource === "AI" && (
                 <RegenerateBackgroundButton posterId={asset.posterOutput.id} />
               )}
+              {!asset.storageDeletedAt && asset.posterOutput && <PosterEditModal posterId={asset.posterOutput.id} />}
               {/* Part 1's real eligibility signal: posterOutput/
                   videoOutput present — a raw uploaded photo/video never
                   has either, so it never gets a Share button. */}

@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  EditPosterInput,
+  EditPosterOutput,
 } from "./types";
 import { GeminiTextProvider, GeminiQuotaExhaustedError } from "./gemini-provider";
 import { TemplateTextProvider } from "./template-provider";
@@ -221,6 +223,14 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
     generatePosterHighlights: tryShared<[GeneratePosterHighlightsInput], GeneratePosterHighlightsOutput>(
       shared.generatePosterHighlights.bind(shared),
       template.generatePosterHighlights.bind(template),
+    ),
+    // tryShared's own fallback semantics are exactly what this needs:
+    // a real shared-pool edit when configured/not exhausted, otherwise
+    // template.editPosterSpec()'s own honest { available: false, ... }
+    // result — never a thrown error surfacing as a generic failure.
+    editPosterSpec: tryShared<[EditPosterInput], EditPosterOutput>(
+      shared.editPosterSpec.bind(shared),
+      template.editPosterSpec.bind(template),
     ),
   };
 }
