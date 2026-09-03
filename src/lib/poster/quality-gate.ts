@@ -38,6 +38,7 @@ export interface OverlayContrastSpec {
   // headline's near edge can land in the worst case (most wrapped
   // lines) — must mirror the template's real proportional sizing.
   headlineNearEdgeFraction: (aspectRatio: AspectRatio) => number;
+  headlineDensity: HeadlineDensitySpec;
 }
 
 // Text sits on a solid, fully-known color (a panel, not a photo) —
@@ -50,9 +51,49 @@ export interface OverlayContrastSpec {
 // computation is needed at all.
 export interface PanelContrastSpec {
   kind: "panel";
+  headlineDensity: HeadlineDensitySpec;
 }
 
 export type TemplateContrastSpec = OverlayContrastSpec | PanelContrastSpec;
+
+// Real per-template facts (not duplicated magic numbers — each
+// template's own real headlineFontSize fraction, already the single
+// source of truth templates.tsx renders from) feeding the density
+// check below. maxLines is the same real assumption each template's
+// own layout already makes: the bottom-stack overlay templates'
+// contrast math hardcodes 3 wrapped headline lines
+// (bottomStackNearEdgeFraction), INFOGRAPHIC_SHOWCASE hard-clips at 2
+// (its own real lineClamp:2) — panel templates auto-grow instead of
+// hard-capping, so their number here is a real "still looks good"
+// target, not a hard render-time limit.
+export interface HeadlineDensitySpec {
+  fontSizeFraction: number;
+  maxLines: number;
+}
+
+// Real, honest heuristic — a genuine average glyph width for this app's
+// bundled bold sans-serif fonts (Lato/Tajawal) at a given font size, not
+// exact text-layout math (that needs real font metrics this gate has no
+// access to pre-render). Same "labeled approximate, not fake precision"
+// convention as detectToneHeuristic (template-provider.ts). Used to
+// estimate whether a real headline would wrap past the number of lines
+// the chosen template's own layout already assumes — the same real risk
+// class the contrast gate's own worst-case math already worries about,
+// since a headline that wraps further than assumed can push contrast-
+// critical text lower than the proven-safe zone, or (panel templates)
+// squeeze the photo toward zero height.
+const AVG_CHAR_WIDTH_RATIO = 0.56;
+const HEADLINE_WIDTH_FRACTION = 0.86; // ~1 - 2x each template's own real side padding
+
+function estimateMaxHeadlineChars(aspectRatio: AspectRatio, density: HeadlineDensitySpec): number {
+  const { width } = POSTER_DIMENSIONS[aspectRatio];
+  const scaleBasis = scaleBasisFor(aspectRatio);
+  const fontSizePx = scaleBasis * density.fontSizeFraction;
+  const avgCharWidthPx = Math.max(1, fontSizePx * AVG_CHAR_WIDTH_RATIO);
+  const usableWidthPx = width * HEADLINE_WIDTH_FRACTION;
+  const charsPerLine = Math.max(4, Math.floor(usableWidthPx / avgCharWidthPx));
+  return charsPerLine * density.maxLines;
+}
 
 function scrimAlphaAt(stops: ScrimStops, heightFraction: number): number {
   const clamped = Math.min(Math.max(heightFraction, 0), 1);
@@ -98,6 +139,24 @@ export function runPosterQualityGate(input: QualityGateInput): QualityGateResult
       code: "contrast",
       severity: "fail",
       message: `Worst-case headline contrast (${contrast.toFixed(2)}:1) for this format falls below the ${MIN_HEADLINE_CONTRAST}:1 WCAG minimum for large text.`,
+    });
+  }
+
+  // Real whitespace/density check (research-backed design principle
+  // #4, 2026-09-03): an unusually long headline for the chosen template
+  // is a genuine, measurable overcrowding risk — either it wraps past
+  // the number of lines the template's own contrast math assumed
+  // (overlay templates), or it forces a panel template's photo toward
+  // zero height to make room. A warning, not a fail — a slightly-long
+  // headline still renders (clipped or auto-grown), just not at its
+  // best; this is a real, honest heuristic estimate, not exact
+  // wrapping math (see estimateMaxHeadlineChars's own doc comment).
+  const maxHeadlineChars = estimateMaxHeadlineChars(input.aspectRatio, input.contrastSpec.headlineDensity);
+  if (input.headline.length > maxHeadlineChars) {
+    issues.push({
+      code: "headline-density",
+      severity: "warning",
+      message: `This headline (${input.headline.length} characters) is longer than this template/format comfortably fits (~${maxHeadlineChars} characters) — it may wrap more than intended or crowd the rest of the layout. Consider a shorter headline or a template with more room.`,
     });
   }
 

@@ -205,6 +205,13 @@ export async function processSingleCampaignItem(item: DueItem): Promise<Campaign
         // (exhaustion or otherwise) even when this is "AI", so opting
         // in never risks a harder failure than BRAND already has.
         backgroundSource: item.campaign.useAiBackgrounds ? "AI" : "BRAND",
+        // Research-backed design principle (2026-09-03): a campaign
+        // item's own targetPlatforms is a real, already-known
+        // destination at generation time — generatePosterCore only
+        // actually adjusts anything when it resolves to a single real
+        // feed-type (light/dark), never guessing on a mixed list (see
+        // platform-color.ts).
+        targetPlatforms: item.targetPlatforms,
       });
       await db.campaignItem.update({
         where: { id: item.id },

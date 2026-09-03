@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AspectRatio, BackgroundSource, PosterTemplate } from "@prisma/client";
+import type { AspectRatio, BackgroundSource, PosterTemplate, SocialPlatform } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getCompanyContext } from "@/lib/company-context";
@@ -11,6 +11,7 @@ import { POSTER_DIMENSIONS } from "./dimensions";
 import { POSTER_TEMPLATES } from "./templates";
 import { buildPosterBackgroundContext } from "./background-context";
 import { smartCropToAspect } from "./smart-crop";
+import { resolveFeedBackground, pickPlatformEmphasisColor } from "./platform-color";
 import { getBrandGradientProvider, getAiImageProviderForPoster } from "@/lib/providers/image/resolver";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
@@ -44,6 +45,14 @@ export interface GeneratePosterCoreInput {
   // ever set for an original, non-edited poster.
   parentPosterId?: string;
   editInstruction?: string;
+  // Research-backed design principle (2026-09-03): only ever set by a
+  // caller with a real, unambiguous target — e.g. a campaign item whose
+  // own targetPlatforms is already a single-feed-type list (see
+  // process-campaign-items.ts). Never guessed here or by any caller;
+  // absent (not just empty) means "no known destination, don't adjust
+  // anything" — see platform-color.ts's own doc comment for the actual
+  // light/dark-feed color logic.
+  targetPlatforms?: SocialPlatform[];
   // Natural-language editing's "add a picture of X" case: the AI
   // background pipeline's real subject cue, when it should be driven by
   // the specific edit instruction rather than the poster's own headline
@@ -98,15 +107,25 @@ export async function generatePosterCore(
       : null,
   ]);
 
-  // Natural-language editing's color override, resolved once — takes
-  // precedence over the company's own BrandKit colors wherever this
-  // poster's colors are read below (background generation included, not
-  // just the text/logo overlay, so an edited color genuinely shows up
-  // everywhere a color is used).
+  // Real, precedence-ordered color resolution, wherever this poster's
+  // colors are read below (background generation included, not just
+  // the text/logo overlay): an explicit natural-language edit override
+  // always wins; otherwise, when a real single-feed-type target
+  // platform is known, the company's own real brand color that best
+  // pops against that platform's actual feed background; otherwise the
+  // company's plain BrandKit default, unchanged from before this
+  // feature existed.
+  const feedBackground = input.targetPlatforms ? resolveFeedBackground(input.targetPlatforms) : null;
+  const platformEmphasisAccent = feedBackground
+    ? pickPlatformEmphasisColor(
+        { primary: brandKit?.primaryColor, secondary: brandKit?.secondaryColor, accent: brandKit?.accentColor },
+        feedBackground,
+      )
+    : null;
   const resolvedColors = {
     primary: input.colorOverrides?.primary ?? brandKit?.primaryColor,
     secondary: input.colorOverrides?.secondary ?? brandKit?.secondaryColor,
-    accent: input.colorOverrides?.accent ?? brandKit?.accentColor,
+    accent: input.colorOverrides?.accent ?? platformEmphasisAccent ?? brandKit?.accentColor,
   };
 
   const gate = runPosterQualityGate({
