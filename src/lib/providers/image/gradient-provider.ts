@@ -65,6 +65,73 @@ function mixHex(hexA: string, hexB: string, t: number): string {
   return `#${toHex(mix(r1, r2))}${toHex(mix(g1, g2))}${toHex(mix(b1, b2))}`;
 }
 
+// ---------- contrast safety net ----------
+// Real bug found live (2026-09-03, reported against a real company's
+// real poster): a BrandKit whose primary/secondary/accent are all close
+// in lightness (e.g. three near-identical dark greens) makes every
+// style below collapse back into what looks like a single flat
+// gradient — the blobs/panels/lines are genuinely drawn, just in colors
+// too close to the base wash to actually read as visible. Reproduced
+// live against the real company's real colors before writing this fix.
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const [r, g, b] = hexToRgbTuple(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l: l * 100 };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) h = ((b - r) / d + 2) * 60;
+  else h = ((r - g) / d + 4) * 60;
+  return { h, s: s * 100, l: l * 100 };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const sN = s / 100;
+  const lN = l / 100;
+  const c = (1 - Math.abs(2 * lN - 1)) * sN;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lN - c / 2;
+  let [r, g, b] = [0, 0, 0];
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Minimum HSL-lightness separation (percentage points) an overlay color
+// needs from the base wash to actually read as a distinct design
+// element once drawn at the styles' real opacities (0.3-0.55) — picked
+// empirically against the real low-contrast case this was built to fix.
+const MIN_DESIGN_CONTRAST_L = 22;
+
+// Real, targeted fix: if candidateHex is already visually distinct from
+// the base wash, it's returned untouched (the normal-contrast case —
+// most real BrandKits — is completely unaffected by this function).
+// Only when it's too close does this synthesize a same-hue variant
+// pushed to a lightness that clears the threshold — still "this
+// company's actual color," just a shade of it that will actually show
+// up, rather than reaching for an unrelated hardcoded fallback color.
+// A near-grayscale candidate (very low saturation) also gets a real
+// saturation floor, since a lighter/darker gray is just as invisible
+// against a colored base as a same-lightness one.
+function ensureLightnessContrast(anchorL: number, candidateHex: string): string {
+  const candidate = hexToHsl(candidateHex);
+  if (Math.abs(anchorL - candidate.l) >= MIN_DESIGN_CONTRAST_L) return candidateHex;
+  const targetL =
+    anchorL >= 50
+      ? Math.max(8, anchorL - MIN_DESIGN_CONTRAST_L - 6)
+      : Math.min(92, anchorL + MIN_DESIGN_CONTRAST_L + 6);
+  const saturation = candidate.s < 15 ? 35 : candidate.s;
+  return hslToHex(candidate.h, saturation, targetL);
+}
+
 type BackgroundStyle = "MESH" | "GEOMETRIC" | "DUOTONE_TEXTURE" | "ABSTRACT_LINES";
 
 // Reuses the same real, already-established per-industry composition
@@ -88,6 +155,13 @@ interface StyleColors {
   to: string;
   accent: string;
   highlight: string;
+  // Contrast-safe stand-in for `to` specifically where a style reuses it
+  // as a FILLED OVERLAY shape (a blob/circle drawn on top of the base
+  // wash) rather than as one of the base gradient's own two stops —
+  // `to` itself is deliberately never altered, so the base wash always
+  // stays the company's true, unmodified brand color. See
+  // ensureLightnessContrast's doc comment for why this is needed.
+  pop: string;
 }
 
 // ---------- style 1: MESH — soft organic blob gradient ----------
@@ -102,7 +176,7 @@ function buildMeshSvg(width: number, height: number, colors: StyleColors, rng: (
   const blobs = [
     blob(width * (0.15 + rng() * 0.25), height * (0.15 + rng() * 0.3), Math.max(width, height) * 0.42, colors.accent, 0.55),
     blob(width * (0.6 + rng() * 0.3), height * (0.55 + rng() * 0.35), Math.max(width, height) * 0.5, colors.highlight, 0.45),
-    blob(width * (0.35 + rng() * 0.3), height * (0.65 + rng() * 0.25), Math.max(width, height) * 0.38, colors.to, 0.5),
+    blob(width * (0.35 + rng() * 0.3), height * (0.65 + rng() * 0.25), Math.max(width, height) * 0.38, colors.pop, 0.5),
   ].join("\n");
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
@@ -152,7 +226,7 @@ function buildGeometricSvg(width: number, height: number, colors: StyleColors, r
     <g transform="rotate(${angle2} ${panel2Pivot.x} ${panel2Pivot.y})">
       <rect x="${panel2X}" y="${height * 0.5}" width="${panel2Width}" height="${diag}" fill="${panelColorB}" opacity="0.4" />
     </g>
-    <circle cx="${width * (circleSide ? 0.78 + rng() * 0.14 : 0.08 + rng() * 0.14)}" cy="${height * (0.72 + rng() * 0.2)}" r="${circleR}" fill="${colors.to}" opacity="0.35" />
+    <circle cx="${width * (circleSide ? 0.78 + rng() * 0.14 : 0.08 + rng() * 0.14)}" cy="${height * (0.72 + rng() * 0.2)}" r="${circleR}" fill="${colors.pop}" opacity="0.35" />
   `;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
@@ -256,16 +330,28 @@ export class GradientBackgroundProvider implements ImageProvider {
 
     const from = escapeSvgAttr(this.colors.primary ?? DEFAULT_GRADIENT[0]);
     const to = escapeSvgAttr(this.colors.secondary ?? this.colors.accent ?? DEFAULT_GRADIENT[1]);
-    const accent = escapeSvgAttr(this.colors.accent ?? this.colors.secondary ?? this.colors.primary ?? DEFAULT_GRADIENT[1]);
+    const rawAccent = escapeSvgAttr(this.colors.accent ?? this.colors.secondary ?? this.colors.primary ?? DEFAULT_GRADIENT[1]);
+
+    // Guaranteed-visible design-element tones (see ensureLightnessContrast's
+    // doc comment) — `from`/`to` themselves are never altered, so the base
+    // wash always stays this company's true, unmodified brand colors; only
+    // the tones drawn ON TOP of it get pushed to a lightness that will
+    // actually read as a distinct shape once rendered.
+    const baseLightness = (hexToHsl(from).l + hexToHsl(to).l) / 2;
+    const accent = ensureLightnessContrast(baseLightness, rawAccent);
+    const pop = ensureLightnessContrast(baseLightness, to);
     // A real fourth tone derived from the company's own colors (a
     // lightened blend of `to`/`accent`) rather than reaching for an
     // unrelated hardcoded highlight — every color in every style traces
-    // back to this company's actual BrandKit.
-    const highlight = mixHex(to, accent === to ? from : accent, 0.5);
+    // back to this company's actual BrandKit. Mixing two now-distinct
+    // tones together can still land back near the base wash (e.g. if
+    // they sit on opposite sides of it), so the mix itself gets the same
+    // contrast guarantee rather than assuming it inherited one.
+    const highlight = ensureLightnessContrast(baseLightness, mixHex(to, accent === to ? from : accent, 0.5));
 
     const rng = mulberry32(hashSeed(`${companyName}::${topic}`));
     const style = pickStyle(industry as Industry | undefined, rng);
-    const svg = STYLE_BUILDERS[style](widthPx, heightPx, { from, to, accent, highlight }, rng);
+    const svg = STYLE_BUILDERS[style](widthPx, heightPx, { from, to, accent, highlight, pop }, rng);
 
     const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
     return { buffer, mimeType: "image/png", providerName: this.name };
