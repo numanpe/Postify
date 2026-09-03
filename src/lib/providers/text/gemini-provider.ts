@@ -507,9 +507,28 @@ export class GeminiTextProvider implements TextProvider {
 
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
     const { system, user } = buildPosterEditPrompt(input);
+    // Real bug, found live (2026-09-04): 600 was the SMALLEST budget of
+    // any JSON-mode call in this file despite POSTER_EDIT_RESPONSE_SCHEMA
+    // being the most structurally complex one — a nested updatedSpec
+    // object (template/headline/subhead/cta/backgroundSource/
+    // backgroundAssetId) with its own nested colors object, on top of
+    // canApply/explanation/newImageRequest. generateCaption/generateReply
+    // above already measured real production evidence that thinking
+    // tokens alone can consume ~414 tokens even at thinkingLevel:"low",
+    // which is why they run at 700 for a much simpler plain-text
+    // response; generateScript's comparably-sized 5-flat-string schema
+    // also runs at 700. 600 here left less headroom than either, for a
+    // schema with MORE fields — genuine truncation, silently masked by
+    // shared-pool.ts's tryShared() falling back to the free template's
+    // honest-but-misleading-in-this-case "needs a connected AI provider"
+    // message on ANY failure, including this one. Raised to 900 by the
+    // same reasoning (not an independent live measurement — no BYOK/
+    // shared key was available in this dev environment to confirm the
+    // exact real number the way generateCaption's fix originally did;
+    // revisit with a real measurement if truncation is ever seen again).
     const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
       jsonMode: true,
-      maxTokens: 600,
+      maxTokens: 900,
       responseSchema: POSTER_EDIT_RESPONSE_SCHEMA,
     });
 

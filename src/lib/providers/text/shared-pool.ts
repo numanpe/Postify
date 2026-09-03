@@ -224,13 +224,39 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
       shared.generatePosterHighlights.bind(shared),
       template.generatePosterHighlights.bind(template),
     ),
-    // tryShared's own fallback semantics are exactly what this needs:
-    // a real shared-pool edit when configured/not exhausted, otherwise
-    // template.editPosterSpec()'s own honest { available: false, ... }
-    // result — never a thrown error surfacing as a generic failure.
-    editPosterSpec: tryShared<[EditPosterInput], EditPosterOutput>(
-      shared.editPosterSpec.bind(shared),
-      template.editPosterSpec.bind(template),
-    ),
+    // NOT tryShared — real, confirmed-live bug (2026-09-04): every other
+    // method here silently produces alternate CONTENT on fallback, so a
+    // generic catch-all is fine for them. editPosterSpec is the one
+    // method with a user-FACING "why is this unavailable" string, and
+    // template.editPosterSpec()'s message ("needs a connected AI
+    // provider — add one in Settings") is actively misleading when we're
+    // in this catch branch specifically — that only happens because a
+    // real shared-pool key WAS configured and genuinely attempted (see
+    // resolveSharedOrTemplateTextProvider's own apiKey/exhaustion check
+    // above this object literal), not because no provider exists. A real
+    // root cause of exactly this (editPosterSpec's Gemini call truncating
+    // on an undersized token budget) was found and fixed separately in
+    // gemini-provider.ts; this fixes the SEPARATE, still-real problem
+    // that ANY failure here — that one, a genuine exhaustion, or a future
+    // transient error — would keep showing the same "no provider"
+    // message even after that fix, since a temporary failure is still a
+    // real possibility this wording needs to describe honestly.
+    editPosterSpec: async (...args: Parameters<TextProvider["editPosterSpec"]>) => {
+      try {
+        const result = await shared.editPosterSpec(...args);
+        await recordSharedPoolSuccess();
+        return result;
+      } catch (error) {
+        if (error instanceof GeminiQuotaExhaustedError) {
+          await recordSharedPoolExhaustion();
+        }
+        const fallbackResult = await template.editPosterSpec();
+        return {
+          ...fallbackResult,
+          unavailableReason:
+            "Free AI is temporarily unavailable for editing right now — try again shortly, or add your own key in Settings for guaranteed access.",
+        };
+      }
+    },
   };
 }

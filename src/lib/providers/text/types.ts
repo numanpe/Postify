@@ -289,11 +289,16 @@ export interface EditPosterInput {
 }
 
 export interface EditPosterOutput {
-  // False only for the free/template tier — genuinely no AI available
-  // to interpret free-form instructions (unlike original generation,
-  // there's no honest deterministic fallback for this). True for a real
-  // BYOK or shared-pool call, regardless of whether it could satisfy
-  // the specific instruction.
+  // False for the free/template tier (genuinely no AI available to
+  // interpret free-form instructions — unlike original generation,
+  // there's no honest deterministic fallback for this), OR when a real
+  // shared-pool attempt was genuinely made but failed this one time
+  // (exhaustion, a transient error) — see shared-pool.ts's editPosterSpec
+  // wiring, which distinguishes these two cases in unavailableReason's
+  // wording rather than showing "no provider" for a provider that does
+  // exist and just failed once. True for a real BYOK or successful
+  // shared-pool call, regardless of whether it could satisfy the
+  // specific instruction.
   available: boolean;
   unavailableReason?: string;
   // Set together: the AI's real understanding of what it changed (or

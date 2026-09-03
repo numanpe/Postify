@@ -247,7 +247,16 @@ export class AnthropicTextProvider implements TextProvider {
 
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
     const { system, user } = buildPosterEditPrompt(input);
-    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 500);
+    // Raised from 500 alongside gemini-provider.ts's confirmed real fix
+    // for the same method — this file doesn't have Gemini's specific
+    // hidden-thinking-token issue, but 500 was still proportionally
+    // undersized: generateScript's comparably-sized 5-flat-field schema
+    // already gets 500, and this schema is strictly larger (an
+    // explanation field on top of a nested updatedSpec object with its
+    // own nested colors object). Reasoned by structural comparison, not
+    // an independently confirmed failure report the way the Gemini
+    // number was — revisit with real evidence if truncation is seen.
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 700);
 
     let parsed: unknown;
     try {
