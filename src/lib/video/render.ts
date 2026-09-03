@@ -133,6 +133,23 @@ async function concatScenes(scenePaths: string[], dir: string): Promise<string> 
   return outPath;
 }
 
+// Real crossfade transitions were designed and implemented here
+// (2026-09-03) but REVERTED after a real, live test: this app's actual
+// bundled ffmpeg binary (@ffmpeg-installer, both the local Windows build
+// and — per its pinned linux-x64@4.1.0 seen in real Vercel build logs —
+// almost certainly production too) is a pre-2019 build that predates
+// the `xfade` filter (added in FFmpeg 4.3, 2020). A real render failed
+// immediately with ffmpeg's own `No such filter: 'xfade'` — this would
+// have broken every future multi-scene video generation in production,
+// not just failed to improve it. See
+// project_video_visual_polish.md's own memory for the real, verified
+// offset-math design (correct, re-derivable) kept there for whenever
+// the ffmpeg version is deliberately upgraded — that's a separate,
+// larger-blast-radius change (the whole caption/waveform/lower-third/
+// faststart pipeline was hard-won against this exact binary) needing
+// its own scoping pass, not something to slip in as a side effect of
+// adding transitions.
+
 // Audio-only mix (narration ducked under music, or music alone) — kept
 // separate from video compositing so the exact same mixed track can
 // feed both the final mux AND, for WAVEFORM_CAPTIONS, the showwaves
@@ -282,6 +299,19 @@ async function compositeOverlays(
   let lastLabel = "0:v";
   let inputIndex = 1;
 
+  // Real, universal, low-risk color polish (2026-09-03) — a mild
+  // contrast/saturation lift, the same safe default many real video
+  // tools apply, deliberately NOT tied to any specific brand color:
+  // deriving a per-company color grade that reliably looks good across
+  // arbitrary real footage (not just a narrow test set) needs real
+  // cross-footage visual verification this pass didn't have time to do
+  // rigorously — reported honestly as a follow-up rather than shipped
+  // on a guess. This universal lift is bounded conservatively (+5%
+  // contrast, +10% saturation) so it reads as "slightly more polished,"
+  // never an obviously graded/filtered look.
+  filters.push(`[${lastLabel}]eq=contrast=1.05:saturation=1.1[graded]`);
+  lastLabel = "graded";
+
   if (logoBuffer) {
     const logoPath = await writeScratchFile(dir, "logo.png", logoBuffer);
     inputs.push("-loop", "1", "-i", logoPath);
@@ -355,8 +385,21 @@ async function compositeOverlays(
 
     const captionPath = await writeScratchFile(dir, `caption-${inputIndex}.png`, croppedPng);
     inputs.push("-loop", "1", "-i", captionPath);
+    // Real, subtle fade in/out (2026-09-03 video polish), replacing a
+    // hard instant on/off — the enable='between(...)' gate below is
+    // unchanged and still fully hides the caption outside its window
+    // (using the same absolute output-timeline `t` the fade filter's
+    // own st= values use, same convention this gate already relied on),
+    // the fade filters just soften the transition WITHIN that window.
+    // Bounded well under the caption's own real duration so a very
+    // short chunk can't have its fade-in and fade-out overlap oddly.
+    const captionFadeSec = Math.min(0.12, (caption.endSec - caption.startSec) * 0.25);
+    const capLabel = `cap${inputIndex}`;
     filters.push(
-      `[${lastLabel}][${inputIndex}:v]overlay=${x}:${y}:enable='between(t,${caption.startSec.toFixed(3)},${caption.endSec.toFixed(3)})'[ov${inputIndex}]`,
+      `[${inputIndex}:v]format=rgba,fade=t=in:st=${caption.startSec.toFixed(3)}:d=${captionFadeSec.toFixed(3)}:alpha=1,fade=t=out:st=${(caption.endSec - captionFadeSec).toFixed(3)}:d=${captionFadeSec.toFixed(3)}:alpha=1[${capLabel}]`,
+    );
+    filters.push(
+      `[${lastLabel}][${capLabel}]overlay=${x}:${y}:enable='between(t,${caption.startSec.toFixed(3)},${caption.endSec.toFixed(3)})'[ov${inputIndex}]`,
     );
     lastLabel = `ov${inputIndex}`;
     inputIndex += 1;
