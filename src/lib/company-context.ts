@@ -62,6 +62,22 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
   };
 }
 
+// Real, confirmed-live bug (2026-09-04): this doc comment used to claim
+// secondaryNiches was "safe to use in the same strict {{topic}} noun-
+// phrase slots as autoTopics... since it's seeded from real extracted
+// product names or short niche labels, never full sentences." A real
+// company's real data (Graze Market: "Multi vendor Platform for animal
+// feeds.") disproved that — website extraction and manual entry both
+// produce free text, not a guaranteed noun phrase, and a trailing
+// period spliced into "{{topic}} is proof that..." made
+// capitalizeSentences() wrongly treat it as a sentence boundary
+// ("...feeds. Is proof that..."). This doesn't rewrite or paraphrase
+// the niche (no naturalization without an LLM) — it only strips the
+// mechanical artifact that breaks template splicing.
+export function sanitizeNicheText(niche: string): string {
+  return niche.trim().replace(/[.!?]+$/, "").trim();
+}
+
 // Real per-company topic pool: the industry pack's generic autoTopics
 // widened with this company's own secondaryNiches (real extracted
 // product/service names from website onboarding, or short manually-
@@ -73,16 +89,62 @@ export async function getCompanyContext(companyId: string): Promise<CompanyConte
 // pack.autoTopics/topicSuggestions — never from secondaryNiches — so
 // two companies in the same industry always saw byte-identical
 // suggestions, even when one had real extracted business data and the
-// other didn't. secondaryNiches is safe to use in the same strict
-// {{topic}} noun-phrase slots as autoTopics (see its own doc comment)
-// since it's seeded from real extracted product names or short niche
-// labels, never full sentences.
+// other didn't. Each niche is sanitized (see sanitizeNicheText above)
+// before joining autoTopics' pool, since real secondaryNiches data
+// isn't guaranteed to already be a clean noun phrase.
 //
 // Companies with no secondaryNiches set (the common case for anyone
 // who onboarded manually rather than via website extraction) see
 // unchanged behavior — pack.autoTopics alone, exactly as before.
 export function getCompanyTopicPool(context: CompanyContext): string[] {
   return context.secondaryNiches.length > 0
-    ? [...context.pack.autoTopics, ...context.secondaryNiches]
+    ? [...context.pack.autoTopics, ...context.secondaryNiches.map(sanitizeNicheText)]
     : context.pack.autoTopics;
+}
+
+// Real, confirmed-live gap (2026-09-04): the topic-suggestion CHIPS
+// shown on Studio's caption/video topic fields (topic-suggestions.tsx)
+// came straight from resolveIndustryPack(...).topicSuggestions — a
+// fixed 5-item array with zero rotation and zero niche-widening,
+// byte-identical on every single page load, forever. This is a
+// genuinely separate code path from "Auto-Generate Daily Idea" (real
+// day-rotation, studio-wizard.ts) and "Show me another idea" (real
+// randomization) — those already fix a DIFFERENT screen (the wizard's
+// topic step, reached only after a user commits to a flow), not the
+// suggestion chips shown immediately on the plain topic field.
+//
+// Widened with the company's own secondaryNiches (sanitized, see
+// sanitizeNicheText above) and pack.autoTopics — both already-vetted
+// real content, not new — then rotated by day the exact same way
+// autoGenerate already does, so a company opening Studio on different
+// days sees genuinely different chips, not a coincidental reshuffle,
+// while staying stable within one session/day (no reshuffle mid-edit).
+// A company with neither secondaryNiches nor extra pool items beyond
+// the original 5 sees unchanged behavior.
+export function getTopicSuggestionChips(
+  context: CompanyContext,
+  referenceDate: Date = new Date(),
+): { label: string; topic: string }[] {
+  const capitalize = (s: string) => (s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const nicheChips = context.secondaryNiches.map((niche) => {
+    const clean = sanitizeNicheText(niche);
+    return { label: clean, topic: clean };
+  });
+  const autoTopicChips = context.pack.autoTopics.map((t) => ({ label: capitalize(t), topic: t }));
+  const pool = [...context.pack.topicSuggestions, ...nicheChips, ...autoTopicChips];
+
+  const CHIP_COUNT = 5;
+  if (pool.length <= CHIP_COUNT) return pool;
+
+  const dayIndex = Math.floor(referenceDate.getTime() / 86_400_000);
+  const offset = dayIndex % pool.length;
+  const seen = new Set<string>();
+  const chips: { label: string; topic: string }[] = [];
+  for (let i = 0; i < pool.length && chips.length < CHIP_COUNT; i += 1) {
+    const candidate = pool[(offset + i) % pool.length];
+    if (seen.has(candidate.label)) continue;
+    seen.add(candidate.label);
+    chips.push(candidate);
+  }
+  return chips;
 }

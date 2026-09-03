@@ -18,7 +18,7 @@ import { VideoEditModal } from "@/components/campaign/video-edit-modal";
 import { resolveSceneThumbnailUrl } from "@/lib/video/scene-thumbnails";
 import { NavIcons } from "@/components/icons";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
-import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getCompanyContext, getTopicSuggestionChips } from "@/lib/company-context";
 import { getPickableMediaAssets } from "@/lib/media";
 
 const MODES = ["captions", "poster", "video"] as const;
@@ -46,6 +46,8 @@ export default async function StudioModePage({ params }: { params: Promise<{ mod
 
   const { company } = await requireCompany();
   const dict = getDictionary(await getLocale());
+  const topicSuggestions =
+    mode === "captions" || mode === "video" ? getTopicSuggestionChips(await getCompanyContext(company.id)) : [];
 
   const tabs: { mode: Mode; label: string; icon: typeof NavIcons.studio }[] = [
     { mode: "captions", label: dict.nav.studio, icon: NavIcons.studio },
@@ -72,16 +74,14 @@ export default async function StudioModePage({ params }: { params: Promise<{ mod
         ))}
       </nav>
 
-      {mode === "captions" && (
-        <CaptionsMode companyName={company.name} topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions} />
-      )}
+      {mode === "captions" && <CaptionsMode companyName={company.name} topicSuggestions={topicSuggestions} />}
       {mode === "poster" && <PosterMode companyId={company.id} companyName={company.name} />}
       {mode === "video" && (
         <VideoMode
           companyId={company.id}
           companyName={company.name}
           voiceEngine={company.voiceEngine}
-          topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
+          topicSuggestions={topicSuggestions}
         />
       )}
     </div>

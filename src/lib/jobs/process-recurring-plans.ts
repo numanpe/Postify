@@ -3,7 +3,7 @@ import "server-only";
 import type { RecurringPlan, Company, SocialPlatform } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { getCompanyContext } from "@/lib/company-context";
+import { getCompanyContext, sanitizeNicheText } from "@/lib/company-context";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import { appendMusicCredit } from "@/lib/video/music-credit";
@@ -74,7 +74,13 @@ async function generateTodaysBatch(rule: RecurringPlan & { company: Company }, t
   // getCompanyTopicPool's doc comment) — same real gap fix as
   // studio-wizard.ts's autoGenerate/showAnotherIdea, 2026-09-01.
   const campaignsSoFar = await db.campaign.count({ where: { recurringPlanId: rule.id } });
-  const rotatingPool = [...context.pack.topicSuggestions.map((s) => s.topic), ...context.secondaryNiches];
+  // sanitizeNicheText — see its own doc comment (company-context.ts):
+  // real secondaryNiches data isn't guaranteed to already be a clean
+  // noun phrase (a real company's real data disproved that assumption).
+  const rotatingPool = [
+    ...context.pack.topicSuggestions.map((s) => s.topic),
+    ...context.secondaryNiches.map(sanitizeNicheText),
+  ];
   const rotatingTopic = rotatingPool[campaignsSoFar % rotatingPool.length];
   const objective = rule.objectiveHint?.trim() || rotatingTopic;
 

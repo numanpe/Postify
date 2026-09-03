@@ -23,7 +23,7 @@ import type {
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
-import { getCompanyTopicPool } from "@/lib/company-context";
+import { getCompanyTopicPool, sanitizeNicheText } from "@/lib/company-context";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -294,10 +294,22 @@ export class TemplateTextProvider implements TextProvider {
     // to agree with them safely. "بخبرة خاصة في" has no verb at all;
     // "نخدم بفخر" conjugates for the company ("we"), never for the
     // market name that follows it as an object.
-    const nicheLine = secondaryNiches.length
+    // Real, confirmed-live bug (2026-09-04): this used to list every
+    // secondaryNiche unconditionally, even one that WAS the current
+    // topic — getCompanyTopicPool can pick a niche as {{topic}} itself
+    // (that's the whole point of widening the pool with it), so the
+    // same niche then appeared twice in one caption: once as the topic,
+    // once again re-listed here. Filtered to niches not already
+    // substantively covered by the topic (sanitized + case-folded
+    // compare, since the topic and a raw niche can differ only in
+    // trailing punctuation/case and still be the same real niche).
+    const sanitizedNiches = secondaryNiches.map(sanitizeNicheText);
+    const topicFold = topic.trim().replace(/[.!?]+$/, "").toLowerCase();
+    const remainingNiches = sanitizedNiches.filter((niche) => niche.toLowerCase() !== topicFold);
+    const nicheLine = remainingNiches.length
       ? locale === "AR"
-        ? ` بخبرة خاصة في ${secondaryNiches.join("، ")}.`
-        : ` Specializing in ${secondaryNiches.join(", ")}.`
+        ? ` بخبرة خاصة في ${remainingNiches.join("، ")}.`
+        : ` Specializing in ${remainingNiches.join(", ")}.`
       : "";
     // Real, not decorative — see Company.targetMarket's own schema
     // comment. Same "always the same sentence, never invented" honesty

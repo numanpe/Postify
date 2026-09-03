@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { WizardStep2 } from "@/components/studio/wizard-step2";
 import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
-import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getCompanyContext, getTopicSuggestionChips } from "@/lib/company-context";
 import { getPickableMediaAssets } from "@/lib/media";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
@@ -20,7 +20,7 @@ export default async function StudioWizardStep2Page({
   const { company } = await requireCompany();
   const { topic, caption } = await searchParams;
 
-  const [photoAssets, videoAssets, voiceCredential, preferredTemplates] = await Promise.all([
+  const [photoAssets, videoAssets, voiceCredential, preferredTemplates, companyContext] = await Promise.all([
     // Shared with every other real media picker in the app (media.ts's
     // own doc comment) — this specific call site previously never
     // excluded storageDeletedAt, a real bug: a photo cleaned up by
@@ -31,7 +31,9 @@ export default async function StudioWizardStep2Page({
       where: { companyId: company.id, provider: { in: ["OPENAI", "ELEVENLABS", "FISH_AUDIO"] } },
     }),
     getPreferredTemplateOrder(company.id, TEMPLATE_IDS),
+    getCompanyContext(company.id),
   ]);
+  const topicSuggestions = getTopicSuggestionChips(companyContext);
 
   const narrationAvailable = company.voiceEngine === "FREE" || !!voiceCredential;
 
@@ -45,7 +47,7 @@ export default async function StudioWizardStep2Page({
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
         narrationAvailable={narrationAvailable}
         preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
+        topicSuggestions={topicSuggestions}
       />
     </div>
   );

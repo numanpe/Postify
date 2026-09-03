@@ -7,7 +7,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { CampaignForm } from "@/components/campaign/campaign-form";
 import { EmptyState } from "@/components/empty-state";
 import { NavIcons } from "@/components/icons";
-import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getCompanyContext, getTopicSuggestionChips } from "@/lib/company-context";
 import { PaginationNav } from "@/components/ui/pagination-nav";
 
 const CAMPAIGNS_PER_PAGE = 15;
@@ -42,6 +42,7 @@ export default async function CampaignsPage({
     db.campaign.count({ where: { companyId: company.id } }),
   ]);
   const totalPages = Math.max(1, Math.ceil(totalCampaignCount / CAMPAIGNS_PER_PAGE));
+  const topicSuggestions = getTopicSuggestionChips(await getCompanyContext(company.id));
 
   return (
     <div className="flex flex-col gap-8">
@@ -56,7 +57,7 @@ export default async function CampaignsPage({
       <CampaignForm
         defaultObjective={objective}
         defaultDays={parsedDays && parsedDays >= 1 && parsedDays <= 14 ? parsedDays : undefined}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
+        topicSuggestions={topicSuggestions}
       />
 
       {/* totalCampaignCount, not campaigns.length — a real campaign

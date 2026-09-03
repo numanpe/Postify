@@ -1,6 +1,6 @@
 import { requireCompany } from "@/lib/session";
 import { WizardStep1Form } from "@/components/studio/wizard-step1-form";
-import { resolveIndustryPack } from "@/lib/industry-packs";
+import { getCompanyContext, getTopicSuggestionChips } from "@/lib/company-context";
 import { shouldShowGeminiNudge } from "@/lib/gemini-nudge";
 import { GeminiNudgeBanner } from "@/components/studio/gemini-nudge-banner";
 import { StudioGeminiGate } from "@/components/onboarding/studio-gemini-gate";
@@ -23,11 +23,13 @@ export default async function StudioWizardStep1Page({
 }) {
   const { company } = await requireCompany();
   const { firstTopic, showGeminiStep } = await searchParams;
-  const [showGeminiNudge, showSharedAiExhausted, dict] = await Promise.all([
+  const [showGeminiNudge, showSharedAiExhausted, dict, companyContext] = await Promise.all([
     shouldShowGeminiNudge(company.id),
     shouldShowSharedPoolExhaustedNotice(company.id),
     getDictionary(await getLocale()),
+    getCompanyContext(company.id),
   ]);
+  const topicSuggestions = getTopicSuggestionChips(companyContext);
 
   // Right after onboarding (see create-company-form.tsx /
   // website-first-onboarding.tsx) — shown here rather than on
@@ -73,7 +75,7 @@ export default async function StudioWizardStep1Page({
       <WizardStep1Form
         companyName={company.name}
         defaultTopic={firstTopic}
-        topicSuggestions={resolveIndustryPack(company.primaryIndustry, company.locale).topicSuggestions}
+        topicSuggestions={topicSuggestions}
       />
     </div>
   );
