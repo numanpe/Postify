@@ -1,9 +1,12 @@
 import { requireCompany } from "@/lib/session";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { decryptSecret } from "@/lib/crypto";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { getCompaniesRelyingOnSharedCredential } from "@/lib/providers/shared-provider-credential";
+import { listSelectablePages, ZernioConnectError } from "@/lib/providers/aggregator/zernio-connect";
+import type { PendingZernioConnect } from "@/components/settings/publishing-settings";
 import { ProviderCredentialForm } from "@/components/settings/provider-credential-form";
 import { ProviderCredentialRow } from "@/components/settings/provider-credential-row";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
@@ -31,9 +34,23 @@ const PROVIDER_LABELS: Record<Exclude<AiProviderKind, "CLOUDFLARE">, string> = {
   GEMINI: "Google Gemini",
 };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    zernio?: string;
+    detail?: string;
+    zernioConnect?: string;
+    credentialId?: string;
+    platform?: string;
+    profileId?: string;
+    tempToken?: string;
+    userProfile?: string;
+  }>;
+}) {
   const { user, company, role } = await requireCompany();
   const dict = getDictionary(await getLocale());
+  const params = await searchParams;
 
   const [credentials, sharedCredentials, companyCount, aggregatorCredentials, creativeDna, recentPosters, recentVideos] = await Promise.all([
     db.providerCredential.findMany({
@@ -84,6 +101,37 @@ export default async function SettingsPage() {
     }),
   ]);
   const scores = creativeDna?.confidenceScores as Partial<CreativeDnaConfidenceScores> | undefined;
+
+  // The embedded Zernio connect flow's real "arrived back from a
+  // successful platform OAuth, now pick which page(s)" step — see
+  // src/app/api/aggregator/zernio/connect/route.ts's own callback leg,
+  // which redirects here with these exact params after the real OAuth
+  // round-trip succeeds. This route just needs to list the real
+  // selectable pages for the picker below; the picker's own submit is
+  // what actually finalizes each chosen account.
+  let pendingZernioConnect: PendingZernioConnect | null = null;
+  let zernioConnectError: string | null = params.zernio === "error" ? (params.detail ?? "Something went wrong.") : null;
+  if (params.zernioConnect === "1" && params.credentialId && params.platform && params.profileId && params.tempToken && params.userProfile) {
+    const credential = await db.aggregatorCredential.findFirst({
+      where: { id: params.credentialId, companyId: company.id, provider: "ZERNIO" },
+    });
+    if (credential) {
+      try {
+        const apiKey = decryptSecret(credential.encryptedKey);
+        const pages = await listSelectablePages(apiKey, params.platform, params.profileId, params.tempToken);
+        pendingZernioConnect = {
+          credentialId: credential.id,
+          platform: params.platform,
+          profileId: params.profileId,
+          tempToken: params.tempToken,
+          userProfile: params.userProfile,
+          pages,
+        };
+      } catch (error) {
+        zernioConnectError = error instanceof ZernioConnectError ? error.message : "Couldn't load your real pages from Zernio.";
+      }
+    }
+  }
 
   // Same "no longer available" discipline as Media Library
   // (media/page.tsx) — a poster whose file was cleaned up still has a
@@ -201,7 +249,12 @@ export default async function SettingsPage() {
 
       <MusicCredits dict={dict.settings} />
 
-      <PublishingSettings publishingMode={company.publishingMode} credentials={aggregatorCredentials} />
+      <PublishingSettings
+        publishingMode={company.publishingMode}
+        credentials={aggregatorCredentials}
+        pendingZernioConnect={pendingZernioConnect}
+        zernioConnectError={zernioConnectError}
+      />
 
       <CreativeDnaInsights confidenceScores={creativeDna?.confidenceScores} />
 

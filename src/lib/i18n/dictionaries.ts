@@ -378,6 +378,10 @@ export interface Dictionary {
     makeDefaultButton: string; defaultBadge: string; renameButton: string;
     advancedOptions: string; comingSoon: string; goToDirectMeta: string; tiktokNotIntegrated: string;
     modeAggregatorConnectHint: string; directApiTesterNote: string;
+    connectViaZernio: string; connectManually: string;
+    zernioPickerTitle: string; zernioPickerHint: string; zernioPickerLabelPlaceholder: string;
+    zernioPickerConfirm: string; zernioPickerSuccess: (n: number) => string;
+    zernioConnectErrorPrefix: string;
     downloadButton: string; downloadedToast: string;
     publishViaProvider: (provider: string) => string; publishing: string;
     publishDirect: string; selectAccount: string; noAccountsForDirect: string; noMatchingAccountForDirect: (platforms: string) => string;
@@ -1218,7 +1222,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       modeAggregatorRecommended: "(Recommended)",
       modeAggregatorDescription:
         "Connect Facebook, Instagram, LinkedIn, and TikTok through Zernio's own established partnership with each platform — real accounts can connect right away, with no separate app review needed from us. Posts go out through your own Zernio account, at Zernio's own pricing (2 accounts free, then usage-based). Postify never charges for this.",
-      modeAggregatorConnectHint: "Connect your accounts on Zernio's own dashboard first, then paste your API key and the resulting account IDs below.",
+      modeAggregatorConnectHint: "Paste your Zernio API key below, then connect each platform right here — no need to visit Zernio's own dashboard.",
+      connectViaZernio: "Connect",
+      connectManually: "Add manually instead",
+      zernioPickerTitle: "Choose which page(s) to connect",
+      zernioPickerHint: "Real pages from your account — pick one or more, and give each a short label.",
+      zernioPickerLabelPlaceholder: "e.g. Downtown Location",
+      zernioPickerConfirm: "Connect selected",
+      zernioPickerSuccess: (n: number) => (n === 1 ? "1 account connected." : `${n} accounts connected.`),
+      zernioConnectErrorPrefix: "Couldn't connect: ",
       modeDirectApiTitle: "Direct Meta API (advanced)",
       modeDirectApiDescription:
         "Publish straight to a Facebook Page or Instagram account using this app's own Meta integration.",
@@ -2094,7 +2106,15 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       modeAggregatorRecommended: "(موصى به)",
       modeAggregatorDescription:
         "اربط فيسبوك وإنستغرام ولينكدإن وتيك توك عبر شراكة Zernio الراسخة مع كل منصة — يمكن للحسابات الحقيقية الاتصال فورًا، دون الحاجة إلى مراجعة تطبيق منفصلة من جانبنا. تُنشر المنشورات عبر حساب Zernio الخاص بك، وفق أسعار Zernio نفسها (أول حسابين مجانًا، ثم حسب الاستخدام). بوستيفاي لا يفرض رسومًا على هذا مطلقًا.",
-      modeAggregatorConnectHint: "اربط حساباتك أولًا من لوحة تحكم Zernio الخاصة بها، ثم الصق مفتاح API ومعرّفات الحسابات الناتجة أدناه.",
+      modeAggregatorConnectHint: "الصق مفتاح API الخاص بـ Zernio أدناه، ثم اربط كل منصة مباشرةً من هنا — دون الحاجة لزيارة لوحة تحكم Zernio.",
+      connectViaZernio: "ربط",
+      connectManually: "إضافة يدويًا بدلًا من ذلك",
+      zernioPickerTitle: "اختر الصفحة (الصفحات) المراد ربطها",
+      zernioPickerHint: "صفحات حقيقية من حسابك — اختر واحدة أو أكثر، وأعطِ كل واحدة تسمية مختصرة.",
+      zernioPickerLabelPlaceholder: "مثال: فرع وسط المدينة",
+      zernioPickerConfirm: "ربط المحدد",
+      zernioPickerSuccess: (n: number) => (n === 1 ? "تم ربط حساب واحد." : `تم ربط ${n} حسابات.`),
+      zernioConnectErrorPrefix: "تعذّر الربط: ",
       modeDirectApiTitle: "واجهة Meta المباشرة (متقدم)",
       modeDirectApiDescription: "انشر مباشرة إلى صفحة فيسبوك أو حساب إنستغرام باستخدام تكامل Meta الخاص بهذا التطبيق.",
       directApiTesterNote:

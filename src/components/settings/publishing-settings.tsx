@@ -11,6 +11,7 @@ import {
   setDefaultAggregatorAccount,
   removeAggregatorCredential,
   setPublishingMode,
+  confirmZernioAccountSelection,
 } from "@/lib/actions/aggregator-credentials";
 import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
 import { platformLabel } from "@/lib/platform-labels";
@@ -21,6 +22,24 @@ import { Zap } from "lucide-react";
 import type { PublishingMode, SocialAggregatorProvider, SocialPlatform } from "@prisma/client";
 
 const SOCIAL_PLATFORMS: SocialPlatform[] = ["FACEBOOK", "INSTAGRAM", "LINKEDIN", "TIKTOK"];
+// Zernio's own real connect-endpoint slugs (see zernio-connect.ts) —
+// lowercase, distinct from the SocialPlatform enum above, one link per
+// platform right in this UI.
+const ZERNIO_CONNECT_PLATFORMS: { slug: string; platform: SocialPlatform }[] = [
+  { slug: "facebook", platform: "FACEBOOK" },
+  { slug: "instagram", platform: "INSTAGRAM" },
+  { slug: "linkedin", platform: "LINKEDIN" },
+  { slug: "tiktok", platform: "TIKTOK" },
+];
+
+export interface PendingZernioConnect {
+  credentialId: string;
+  platform: string;
+  profileId: string;
+  tempToken: string;
+  userProfile: string;
+  pages: { id: string; name: string }[];
+}
 
 interface AggregatorAccountRow {
   id: string;
@@ -161,6 +180,59 @@ function AccountRow({ account, showDefaultControls }: { account: AggregatorAccou
   );
 }
 
+// The real finishing step of the embedded headless connect flow — see
+// settings/page.tsx's own handling of the zernioConnect=1 redirect and
+// confirmZernioAccountSelection's own doc comment. Renders every real
+// page Zernio returned so the user genuinely picks which one(s) to add
+// (never auto-selecting the first one), each with its own label input
+// so multiple pages stay distinguishable the same way manually-added
+// accounts already are.
+function ZernioAccountPicker({ pending }: { pending: PendingZernioConnect }) {
+  const dict = useDict().publishing;
+  const [state, action, pending_] = useActionState(confirmZernioAccountSelection, undefined);
+
+  if (state && "success" in state && state.success) {
+    return <p role="status" className="text-sm text-green-700 dark:text-green-400">{dict.zernioPickerSuccess(state.addedCount)}</p>;
+  }
+
+  return (
+    <form action={action} className="flex flex-col gap-2 rounded-md border border-paper-border dark:border-night-border p-3">
+      <input type="hidden" name="credentialId" value={pending.credentialId} />
+      <input type="hidden" name="platform" value={pending.platform} />
+      <input type="hidden" name="profileId" value={pending.profileId} />
+      <input type="hidden" name="tempToken" value={pending.tempToken} />
+      <input type="hidden" name="userProfile" value={pending.userProfile} />
+      <p className="text-sm font-medium">{dict.zernioPickerTitle}</p>
+      <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.zernioPickerHint}</p>
+      {pending.pages.map((page) => (
+        <div key={page.id} className="flex items-center gap-2">
+          <input type="checkbox" name={`selected_${page.id}`} id={`zpage-${page.id}`} className="h-4 w-4 accent-current" />
+          <input type="hidden" name={`pageName_${page.id}`} value={page.name} />
+          <label htmlFor={`zpage-${page.id}`} className="w-1/3 shrink-0 truncate text-sm">
+            {page.name}
+          </label>
+          <input
+            name={`label_${page.id}`}
+            type="text"
+            defaultValue={page.name}
+            placeholder={dict.zernioPickerLabelPlaceholder}
+            className="min-w-0 flex-1 rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-sm"
+          />
+        </div>
+      ))}
+      {state && "error" in state && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {dict.zernioConnectErrorPrefix}
+          {state.error}
+        </p>
+      )}
+      <Button type="submit" size="sm" pending={pending_}>
+        {dict.zernioPickerConfirm}
+      </Button>
+    </form>
+  );
+}
+
 function AddAccountForm({ credentialId }: { credentialId: string }) {
   const t = useDict().publishing;
   const dict = useDict();
@@ -215,9 +287,20 @@ function AddAccountForm({ credentialId }: { credentialId: string }) {
 // marker (only meaningful once a platform has more than one — the
 // CampaignItem/recurring-plan path always uses the default), rename, and
 // remove, plus an always-visible add-account form.
-function AggregatorAccountsManager({ credentialId, accounts }: { credentialId: string; accounts: AggregatorAccountRow[] }) {
+function AggregatorAccountsManager({
+  credentialId,
+  provider,
+  accounts,
+  pendingZernioConnect,
+}: {
+  credentialId: string;
+  provider: SocialAggregatorProvider;
+  accounts: AggregatorAccountRow[];
+  pendingZernioConnect: PendingZernioConnect | null;
+}) {
   const dict = useDict();
   const t = dict.publishing;
+  const isZernio = provider === "ZERNIO";
 
   const byPlatform = new Map<SocialPlatform, AggregatorAccountRow[]>();
   for (const account of accounts) {
@@ -242,7 +325,35 @@ function AggregatorAccountsManager({ credentialId, accounts }: { credentialId: s
           </div>
         ))
       )}
-      <AddAccountForm credentialId={credentialId} />
+
+      {isZernio && (
+        <div className="flex flex-wrap gap-2">
+          {ZERNIO_CONNECT_PLATFORMS.map(({ slug, platform }) => (
+            <a
+              key={slug}
+              href={`/api/aggregator/zernio/connect?credentialId=${credentialId}&platform=${slug}`}
+              className="rounded-md border border-paper-border dark:border-night-border px-2.5 py-1.5 text-xs font-medium hover:bg-paper-card dark:hover:bg-night-card"
+            >
+              {t.connectViaZernio} {platformLabel(dict, platform)}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {isZernio && pendingZernioConnect?.credentialId === credentialId && (
+        <ZernioAccountPicker pending={pendingZernioConnect} />
+      )}
+
+      {isZernio ? (
+        <details className="rounded-md border border-dashed border-paper-border dark:border-night-border p-2">
+          <summary className="cursor-pointer text-xs font-medium">{t.connectManually}</summary>
+          <div className="mt-2">
+            <AddAccountForm credentialId={credentialId} />
+          </div>
+        </details>
+      ) : (
+        <AddAccountForm credentialId={credentialId} />
+      )}
     </div>
   );
 }
@@ -251,10 +362,14 @@ function AggregatorCredentialForm({
   provider,
   displayName,
   existing,
+  pendingZernioConnect,
+  zernioConnectError,
 }: {
   provider: SocialAggregatorProvider;
   displayName: string;
   existing?: AggregatorCredentialRow;
+  pendingZernioConnect?: PendingZernioConnect | null;
+  zernioConnectError?: string | null;
 }) {
   const dict = useDict().publishing;
   const commonDict = useDict().common;
@@ -274,10 +389,21 @@ function AggregatorCredentialForm({
             </button>
           </form>
         </div>
+        {provider === "ZERNIO" && zernioConnectError && (
+          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+            {dict.zernioConnectErrorPrefix}
+            {zernioConnectError}
+          </p>
+        )}
         {provider === "UPLOAD_POST" ? (
           <AccountMapStatus credentialId={existing.id} provider={provider} accountMap={existing.accountMap} />
         ) : (
-          <AggregatorAccountsManager credentialId={existing.id} accounts={existing.accounts} />
+          <AggregatorAccountsManager
+            credentialId={existing.id}
+            provider={provider}
+            accounts={existing.accounts}
+            pendingZernioConnect={provider === "ZERNIO" ? (pendingZernioConnect ?? null) : null}
+          />
         )}
       </div>
     );
@@ -336,9 +462,13 @@ function AggregatorCredentialForm({
 export function PublishingSettings({
   publishingMode,
   credentials,
+  pendingZernioConnect,
+  zernioConnectError,
 }: {
   publishingMode: PublishingMode;
   credentials: AggregatorCredentialRow[];
+  pendingZernioConnect?: PendingZernioConnect | null;
+  zernioConnectError?: string | null;
 }) {
   const dict = useDict().publishing;
 
@@ -390,7 +520,13 @@ export function PublishingSettings({
         <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.modeAggregatorDescription}</p>
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.modeAggregatorConnectHint}</p>
 
-        <AggregatorCredentialForm provider="ZERNIO" displayName="Zernio" existing={zernioCredential} />
+        <AggregatorCredentialForm
+          provider="ZERNIO"
+          displayName="Zernio"
+          existing={zernioCredential}
+          pendingZernioConnect={pendingZernioConnect}
+          zernioConnectError={zernioConnectError}
+        />
 
         {zernioCredential && publishingMode !== "AGGREGATOR" && (
           <form action={setPublishingMode}>

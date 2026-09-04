@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
-import { encryptSecret } from "@/lib/crypto";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { AGGREGATOR_PROVIDERS } from "@/lib/providers/aggregator/types";
+import { confirmPageSelection, ZernioConnectError } from "@/lib/providers/aggregator/zernio-connect";
 
 export type AggregatorCredentialState = { error: string } | undefined;
 
@@ -211,6 +212,112 @@ export async function addAggregatorAccount(
 
   revalidatePath("/settings");
   revalidatePath("/media");
+}
+
+export type ZernioConfirmState = { error: string } | { success: true; addedCount: number } | undefined;
+
+// The real finishing step of the embedded headless connect flow (see
+// src/app/api/aggregator/zernio/connect/route.ts's callback leg and the
+// Settings page's own listSelectablePages call) — one real POST
+// select-page call per page the user actually checked in the picker, so
+// a genuine multi-select ("add both of our Facebook Pages at once")
+// creates one real AggregatorAccount row per selection, not just the
+// first one. Reuses the exact same AggregatorAccount creation shape
+// addAggregatorAccount above uses (including the same
+// first-account-becomes-default rule) so a connected-via-Zernio account
+// behaves identically everywhere else in the app to a manually-pasted one.
+export async function confirmZernioAccountSelection(
+  _prevState: ZernioConfirmState,
+  formData: FormData,
+): Promise<ZernioConfirmState> {
+  const { company } = await requireCompany();
+
+  const credentialId = String(formData.get("credentialId") ?? "");
+  const platform = String(formData.get("platform") ?? "");
+  const profileId = String(formData.get("profileId") ?? "");
+  const tempToken = String(formData.get("tempToken") ?? "");
+  const userProfileRaw = String(formData.get("userProfile") ?? "");
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) {
+    return { error: "APP_URL is not set." };
+  }
+  const redirectUrl = `${appUrl.replace(/\/$/, "")}/api/aggregator/zernio/connect`;
+
+  if (!credentialId || !platform || !profileId || !tempToken || !userProfileRaw) {
+    return { error: "This connection has expired. Please connect again." };
+  }
+
+  const socialPlatform = { facebook: "FACEBOOK", instagram: "INSTAGRAM", linkedin: "LINKEDIN", tiktok: "TIKTOK" }[
+    platform
+  ] as "FACEBOOK" | "INSTAGRAM" | "LINKEDIN" | "TIKTOK" | undefined;
+  if (!socialPlatform) {
+    return { error: "Unrecognized platform." };
+  }
+
+  let userProfile: unknown;
+  try {
+    userProfile = JSON.parse(userProfileRaw);
+  } catch {
+    return { error: "This connection has expired. Please connect again." };
+  }
+
+  // Multi-tenant isolation: scope by companyId, never trust the
+  // client-supplied credentialId alone — same rule every other
+  // aggregator mutation in this file follows.
+  const credential = await db.aggregatorCredential.findFirst({
+    where: { id: credentialId, companyId: company.id, provider: "ZERNIO" },
+    include: { accounts: { where: { platform: socialPlatform } } },
+  });
+  if (!credential) {
+    return { error: "That credential no longer exists." };
+  }
+
+  const selectedPageIds = [...formData.keys()]
+    .filter((key) => key.startsWith("selected_"))
+    .map((key) => key.slice("selected_".length));
+  if (selectedPageIds.length === 0) {
+    return { error: "Pick at least one page to connect." };
+  }
+
+  const apiKey = decryptSecret(credential.encryptedKey);
+  let addedCount = credential.accounts.length;
+  const startingCount = addedCount;
+
+  for (const pageId of selectedPageIds) {
+    const pageName = String(formData.get(`pageName_${pageId}`) ?? "");
+    const label = String(formData.get(`label_${pageId}`) ?? "").trim() || pageName || pageId;
+
+    const existing = credential.accounts.find((a) => a.accountId === pageId);
+    if (existing) continue; // already connected — not an error, just a no-op for this one
+
+    try {
+      const { accountId } = await confirmPageSelection(apiKey, platform, {
+        profileId,
+        pageId,
+        tempToken,
+        userProfile,
+        redirectUrl,
+      });
+      await db.aggregatorAccount.create({
+        data: { credentialId, platform: socialPlatform, accountId, label, isDefault: addedCount === 0 },
+      });
+      addedCount += 1;
+    } catch (error) {
+      const message = error instanceof ZernioConnectError ? error.message : "Couldn't finish connecting one of the selected pages.";
+      // Real, partial-success-aware failure: any pages already connected
+      // in this same submission stay connected (never rolled back) —
+      // only the remaining, not-yet-confirmed one(s) are reported as
+      // failed, so a real transient error on page 2 of 3 doesn't force
+      // re-doing page 1.
+      revalidatePath("/settings");
+      revalidatePath("/media");
+      return { error: addedCount > startingCount ? `${addedCount - startingCount} connected — ${message}` : message };
+    }
+  }
+
+  revalidatePath("/settings");
+  revalidatePath("/media");
+  return { success: true, addedCount: addedCount - startingCount };
 }
 
 const RenameAccountSchema = z.object({

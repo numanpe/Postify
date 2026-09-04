@@ -1093,6 +1093,17 @@ model AggregatorCredential {
   // branch) — a genuinely different real API shape, not multi-account.
   accountMap   Json                     @default("{}")
   accounts     AggregatorAccount[]
+  // ZERNIO only (embedded headless-connect flow, 2026-09-04) — every
+  // real account connection in Zernio's API is scoped to a "profile"
+  // (POST /v1/profiles, real, confirmed via their own docs; no default/
+  // self profile exists). Lazily created on first real connect attempt
+  // and reused for every subsequent one, rather than creating a new
+  // profile per connection — Zernio's docs don't document creation as
+  // idempotent, so this app is the one place that guarantees "at most
+  // one real profile per company." Null for every other provider and
+  // for a ZERNIO credential that's never attempted the embedded flow
+  // (the old manual accountId-paste path never needed one).
+  zernioProfileId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
