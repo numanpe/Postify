@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  CondensePosterHeadlineInput,
+  CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
   GenerateTopicSuggestionsInput,
@@ -39,6 +41,8 @@ import {
   parseClarifyTopicResponse,
   buildPosterHighlightsPrompt,
   parsePosterHighlightsResponse,
+  buildCondensePosterHeadlinePrompt,
+  parseCondensePosterHeadlineResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
   buildTopicSuggestionsPrompt,
@@ -247,6 +251,21 @@ export class AnthropicTextProvider implements TextProvider {
 
     const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
     return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
+  }
+
+  async condensePosterHeadline(input: CondensePosterHeadlineInput): Promise<CondensePosterHeadlineOutput> {
+    const { system, user } = buildCondensePosterHeadlinePrompt(input);
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 400);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed poster-headline JSON.", error);
+    }
+
+    const { headline } = parseCondensePosterHeadlineResponse(parsed, this.name);
+    return { headline, providerName: this.name, estimatedCostUsd };
   }
 
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {

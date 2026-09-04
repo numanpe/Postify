@@ -5,6 +5,7 @@ import { TEMPLATE_IDS } from "@/lib/poster/template-ids";
 import { getPreferredTemplateOrder } from "@/lib/creative-dna/template-preference";
 import { getCompanyContext, getTopicSuggestionChips } from "@/lib/company-context";
 import { getPickableMediaAssets } from "@/lib/media";
+import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 
 // Step 2 of the guided wizard. Reuses the exact same real PosterForm/
 // VideoForm components (and their real generation actions) the
@@ -37,10 +38,30 @@ export default async function StudioWizardStep2Page({
 
   const narrationAvailable = company.voiceEngine === "FREE" || !!voiceCredential;
 
+  // Real bug fix (2026-09-04): this used to hand Step 1's full,
+  // sentence-length caption straight to the poster headline field,
+  // truncated only by the input's plain maxLength — a poster headline
+  // needs to be a genuinely compact, punchy phrase, not a reused
+  // caption. condensePosterHeadline produces a real, topic-grounded
+  // short headline instead. Never blocks the page on failure — a
+  // transient BYOK error here shouldn't stop the wizard from loading;
+  // topic (already the shorter of the two real inputs Step 1 hands
+  // over) is a reasonable, still-real fallback.
+  let defaultHeadline = topic ?? "";
+  if (caption) {
+    try {
+      const textProvider = await getTextProviderForCompany(company.id);
+      const result = await textProvider.condensePosterHeadline({ context: companyContext, sourceText: caption });
+      defaultHeadline = result.headline;
+    } catch {
+      defaultHeadline = topic || caption.slice(0, 70);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <WizardStep2
-        defaultHeadline={caption ?? ""}
+        defaultHeadline={defaultHeadline}
         defaultTopic={topic ?? ""}
         photoAssets={photoAssets}
         videoAssets={videoAssets}

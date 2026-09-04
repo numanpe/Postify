@@ -11,12 +11,14 @@ import type {
   SummarizeBusinessContextOutput,
   ClarifyTopicInput,
   GeneratePosterHighlightsInput,
+  CondensePosterHeadlineInput,
   PosterBenefit,
   EditPosterInput,
   PosterEditSpec,
   GenerateTopicSuggestionsInput,
 } from "./types";
 import { ProviderError } from "./types";
+import { hashtagCapForPlatforms } from "./hashtag-limits";
 import { validateTopic } from "@/lib/topic-validation";
 
 // Shared by every BYOK provider so a real LLM's output is grounded in
@@ -226,7 +228,10 @@ export function buildCampaignBriefPrompt(input: {
     'line, cta is a short action phrase. For a "VIDEO" item: videoTopic is a short topic description — NOT a',
     "full script; the video pipeline writes its own script from this topic.",
     "captionText is a natural, engaging post caption (emojis welcome where natural).",
-    `hashtags is 3-5 relevant tags.${marketHashtagInstruction} targetPlatforms must be a subset of exactly this list, never anything else:`,
+    "hashtags: real per-platform limits apply (not a fixed count) — Instagram allows at most 5 (a real platform-",
+    "enforced cap since Dec 2025, exceeding it gets tags stripped), LinkedIn and TikTok 3-5, Facebook 1-3. When an",
+    "item's targetPlatforms includes more than one, use the MOST restrictive limit among them (e.g. Instagram +",
+    `Facebook together means at most 3). Never pad to reach a count — quality over quantity.${marketHashtagInstruction} targetPlatforms must be a subset of exactly this list, never anything else:`,
     `${JSON.stringify(connectedPlatforms)} — if that list is empty, return an empty array, don't invent a platform.`,
     `suggestedPostAt is an ISO datetime on that item's scheduled date (use the date given for that item, any`,
     "reasonable time of day).",
@@ -387,6 +392,13 @@ export function parseCampaignBriefResponse(
       ? item.targetPlatforms.filter((p): p is SocialPlatform => connectedPlatforms.includes(p as SocialPlatform))
       : [];
 
+    // Real enforcement, not just a prompt request the model might not
+    // follow exactly — see hashtag-limits.ts. Applied per-item against
+    // THIS item's own real targetPlatforms (not the whole brief's
+    // connectedPlatforms), since different items can target different
+    // platform subsets.
+    const cappedHashtags = (item.hashtags as string[]).slice(0, hashtagCapForPlatforms(targetPlatforms));
+
     const fillerCheck = [item.angle, item.headline, item.subhead, item.cta, item.videoTopic, item.captionText]
       .filter((v): v is string => typeof v === "string")
       .flatMap((text) => findBannedFillerWords(text));
@@ -405,7 +417,7 @@ export function parseCampaignBriefResponse(
       cta: typeof item.cta === "string" ? item.cta : undefined,
       videoTopic: typeof item.videoTopic === "string" ? item.videoTopic : undefined,
       captionText: item.captionText,
-      hashtags: item.hashtags as string[],
+      hashtags: cappedHashtags,
       suggestedPostAt: item.suggestedPostAt,
       targetPlatforms,
     };
@@ -562,6 +574,45 @@ export function parsePosterHighlightsResponse(
     ? record.trustBadges.filter((t): t is string => typeof t === "string" && t.trim().length > 0).map((t) => t.trim())
     : [];
   return { benefits, trustBadges };
+}
+
+// Real bug fix (2026-09-04) — see CondensePosterHeadlineInput's own doc
+// comment in types.ts. Reuses generateCampaignBrief's own proven-correct
+// "punchy 2-5 word hook, not a full sentence" instruction rather than a
+// newly-invented brevity rule, so poster headlines stay consistent
+// whether they came from a full campaign brief or this standalone path.
+export function buildCondensePosterHeadlinePrompt(input: CondensePosterHeadlineInput): { system: string; user: string } {
+  const { context, sourceText } = input;
+  const { industry, tone, locale } = context;
+
+  const languageInstruction =
+    locale === "AR"
+      ? "Write the headline in natural, culturally idiomatic Arabic — not a literal word-for-word translation."
+      : "Write the headline in English.";
+
+  const system = [
+    `You are a marketing copywriter for a company in the ${industry} industry. Brand tone: ${tone}.`,
+    "You'll be given a full social media caption or topic. Condense its core message into a real poster headline —",
+    "a punchy 2-5 word hook, not a full sentence, not a truncated copy of the source text. It must genuinely reflect",
+    "the same specific message, not a generic industry phrase unrelated to what was actually said.",
+    languageInstruction,
+    'Respond with ONLY a JSON object: {"headline": "..."}',
+  ].join(" ");
+
+  const user = `Source text: ${sourceText}`;
+
+  return { system, user };
+}
+
+export function parseCondensePosterHeadlineResponse(parsed: unknown, providerName: string): { headline: string } {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Poster-headline response wasn't a JSON object.");
+  }
+  const headline = String((parsed as Record<string, unknown>).headline ?? "").trim();
+  if (!headline) {
+    throw new ProviderError(providerName, "Poster-headline response had no usable headline.");
+  }
+  return { headline };
 }
 
 const BACKGROUND_SOURCE_VALUES = ["BRAND", "PHOTO", "AI"] as const;

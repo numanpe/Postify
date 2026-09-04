@@ -18,6 +18,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  CondensePosterHeadlineInput,
+  CondensePosterHeadlineOutput,
   PosterBenefit,
   EditPosterInput,
   EditPosterOutput,
@@ -27,6 +29,7 @@ import type {
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
 import { isArabicScript } from "@/lib/poster/direction";
 import { getCompanyTopicPool, sanitizeNicheText } from "@/lib/company-context";
+import { hashtagCapForPlatforms } from "./hashtag-limits";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
@@ -469,7 +472,12 @@ export class TemplateTextProvider implements TextProvider {
           ? { headline: shortHeadline(`${seed}:headline`, pack.shortHeadlines), subhead: valueProp.text, cta: cta.text }
           : { videoTopic: angle }),
         captionText,
-        hashtags: [...pack.hashtags, ...marketHashtags],
+        // Real per-platform cap (2026-09-04) — see hashtag-limits.ts:
+        // Instagram's real 5-hashtag hard cap (Dec 2025 platform policy)
+        // means an uncapped industry+market hashtag list could genuinely
+        // get stripped or suppressed on a real connected Instagram
+        // account, not just look untidy.
+        hashtags: [...pack.hashtags, ...marketHashtags].slice(0, hashtagCapForPlatforms(connectedPlatforms)),
         suggestedPostAt,
         targetPlatforms: connectedPlatforms,
       });
@@ -605,6 +613,19 @@ export class TemplateTextProvider implements TextProvider {
     const trustBadges = [...new Set(badgeIndexes)].map((idx) => stripTrailingPeriod(fillTemplate(pack.hooks[idx], vars)));
 
     return { benefits, trustBadges, providerName: this.name };
+  }
+
+  // Reuses the exact same real, industry-grounded pool
+  // generateCampaignBrief's free-tier POSTER branch already uses
+  // (shortHeadline() above) — same honest tradeoff as
+  // generatePosterHighlights: this tier can't genuinely condense
+  // arbitrary sourceText's specific semantics without an LLM, so it
+  // picks a real, on-topic-for-the-industry short headline instead of
+  // faking a summarization it can't do. sourceText only seeds which
+  // pool entry is picked (deterministic variety), not what's returned.
+  async condensePosterHeadline({ context, sourceText }: CondensePosterHeadlineInput): Promise<CondensePosterHeadlineOutput> {
+    const seed = `${context.companyId}:posterHeadline:${sourceText}`;
+    return { headline: shortHeadline(seed, context.pack.shortHeadlines), providerName: this.name };
   }
 
   // Real, honest "no" — unlike original poster generation (which has a

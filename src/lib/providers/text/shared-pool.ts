@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  CondensePosterHeadlineInput,
+  CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
   GenerateTopicSuggestionsInput,
@@ -273,6 +275,15 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
     generatePosterHighlights: tryShared<[GeneratePosterHighlightsInput], GeneratePosterHighlightsOutput>(
       shared.generatePosterHighlights.bind(shared),
       template.generatePosterHighlights.bind(template),
+    ),
+    // Same tradeoff as generatePosterHighlights just above — the
+    // template tier's own answer here is already a real, good,
+    // industry-grounded headline (not an honest "no"), so a silent
+    // fallback on any shared-pool failure is the right behavior, not
+    // tryShareWithHonestUnavailable's distinct-message treatment.
+    condensePosterHeadline: tryShared<[CondensePosterHeadlineInput], CondensePosterHeadlineOutput>(
+      shared.condensePosterHeadline.bind(shared),
+      template.condensePosterHeadline.bind(template),
     ),
     // A real root cause of editPosterSpec's own past failures (the
     // Gemini call truncating on an undersized token budget) was found

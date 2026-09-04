@@ -254,6 +254,30 @@ export interface GeneratePosterHighlightsOutput {
   fallbackFrom?: FallbackInfo[];
 }
 
+// Real bug fix (2026-09-04): the Studio wizard's Step 1→2 handoff used
+// to default a new poster's headline straight to Step 1's full,
+// sentence-length caption — truncated only by the poster form's plain
+// maxLength — instead of a genuinely compact, poster-appropriate
+// phrase. generateCampaignBrief's POSTER-item prompt already proves
+// "punchy 2-5 word hook, not a full sentence" is the right real
+// instruction (prompt.ts); this method reuses that same real standard
+// for a single standalone condensation, not just inside a full brief.
+export interface CondensePosterHeadlineInput {
+  context: CompanyContext;
+  // The real chosen caption from Step 1 (or the raw topic if no
+  // caption exists yet) — the specific content being condensed, never
+  // a generic instruction with no real source text.
+  sourceText: string;
+}
+
+export interface CondensePosterHeadlineOutput {
+  headline: string;
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
+}
+
 // Natural-language poster editing (2026-09-03) — a real, addressable,
 // structured representation of a generated poster's current state:
 // exactly the fields the render pipeline (generate.ts/templates.tsx)
@@ -381,6 +405,7 @@ export interface TextProvider {
   generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput>;
   editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput>;
   generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput>;
+  condensePosterHeadline(input: CondensePosterHeadlineInput): Promise<CondensePosterHeadlineOutput>;
 }
 
 // Thrown for anything the UI should surface directly to the user (bad

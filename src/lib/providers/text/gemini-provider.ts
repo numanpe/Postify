@@ -19,6 +19,8 @@ import type {
   ClarifyTopicOutput,
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
+  CondensePosterHeadlineInput,
+  CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
   GenerateTopicSuggestionsInput,
@@ -39,6 +41,8 @@ import {
   parseClarifyTopicResponse,
   buildPosterHighlightsPrompt,
   parsePosterHighlightsResponse,
+  buildCondensePosterHeadlinePrompt,
+  parseCondensePosterHeadlineResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
   buildTopicSuggestionsPrompt,
@@ -211,6 +215,21 @@ const POSTER_HIGHLIGHTS_RESPONSE_SCHEMA = {
     trustBadges: { type: "ARRAY", items: { type: "STRING" } },
   },
   required: ["benefits", "trustBadges"],
+};
+
+// description is the real, confirmed-supported constraint signal here —
+// Gemini's own docs confirm maxLength/minLength are NOT supported
+// keywords for STRING schema properties (verified directly against
+// ai.google.dev before writing this, not assumed), so a fabricated
+// maxLength would silently do nothing. description plus the system
+// prompt's own "2-5 words" instruction are the two real levers
+// available.
+const CONDENSE_POSTER_HEADLINE_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    headline: { type: "STRING", description: "A punchy poster headline, 2-5 words, not a full sentence." },
+  },
+  required: ["headline"],
 };
 
 // Real schema-level constraint (2026-09-03 natural-language poster
@@ -525,6 +544,26 @@ export class GeminiTextProvider implements TextProvider {
 
     const { benefits, trustBadges } = parsePosterHighlightsResponse(parsed, this.name);
     return { benefits, trustBadges, providerName: this.name, estimatedCostUsd };
+  }
+
+  async condensePosterHeadline(input: CondensePosterHeadlineInput): Promise<CondensePosterHeadlineOutput> {
+    const { system, user } = buildCondensePosterHeadlinePrompt(input);
+    // 700, not a smaller budget scaled to this method's tiny expected
+    // output — see project_gemini_thinking_token_truncation memory:
+    // hidden thinking-token cost is NOT reliably proportional to output
+    // size (a single-short-string schema is no safer than a larger one),
+    // and 700 is this session's real, measured-headroom-backed floor
+    // for any Gemini JSON-mode call, not a guess.
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 700,
+      responseSchema: CONDENSE_POSTER_HEADLINE_RESPONSE_SCHEMA,
+    });
+
+    const parsed = this.parseJsonOrThrow("condensePosterHeadline", "poster headline", content, finishReason);
+
+    const { headline } = parseCondensePosterHeadlineResponse(parsed, this.name);
+    return { headline, providerName: this.name, estimatedCostUsd };
   }
 
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
