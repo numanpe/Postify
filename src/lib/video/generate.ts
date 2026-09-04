@@ -13,7 +13,7 @@ import { VoiceProviderError } from "@/lib/providers/voice/types";
 import type { WordTimestamp } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { IMAGE_SHARED_POOL_NAME } from "@/lib/providers/image/shared-image-pool";
-import type { FallbackInfo } from "@/lib/providers/fallback-log";
+import { logProviderFallback, type FallbackInfo } from "@/lib/providers/fallback-log";
 import { getMusicForIndustry } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
 import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
@@ -250,13 +250,33 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
           overlayText: hasNarration ? null : section.text,
           thumbnailStorageKey,
         });
+        continue;
       } catch (error) {
-        if (error instanceof ImageProviderError) {
+        if (!(error instanceof ImageProviderError)) throw error;
+        // The shared pool can cross its exhaustion threshold mid-request
+        // (it wasn't marked exhausted yet when this call started, so we
+        // got this far) — real, reachable, distinct from the "already
+        // exhausted before we began" case handled by imageResolution
+        // being null above. If there's real content to fall back on
+        // (an AI still this same video already generated successfully,
+        // or the company's own uploaded media), fall through to the
+        // exact same reuse/cycle logic below rather than hard-failing
+        // the whole video for one scene's worth of bad luck. Only a
+        // genuine dead end (nothing real generated yet AND nothing
+        // uploaded) still fails honestly, matching the upfront guard.
+        if (freeAiStills.length === 0 && orderedAssets.length === 0) {
           throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
         }
-        throw error;
+        fallbackFrom.push({ fromProvider: error.providerName, reason: error.message });
+        await logProviderFallback({
+          companyId,
+          capability: "IMAGE",
+          method: "generateBackground",
+          fromProvider: error.providerName,
+          toProvider: "reused real content for this scene",
+          reason: error.message,
+        });
       }
-      continue;
     }
 
     if (freeAiStills.length > 0) {
