@@ -17,6 +17,7 @@ import { ImageProviderError } from "@/lib/providers/image/types";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import { ProviderError } from "@/lib/providers/text/types";
 import type { FallbackInfo } from "@/lib/providers/fallback-log";
+import { generateQrCodeDataUri } from "./qrcode";
 
 const ASPECT_RATIO_LABEL: Record<AspectRatio, "1:1" | "9:16" | "16:9"> = {
   SQUARE: "1:1",
@@ -60,6 +61,11 @@ export interface GeneratePosterCoreInput {
   // about a sale with an edit asking for "a delivery truck" background).
   // Defaults to the headline for every other caller, unchanged.
   backgroundTopicHint?: string;
+  // Growth Tools #5: an optional real, scannable link baked into the
+  // rendered PNG (see templates.tsx's renderQrBadge). Undefined/blank
+  // means no QR code at all — never a placeholder, same convention as
+  // subhead/cta above.
+  qrCodeUrl?: string;
 }
 
 export interface GeneratePosterCoreResult {
@@ -276,6 +282,10 @@ export async function generatePosterCore(
     }
   }
 
+  // Pure, deterministic, offline encoding — no provider/network call, so
+  // no fallback chain needed the way AI text/image steps above have one.
+  const qrCodeDataUri = input.qrCodeUrl ? await generateQrCodeDataUri(input.qrCodeUrl) : null;
+
   const rendered = await renderPoster({
     headline: input.headline,
     subhead: input.subhead,
@@ -286,6 +296,7 @@ export async function generatePosterCore(
     backgroundMimeType,
     logoBuffer,
     logoMimeType,
+    qrCodeDataUri,
     companyName: context.name,
     benefits: highlights?.benefits,
     trustBadges: highlights?.trustBadges,
@@ -343,6 +354,7 @@ export async function generatePosterCore(
       overrideAccentColor: colorOverrideToStore(resolvedColors.accent, brandKit?.accentColor),
       parentPosterId: input.parentPosterId,
       editInstruction: input.editInstruction,
+      qrCodeUrl: input.qrCodeUrl,
     },
   });
 

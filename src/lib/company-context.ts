@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { type Industry, type IndustryPack, resolveIndustry, resolveIndustryPack } from "@/lib/industry-packs";
 import type { CreativeDnaConfidenceScores } from "@/lib/creative-dna/types";
 import type { LearnedTopicSignal } from "@/lib/providers/text/types";
+import { getUpcomingEvents } from "@/lib/growth/event-calendar";
 
 export interface CompanyContext {
   companyId: string;
@@ -141,12 +142,29 @@ export function getTopicSuggestionChips(
   const pool = [...context.pack.topicSuggestions, ...nicheChips, ...autoTopicChips];
 
   const CHIP_COUNT = 5;
-  if (pool.length <= CHIP_COUNT) return pool;
+
+  // Growth Tools #6: a real, near-term GCC calendar event (within 14
+  // days) always takes the first chip slot — time-sensitive real
+  // information outranks the rotating evergreen pool, the same
+  // reasoning explicit Creative DNA signals already outweigh implicit
+  // ones elsewhere in this app. Only the single nearest event, so it
+  // never crowds out the rest of the pool.
+  const [nearestEvent] = getUpcomingEvents(14, referenceDate);
+  const eventChip = nearestEvent
+    ? {
+        label: context.locale === "AR" ? nearestEvent.nameAr : nearestEvent.nameEn,
+        topic: context.locale === "AR" ? nearestEvent.topicHintAr : nearestEvent.topicHintEn,
+      }
+    : null;
+
+  if (pool.length <= CHIP_COUNT - (eventChip ? 1 : 0)) {
+    return eventChip ? [eventChip, ...pool] : pool;
+  }
 
   const dayIndex = Math.floor(referenceDate.getTime() / 86_400_000);
   const offset = dayIndex % pool.length;
-  const seen = new Set<string>();
-  const chips: { label: string; topic: string }[] = [];
+  const seen = new Set<string>(eventChip ? [eventChip.label] : []);
+  const chips: { label: string; topic: string }[] = eventChip ? [eventChip] : [];
   for (let i = 0; i < pool.length && chips.length < CHIP_COUNT; i += 1) {
     const candidate = pool[(offset + i) % pool.length];
     if (seen.has(candidate.label)) continue;

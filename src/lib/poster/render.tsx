@@ -18,6 +18,10 @@ export interface RenderPosterInput {
   backgroundMimeType: string;
   logoBuffer?: Buffer | null;
   logoMimeType?: string | null;
+  // Data URI already, not a raw buffer — see qrcode.ts's own generator,
+  // which produces one directly (no separate mimeType needed the way
+  // logo/background buffers do, since it's always a fixed PNG).
+  qrCodeDataUri?: string | null;
   brandColors: {
     primary?: string | null;
     secondary?: string | null;
@@ -74,6 +78,7 @@ export async function renderPoster(input: RenderPosterInput): Promise<RenderPost
     height,
     backgroundDataUri,
     logoDataUri,
+    qrCodeDataUri: input.qrCodeDataUri ?? null,
     brandColors: input.brandColors,
     companyName: input.companyName ?? "",
     benefits: input.benefits,

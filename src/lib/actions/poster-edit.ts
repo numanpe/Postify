@@ -117,6 +117,10 @@ export async function editPoster(_prevState: PosterEditState, formData: FormData
       parentPosterId: source.id,
       editInstruction: instruction,
       backgroundTopicHint: result.newImageRequest ?? undefined,
+      // Carried over unchanged — the edit spec has no concept of QR
+      // codes at all, so an edit like "make the headline bigger"
+      // shouldn't silently drop one the original poster had.
+      qrCodeUrl: source.qrCodeUrl ?? undefined,
     });
     revalidatePath("/media");
     return {

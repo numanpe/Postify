@@ -62,6 +62,19 @@ const PosterSchema = z.object({
     .string()
     .nullish()
     .transform((value) => value || undefined),
+  // Growth Tools #5 — real, optional scannable link. A bare domain
+  // ("example.com", what most non-technical users will actually type)
+  // is treated as https:// rather than rejected — the same real-world
+  // leniency a browser address bar gives, not a fabricated default.
+  qrCodeUrl: z
+    .string()
+    .trim()
+    .max(500, "That link is too long.")
+    .nullish()
+    .transform((value) => (value ? (/^https?:\/\//i.test(value) ? value : `https://${value}`) : undefined))
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: "Enter a valid link for the QR code (e.g. yourwebsite.com).",
+    }),
 });
 
 export async function generatePoster(
@@ -78,6 +91,7 @@ export async function generatePoster(
     template: formData.get("template"),
     backgroundSource: formData.get("backgroundSource"),
     backgroundAssetId: formData.get("backgroundAssetId"),
+    qrCodeUrl: formData.get("qrCodeUrl"),
   });
 
   if (!parsed.success) {
@@ -147,6 +161,7 @@ export async function regeneratePosterBackground(
       aspectRatio: source.aspectRatio,
       template: source.template,
       backgroundSource: "AI",
+      qrCodeUrl: source.qrCodeUrl ?? undefined,
     });
     return { status: "success", posterId: result.posterId, warnings: result.warnings, backgroundProviderName: result.backgroundProviderName, fallbackFrom: result.fallbackFrom };
   } catch (error) {

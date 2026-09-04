@@ -19,8 +19,8 @@ datasource db {
 }
 
 model User {
-  id    String @id @default(cuid())
-  email String @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   // Nullable: a Google-only user (Part B1's OAuth sign-in) genuinely has
   // no password — faking one just to satisfy a NOT NULL constraint would
   // be exactly the kind of fabricated data CLAUDE.md's "no fake
@@ -43,11 +43,11 @@ model User {
   // generation/publish always sit behind one of those.
   status    AccountStatus @default(ACTIVE)
 
-  memberships          CompanyMember[]
-  uploadedAssets       MediaAsset[]
-  passwordResetTokens  PasswordResetToken[]
-  sentAdminInvites     AdminInvite[]    @relation("AdminInviteSender")
-  adminActions         AdminActionLog[] @relation("AdminActionActor")
+  memberships               CompanyMember[]
+  uploadedAssets            MediaAsset[]
+  passwordResetTokens       PasswordResetToken[]
+  sentAdminInvites          AdminInvite[]              @relation("AdminInviteSender")
+  adminActions              AdminActionLog[]           @relation("AdminActionActor")
   sharedProviderCredentials SharedProviderCredential[]
 }
 
@@ -134,14 +134,14 @@ enum Locale {
 }
 
 model Company {
-  id              String   @id @default(cuid())
+  id                  String      @id @default(cuid())
   // Onboarding is intentionally light in Phase 1: a company just picks a
   // primary industry + free-text secondary niches. Phase 2's industry
   // packs (src/lib/industry-packs.ts) key off primaryIndustry to make
   // these values actually shape generated content.
-  name            String
-  primaryIndustry String
-  secondaryNiches String[] @default([])
+  name                String
+  primaryIndustry     String
+  secondaryNiches     String[]    @default([])
   // Free-text company summary — either typed manually or derived from a
   // real website extraction (src/lib/brand-extract.ts's
   // deriveBusinessContext) and reviewed/saved by the user like every
@@ -159,9 +159,9 @@ model Company {
   // pipeline (company-context.ts -> prompt.ts / template-provider.ts)
   // so generated captions/hashtags can genuinely reflect where the
   // company actually does business, not a generic industry template.
-  targetMarket    String?
-  locale          Locale   @default(EN)
-  voiceEngine     VoiceEngine @default(FREE)
+  targetMarket        String?
+  locale              Locale      @default(EN)
+  voiceEngine         VoiceEngine @default(FREE)
 
   // Part 4's real "link in bio" public page (src/app/bio/[slug]).
   // Neither field is captured anywhere else today (confirmed by grep —
@@ -169,31 +169,31 @@ model Company {
   // extraction and never persisted) — genuinely new, optional info, not
   // re-asking for something already on file. Both null = no CTA button
   // shown on the bio page, never a placeholder.
-  websiteUrl      String?
-  whatsappNumber  String?
+  websiteUrl       String?
+  whatsappNumber   String?
   // Real business contact fields (2026-09-03, infographic poster
   // template's contact row) — deliberately distinct from User.email
   // (the owner's own login address, never a public business contact).
   // Both null = the contact row simply omits that line, never a
   // placeholder — same convention as websiteUrl/whatsappNumber above.
-  phone           String?
-  contactEmail    String?
+  phone            String?
+  contactEmail     String?
   // On by default once a slug exists (see publicBioSlug below), same
   // opt-out-not-opt-in convention as Company.weeklyDigestEnabled.
-  publicBioEnabled Boolean @default(true)
+  publicBioEnabled Boolean       @default(true)
   // Lazily generated on first real need (Settings page view, or the
   // bio page itself) by src/lib/public-bio.ts's ensurePublicBioSlug —
   // null until then, never guessed/pre-filled. Company name + a short
   // random suffix, URL-safe.
-  publicBioSlug   String?  @unique
+  publicBioSlug    String?       @unique
   // Company-level suspend, independent of any individual member's own
   // User.status — lets an abusive company be shut down without banning
   // every member by hand, and a member can still be individually banned
   // while their company stays active. Same enum, same reversibility as
   // User.status.
-  status          AccountStatus @default(ACTIVE)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status           AccountStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   // Which of the three campaign-card publish paths this company currently
   // has selected as its default — drives which button set is highlighted
@@ -204,7 +204,7 @@ model Company {
   // Weekly Performance Digest (src/lib/jobs/weekly-digest.ts). On by
   // default — real per-company opt-out via a signed unsubscribe link in
   // the email itself, not a default-off feature nobody discovers.
-  weeklyDigestEnabled  Boolean   @default(true)
+  weeklyDigestEnabled    Boolean   @default(true)
   // UTC instant of the last successful send — null means never sent.
   // Same "last run" convention as RecurringPlan.lastRunDate below, used
   // both to define "the past week"'s real window (falls back to 7 days
@@ -212,24 +212,35 @@ model Company {
   // cron is ever manually re-triggered the same week.
   lastWeeklyDigestSentAt DateTime?
 
-  members               CompanyMember[]
-  brandKit              BrandKit?
-  creativeDna           CreativeDna?
-  mediaAssets           MediaAsset[]
-  providerCredentials   ProviderCredential[]
-  posters               Poster[]
-  videos                Video[]
-  campaigns             Campaign[]
-  socialAccounts        SocialAccount[]
-  publishJobs           PublishJob[]
-  aggregatorCredentials AggregatorCredential[]
-  aggregatorPublishLogs AggregatorPublishLog[]
-  engagementSnapshots   EngagementSnapshot[]
-  creativeSignals       CreativeSignal[]
+  // Growth Tools #7 (2026-09-04): "You've gone quiet" nudge — same
+  // opt-out-not-opt-in convention as weeklyDigestEnabled above, same
+  // real per-company unsubscribe link (src/lib/jobs/inactivity-nudge.ts).
+  // A genuinely different trigger from the digest though: the digest
+  // reports on real activity that happened; this fires specifically
+  // when there's been NONE, so it needs its own last-sent marker to
+  // both scope "how long has it actually been quiet" and avoid sending
+  // more than one nudge per real quiet stretch.
+  inactivityNudgeEnabled    Boolean   @default(true)
+  lastInactivityNudgeSentAt DateTime?
+
+  members                CompanyMember[]
+  brandKit               BrandKit?
+  creativeDna            CreativeDna?
+  mediaAssets            MediaAsset[]
+  providerCredentials    ProviderCredential[]
+  posters                Poster[]
+  videos                 Video[]
+  campaigns              Campaign[]
+  socialAccounts         SocialAccount[]
+  publishJobs            PublishJob[]
+  aggregatorCredentials  AggregatorCredential[]
+  aggregatorPublishLogs  AggregatorPublishLog[]
+  engagementSnapshots    EngagementSnapshot[]
+  creativeSignals        CreativeSignal[]
   providerFallbackEvents ProviderFallbackEvent[]
-  recurringPlan         RecurringPlan?
-  testimonials          Testimonial[]
-  promoCodes            PromoCode[]
+  recurringPlan          RecurringPlan?
+  testimonials           Testimonial[]
+  promoCodes             PromoCode[]
 }
 
 enum PublishingMode {
@@ -311,16 +322,16 @@ model CreativeDna {
 // destroy the very row recording that deletion, and SetNull would
 // silently erase the reference on exactly the signal that needs it.
 model CreativeSignal {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   sourceType SignalSource
   // Base weight before recency decay is applied at read time (see
   // SIGNAL_STRENGTH/decayedWeight in src/lib/creative-dna/signals.ts)
   // — never pre-decayed and stored, since "decayed as of when" would
   // require re-writing every row on every read otherwise.
-  strength Float
+  strength   Float
 
   // Attributes this signal applies to — nullable, since not every
   // signal has every dimension (an EDIT signal mainly informs tone; a
@@ -442,18 +453,18 @@ model MediaAsset {
   // storageDeletedAt set = the file is gone; callers must check this
   // before calling storage.get(storageKey) and show "no longer available"
   // instead of a broken image/video.
-  storageDeletedAt DateTime?
+  storageDeletedAt    DateTime?
   // Bumped every time a user uses the "Download Asset & Copy Caption"
   // button — counts toward the stale-retention cron's "undownloaded"
   // check, but explicitly NEVER counts as publish confirmation and never
   // triggers cleanupMediaStorage on its own.
-  downloadedAt DateTime?
+  downloadedAt        DateTime?
   // Set by the daily retention cron (flag-stale-media) when this asset is
   // older than MEDIA_RETENTION_DAYS with no download and no successful
   // publish. Cleared on download, on successful publish, or when the user
   // clicks "extend retention". The cron only ever sets this flag — it
   // never deletes anything itself.
-  staleFlaggedAt DateTime?
+  staleFlaggedAt      DateTime?
   // Bumped when the user clicks "extend retention" on a flagged card —
   // the cron's age check uses max(retentionExtendedAt, createdAt), so an
   // extension genuinely restarts the countdown rather than just hiding
@@ -543,10 +554,19 @@ model Poster {
   // before/after comparison, by walking the chain. SetNull (not
   // Cascade) so deleting an earlier version never deletes its
   // descendants — same reasoning as backgroundAsset above.
-  parentPosterId String?
-  parentPoster   Poster?  @relation("PosterEditLineage", fields: [parentPosterId], references: [id], onDelete: SetNull)
+  parentPosterId  String?
+  parentPoster    Poster?  @relation("PosterEditLineage", fields: [parentPosterId], references: [id], onDelete: SetNull)
   editInstruction String?
-  edits          Poster[] @relation("PosterEditLineage")
+  edits           Poster[] @relation("PosterEditLineage")
+
+  // Growth Tools #5 (2026-09-04): a real, optional scannable link baked
+  // into the rendered PNG itself — a website, WhatsApp deep link, bio
+  // page, or promo-code page, whatever the business actually wants a
+  // scan to open. Null = no QR code at all, same "blank means omitted,
+  // never a placeholder" convention as websiteUrl/whatsappNumber above.
+  // Stored (not just rendered) so an edit/regenerate can reuse it and
+  // the poster list can show which posters carry one.
+  qrCodeUrl String?
 
   createdAt DateTime @default(now())
 
@@ -585,14 +605,14 @@ model Campaign {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  name      String
-  objective String
+  name             String
+  objective        String
   // Free text, not a Prisma enum — SME industries (construction,
   // education, real estate, etc.) need campaign types beyond a fixed
   // set over time, so this stays open rather than hard-coded. The AI
   // Creative Director infers it from the objective (src/lib/campaign/
   // creative-director.ts); never asked of the user as a separate field.
-  campaignType String @default("General")
+  campaignType     String  @default("General")
   // Explicit per-campaign opt-in, default false — campaigns default to
   // the deterministic brand gradient (process-campaign-items.ts), not
   // the shared "Free AI" Cloudflare pool, because a single campaign can
@@ -636,8 +656,8 @@ model RecurringPlan {
   companyId String  @unique
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  postsPerDay  Int @default(0)
-  videosPerDay Int @default(0)
+  postsPerDay     Int              @default(0)
+  videosPerDay    Int              @default(0)
   // "HH:mm", 24h, checked in UTC by the daily job. This app's cron only
   // runs once a day (see vercel.json) — the same real precision ceiling
   // every scheduled PublishJob already has, not a new limitation this
@@ -647,12 +667,12 @@ model RecurringPlan {
   // Optional steer; when empty the daily job rotates through the
   // company's real INDUSTRY_PACKS topic suggestions (industry-packs.ts)
   // instead of inventing a new topic bank.
-  objectiveHint String?
+  objectiveHint   String?
   // Off by default — a deliberate, separate opt-in, never implied by
   // just creating a rule. When on, generated content publishes
   // automatically at its scheduled time with no human approval click.
-  autoPublish Boolean @default(false)
-  isPaused    Boolean @default(false)
+  autoPublish     Boolean          @default(false)
+  isPaused        Boolean          @default(false)
 
   // UTC-midnight-truncated date of the last day this rule successfully
   // generated content for — null means never run. Drives the daily
@@ -660,7 +680,7 @@ model RecurringPlan {
   lastGeneratedDate DateTime?
   // Real, surfaced failure — never a silently-skipped day. Cleared on
   // the next successful run.
-  errorMessage String?
+  errorMessage      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -688,17 +708,17 @@ model CampaignItem {
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  scheduledDate DateTime
-  angle         String // this day's specific sub-topic, from the campaign plan — shown in the calendar UI regardless of asset type
-  assetType     CampaignAssetType  @default(POSTER)
-  status        CampaignItemStatus @default(PENDING)
+  scheduledDate     DateTime
+  angle             String // this day's specific sub-topic, from the campaign plan — shown in the calendar UI regardless of asset type
+  assetType         CampaignAssetType  @default(POSTER)
+  status            CampaignItemStatus @default(PENDING)
   // Incremented on every explicit "Regenerate" click (process-campaign-items.ts).
   // Threaded into which poster template gets used and which auto-selected
   // B-roll assets a video gets, so an explicit regenerate is guaranteed to
   // produce a genuinely different output — the BRAND-gradient poster
   // pipeline and the free-tier script generator are both otherwise fully
   // deterministic given identical inputs.
-  generationAttempt Int @default(0)
+  generationAttempt Int                @default(0)
 
   // Poster-pipeline inputs (assetType == POSTER). Nullable: falls back
   // to `angle` as the headline for backward compatibility with items
@@ -910,8 +930,8 @@ model ProviderFallbackEvent {
   // null means every remaining option in the chain also failed — a
   // real, full exhaustion event, worth distinguishing from "recovered
   // via fallback" at a glance in the admin view.
-  toProvider String?
-  reason     String
+  toProvider   String?
+  reason       String
 
   createdAt DateTime @default(now())
 
@@ -1071,8 +1091,8 @@ model AggregatorCredential {
   // connected platforms under one named profile rather than a per-
   // platform account ID (see campaign-publish-core.ts's isUploadPost
   // branch) — a genuinely different real API shape, not multi-account.
-  accountMap Json @default("{}")
-  accounts   AggregatorAccount[]
+  accountMap   Json                     @default("{}")
+  accounts     AggregatorAccount[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1102,7 +1122,7 @@ model AggregatorAccount {
   // account per (credentialId, platform) should be default; enforced in
   // application code, not the schema, the same way this app already
   // handles "exactly one selectedAggregator per company."
-  isDefault Boolean @default(false)
+  isDefault Boolean        @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1161,8 +1181,8 @@ model PublishJob {
   // TikTok's Content Posting API is video-only — exactly one of
   // posterId/videoId is set, enforced in createPublishJob (Prisma
   // doesn't express an XOR constraint directly), never both.
-  videoId String?
-  video   Video?  @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  videoId         String?
+  video           Video?        @relation(fields: [videoId], references: [id], onDelete: SetNull)
 
   caption      String
   status       PublishStatus @default(DRAFT)
@@ -1202,7 +1222,7 @@ model EngagementSnapshot {
   // Instagram-only — Meta deprecated "impressions" for media created
   // after 2024-07-02; "reach" is the current supported metric. Null for
   // Facebook Page posts, which don't expose this figure the same way.
-  reach Int?
+  reach    Int?
 
   fetchedAt DateTime @default(now())
 

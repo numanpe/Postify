@@ -24,6 +24,7 @@ export interface TemplateRenderProps {
   height: number;
   backgroundDataUri: string;
   logoDataUri: string | null;
+  qrCodeDataUri?: string | null;
   brandColors: { primary?: string | null; secondary?: string | null; accent?: string | null };
   // INFOGRAPHIC_SHOWCASE only (see that template's own doc comment) —
   // every other template ignores these.
@@ -88,6 +89,45 @@ function logoPosition(direction: TextDirection, padding: number): { left: number
   return direction === "rtl" ? { right: padding } : { left: padding };
 }
 
+// Mirror of logoPosition — the QR badge always sits in the opposite top
+// corner from the logo so the two never collide, across every template
+// that floats a logo over the photo.
+function qrBadgePosition(direction: TextDirection, padding: number): { left: number } | { right: number } {
+  return direction === "rtl" ? { left: padding } : { right: padding };
+}
+
+// Always backed by a fully opaque white plate — unlike the logo/text,
+// this never depends on the photo/background's own contrast, so it
+// needs no quality-gate contrastSpec involvement and stays scannable
+// against any background. size is the plate's full side length: real
+// marketing QR codes commonly use a white quiet-zone card for exactly
+// this reliability reason, not a design compromise.
+function renderQrBadge(
+  qrCodeDataUri: string | null | undefined,
+  position: ({ top: number } | { bottom: number }) & ({ left: number } | { right: number }),
+  size: number,
+): ReactElement | null {
+  if (!qrCodeDataUri) return null;
+  const platePadding = Math.round(size * 0.1);
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "absolute",
+        ...position,
+        width: size,
+        height: size,
+        padding: platePadding,
+        borderRadius: Math.round(size * 0.1),
+        background: "#ffffff",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+      }}
+    >
+      <img src={qrCodeDataUri} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+    </div>
+  );
+}
+
 // ---------- MINIMAL ----------
 // The original design, kept as the understated default: full photo,
 // bottom-anchored text under a graduated scrim, small corner logo.
@@ -113,6 +153,7 @@ function renderMinimal(props: TemplateRenderProps): ReactElement {
   const ctaBackground = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
   const ctaTextColor = readableTextColor(ctaBackground);
   const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
@@ -142,6 +183,7 @@ function renderMinimal(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.1))}
       <div
         style={{
           position: "absolute",
@@ -213,6 +255,7 @@ function renderBoldHeadline(props: TemplateRenderProps): ReactElement {
   const ctaBackground = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
   const ctaTextColor = readableTextColor(ctaBackground);
   const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
@@ -242,6 +285,7 @@ function renderBoldHeadline(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.1))}
       <div
         style={{
           position: "absolute",
@@ -301,6 +345,7 @@ function renderPromotionalBanner(props: TemplateRenderProps): ReactElement {
   const bandTextColor = readableTextColor(bandColor);
   const padding = Math.round(scaleBasis * 0.06);
   const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", flexDirection: "column", position: "relative", fontFamily: props.fontFamily }}>
@@ -324,6 +369,7 @@ function renderPromotionalBanner(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.08))}
       <div
         style={{
           display: "flex",
@@ -384,12 +430,14 @@ function renderSplitProduct(props: TemplateRenderProps): ReactElement {
   const ctaBackground = props.brandColors.accent ?? panelTextColor;
   const ctaTextColor = readableTextColor(ctaBackground);
   const padding = Math.round(scaleBasis * 0.06);
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", flexDirection: "column", position: "relative", fontFamily: props.fontFamily }}>
       <div style={{ display: "flex", width, flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
         <img src={props.backgroundDataUri} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.08))}
       <div
         style={{
           display: "flex",
@@ -460,6 +508,7 @@ function renderModernBanner(props: TemplateRenderProps): ReactElement {
   const accentColor = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
   const ctaTextColor = readableTextColor(accentColor);
   const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
   const barWidth = Math.max(3, Math.round(scaleBasis * 0.012));
 
   return (
@@ -492,6 +541,7 @@ function renderModernBanner(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.1))}
       <div
         style={{
           position: "absolute",
@@ -560,6 +610,7 @@ function renderBadgeOffer(props: TemplateRenderProps): ReactElement {
   const cardTextColor = readableTextColor(cardColor);
   const padding = Math.round(scaleBasis * 0.07);
   const logoPos = logoPosition(props.direction, Math.round(padding * 0.6));
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
@@ -592,6 +643,7 @@ function renderBadgeOffer(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.09))}
       <div style={{ display: "flex", width, height, alignItems: "center", justifyContent: "center", padding: Math.round(scaleBasis * 0.08) }}>
         <div
           style={{
@@ -653,6 +705,7 @@ function renderMinimalistFrame(props: TemplateRenderProps): ReactElement {
   const frameThickness = Math.max(2, Math.round(scaleBasis * 0.006));
   const ctaBackground = props.brandColors.accent ?? props.brandColors.primary ?? DEFAULT_GRADIENT[0];
   const ctaTextColor = readableTextColor(ctaBackground);
+  const qrPos = qrBadgePosition(props.direction, Math.round(padding * 0.6));
 
   return (
     <div style={{ width, height, display: "flex", position: "relative", fontFamily: props.fontFamily }}>
@@ -684,6 +737,7 @@ function renderMinimalistFrame(props: TemplateRenderProps): ReactElement {
           }}
         />
       )}
+      {renderQrBadge(props.qrCodeDataUri, { top: Math.round(padding * 0.6), ...qrPos }, Math.round(height * 0.1))}
       <div
         style={{
           position: "absolute",
@@ -935,6 +989,14 @@ function renderInfographicShowcase(props: TemplateRenderProps): ReactElement {
               style={{ width: "76%", height: "76%", objectFit: "contain", borderRadius: "50%" }}
             />
           </div>
+        )}
+        {renderQrBadge(
+          props.qrCodeDataUri,
+          {
+            top: Math.round(padding * 0.7),
+            ...(isRtl ? { left: Math.round(padding * 0.7) } : { right: Math.round(padding * 0.7) }),
+          },
+          Math.round(scaleBasis * 0.14),
         )}
       </div>
 

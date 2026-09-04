@@ -8,6 +8,7 @@ import { ProviderCredentialForm } from "@/components/settings/provider-credentia
 import { ProviderCredentialRow } from "@/components/settings/provider-credential-row";
 import { VoiceEngineToggle } from "@/components/settings/voice-engine-toggle";
 import { WeeklyDigestToggle } from "@/components/settings/weekly-digest-toggle";
+import { InactivityNudgeToggle } from "@/components/settings/inactivity-nudge-toggle";
 import { ApiKeyGuide } from "@/components/settings/api-key-guide";
 import { MusicCredits } from "@/components/settings/music-credits";
 import { PublishingSettings } from "@/components/settings/publishing-settings";
@@ -193,6 +194,8 @@ export default async function SettingsPage() {
       <VoiceEngineToggle currentEngine={company.voiceEngine} />
 
       <WeeklyDigestToggle enabled={company.weeklyDigestEnabled} />
+
+      <InactivityNudgeToggle enabled={company.inactivityNudgeEnabled} />
 
       <ApiKeyGuide dict={dict.settings} />
 

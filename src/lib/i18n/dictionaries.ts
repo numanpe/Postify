@@ -105,6 +105,7 @@ export interface Dictionary {
   poster: {
     title: string; subtitle: (name: string) => string; previousPosters: string;
     headline: string; subhead: string; cta: string; ctaPlaceholder: string; format: string;
+    qrCodeUrl: string; qrCodeUrlPlaceholder: string; qrCodeUrlHint: string;
     formatSquare: string; formatStory: string; formatLandscape: string; background: string;
     backgroundBrand: string; backgroundPhoto: string; backgroundAI: string; photo: string;
     photoHint: string; generatedSuccess: string; generate: string; generating: string;
@@ -257,6 +258,8 @@ export interface Dictionary {
     voiceEngineSave: string; voiceEngineSaved: string;
     weeklyDigestTitle: string; weeklyDigestSubtitle: string; weeklyDigestLabel: string;
     weeklyDigestSave: string; weeklyDigestSaved: string;
+    inactivityNudgeTitle: string; inactivityNudgeSubtitle: string; inactivityNudgeLabel: string;
+    inactivityNudgeSave: string; inactivityNudgeSaved: string;
     apiKeyGuideTitle: string; apiKeyGuideSubtitle: string;
     openaiGuideTitle: string; openaiGuideSteps: string[]; openaiGuideLinkLabel: string;
     elevenLabsGuideTitle: string; elevenLabsGuideSteps: string[]; elevenLabsGuideLinkLabel: string;
@@ -321,6 +324,8 @@ export interface Dictionary {
     reviewsTitle: string; reviewsDesc: string;
     testimonialsTitle: string; testimonialsDesc: string;
     promoCodesTitle: string; promoCodesDesc: string;
+    upcomingEventsTitle: string; eventToday: string; eventDaysUntil: (days: number) => string;
+    eventDatePredicted: string;
   };
   reviewRequest: {
     title: string; subtitle: string;
@@ -566,6 +571,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       subhead: "Subhead",
       cta: "Call to action",
       ctaPlaceholder: "e.g. Shop now",
+      qrCodeUrl: "QR code link",
+      qrCodeUrlPlaceholder: "e.g. yourwebsite.com",
+      qrCodeUrlHint: "Adds a scannable QR code to the poster — link to your website, WhatsApp, or bio page.",
       format: "Format",
       formatSquare: "Square (1:1)",
       formatStory: "Story (9:16)",
@@ -959,6 +967,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       weeklyDigestLabel: "Send me the weekly performance email",
       weeklyDigestSave: "Save",
       weeklyDigestSaved: "Saved.",
+      inactivityNudgeTitle: "\"You've gone quiet\" reminder",
+      inactivityNudgeSubtitle: "A one-time email reminder if your company hasn't created a poster or reel in 14 days — sent to the company owner's email.",
+      inactivityNudgeLabel: "Remind me when I've gone quiet",
+      inactivityNudgeSave: "Save",
+      inactivityNudgeSaved: "Saved.",
       apiKeyGuideTitle: "How to get an API key",
       apiKeyGuideSubtitle: "Step-by-step, for anyone who hasn't done this before.",
       openaiGuideTitle: "OpenAI (scripts + AI images + voice)",
@@ -1120,6 +1133,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       testimonialsDesc: "Share a link with a happy customer — their words become a real poster.",
       promoCodesTitle: "Promo Codes",
       promoCodesDesc: "Create a trackable code to include in your posts and offers.",
+      upcomingEventsTitle: "Upcoming events worth posting about",
+      eventToday: "Today",
+      eventDaysUntil: (days: number) => (days === 1 ? "In 1 day" : `In ${days} days`),
+      eventDatePredicted: "Exact date not yet officially confirmed (moon-sighting dependent).",
     },
     reviewRequest: {
       title: "Ask for a Review",
@@ -1433,6 +1450,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       subhead: "العنوان الفرعي",
       cta: "دعوة لاتخاذ إجراء",
       ctaPlaceholder: "مثال: تسوّق الآن",
+      qrCodeUrl: "رابط رمز QR",
+      qrCodeUrlPlaceholder: "مثال: yourwebsite.com",
+      qrCodeUrlHint: "يضيف رمز QR قابلاً للمسح إلى الملصق — اربطه بموقعك الإلكتروني أو واتساب أو صفحتك التعريفية.",
       format: "الصيغة",
       formatSquare: "مربع (1:1)",
       formatStory: "ستوري (9:16)",
@@ -1826,6 +1846,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       weeklyDigestLabel: "أرسل لي رسالة الأداء الأسبوعية",
       weeklyDigestSave: "حفظ",
       weeklyDigestSaved: "تم الحفظ.",
+      inactivityNudgeTitle: "تذكير \"لقد غبت عن النشاط\"",
+      inactivityNudgeSubtitle: "رسالة تذكير تُرسل مرة واحدة إذا لم تُنشئ شركتك ملصقًا أو ريلًا خلال 14 يومًا — تُرسل إلى بريد مالك الشركة.",
+      inactivityNudgeLabel: "ذكّرني عندما أتوقف عن النشاط",
+      inactivityNudgeSave: "حفظ",
+      inactivityNudgeSaved: "تم الحفظ.",
       apiKeyGuideTitle: "كيفية الحصول على مفتاح API",
       apiKeyGuideSubtitle: "خطوة بخطوة، لمن لم يفعل هذا من قبل.",
       openaiGuideTitle: "OpenAI (النصوص + الصور بالذكاء الاصطناعي + الصوت)",
@@ -1984,6 +2009,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       testimonialsDesc: "شارك رابطًا مع عميل راضٍ — كلماته تتحول إلى ملصق حقيقي.",
       promoCodesTitle: "أكواد الخصم",
       promoCodesDesc: "أنشئ كودًا قابلًا للتتبع لتضمينه في منشوراتك وعروضك.",
+      upcomingEventsTitle: "مناسبات قادمة تستحق النشر عنها",
+      eventToday: "اليوم",
+      eventDaysUntil: (days: number) => (days === 1 ? "خلال يوم واحد" : `خلال ${days} يومًا`),
+      eventDatePredicted: "التاريخ الدقيق لم يُعتمد رسميًا بعد (يعتمد على ترائي الهلال).",
     },
     reviewRequest: {
       title: "اطلب تقييمًا",

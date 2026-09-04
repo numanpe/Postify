@@ -16,9 +16,13 @@ import { DigestUnsubscribeForm } from "@/components/digest/digest-unsubscribe-fo
 export default async function DigestUnsubscribePage({
   searchParams,
 }: {
-  searchParams: Promise<{ company?: string; token?: string }>;
+  searchParams: Promise<{ company?: string; token?: string; type?: string }>;
 }) {
-  const { company: companyId, token } = await searchParams;
+  const { company: companyId, token, type: typeRaw } = await searchParams;
+  // Existing real links already sent (weekly-digest.ts) never carry
+  // ?type= at all — defaulting to "digest" keeps every one of those
+  // working exactly as before.
+  const type: "digest" | "nudge" = typeRaw === "nudge" ? "nudge" : "digest";
 
   const valid = Boolean(companyId && token && verifyUnsubscribeToken(companyId, token));
   const company = valid ? await db.company.findUnique({ where: { id: companyId! }, select: { name: true, locale: true } }) : null;
@@ -33,19 +37,38 @@ export default async function DigestUnsubscribePage({
   const dir = locale === "AR" ? "rtl" : "ltr";
   const isValid = Boolean(company);
 
-  const strings = locale === "AR"
-    ? {
-        title: "إلغاء الاشتراك في الملخص الأسبوعي",
-        invalid: "هذا الرابط غير صالح أو منتهي الصلاحية.",
-        confirmFor: (name: string) => `إيقاف الرسائل الأسبوعية عن "${name}"؟`,
-        note: "لن تفقد أي بيانات — يمكنك إعادة تفعيلها لاحقًا من الإعدادات.",
-      }
-    : {
-        title: "Unsubscribe from weekly digest",
-        invalid: "This unsubscribe link is invalid or has expired.",
-        confirmFor: (name: string) => `Turn off weekly emails for "${name}"?`,
-        note: "No data is lost — you can turn this back on later from Settings.",
-      };
+  const strings =
+    locale === "AR"
+      ? type === "nudge"
+        ? {
+            title: "إيقاف تذكيرات عدم النشاط",
+            invalid: "هذا الرابط غير صالح أو منتهي الصلاحية.",
+            confirmFor: (name: string) => `إيقاف تذكيرات "قلة النشاط" عن "${name}"؟`,
+            note: "لن تفقد أي بيانات — يمكنك إعادة تفعيلها لاحقًا من الإعدادات.",
+            done: "تم — لن تصلك تذكيرات عدم النشاط بعد الآن.",
+          }
+        : {
+            title: "إلغاء الاشتراك في الملخص الأسبوعي",
+            invalid: "هذا الرابط غير صالح أو منتهي الصلاحية.",
+            confirmFor: (name: string) => `إيقاف الرسائل الأسبوعية عن "${name}"؟`,
+            note: "لن تفقد أي بيانات — يمكنك إعادة تفعيلها لاحقًا من الإعدادات.",
+            done: "تم — لن تصلك رسائل أسبوعية بعد الآن.",
+          }
+      : type === "nudge"
+        ? {
+            title: "Turn off inactivity reminders",
+            invalid: "This unsubscribe link is invalid or has expired.",
+            confirmFor: (name: string) => `Turn off "you've gone quiet" reminders for "${name}"?`,
+            note: "No data is lost — you can turn this back on later from Settings.",
+            done: "Done — you won't get any more inactivity reminders.",
+          }
+        : {
+            title: "Unsubscribe from weekly digest",
+            invalid: "This unsubscribe link is invalid or has expired.",
+            confirmFor: (name: string) => `Turn off weekly emails for "${name}"?`,
+            note: "No data is lost — you can turn this back on later from Settings.",
+            done: "Done — you won't get any more weekly emails.",
+          };
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-12" dir={dir}>
@@ -58,8 +81,10 @@ export default async function DigestUnsubscribePage({
         <DigestUnsubscribeForm
           companyId={companyId!}
           token={token!}
+          type={type}
           confirmLabel={strings.confirmFor(company!.name)}
           note={strings.note}
+          doneLabel={strings.done}
           locale={locale}
         />
       )}

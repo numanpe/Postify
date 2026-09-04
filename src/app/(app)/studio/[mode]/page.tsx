@@ -107,10 +107,18 @@ async function CaptionsMode({
   );
 }
 
+// Same private-per-file convention public-asset-links.ts/weekly-digest.ts
+// already use rather than a shared export — this is the only call site
+// that needs it for a poster's QR-code placeholder suggestion.
+function getAppUrl(): string | null {
+  const url = process.env.APP_URL;
+  return url ? url.replace(/\/$/, "") : null;
+}
+
 async function PosterMode({ companyId, companyName }: { companyId: string; companyName: string }) {
   const dict = getDictionary(await getLocale());
 
-  const [photoAssets, posters, brandKit, preferredTemplates] = await Promise.all([
+  const [photoAssets, posters, brandKit, preferredTemplates, companyForQr] = await Promise.all([
     // Shared with every other real media picker in the app (media.ts's
     // own doc comment) — this specific call site previously never
     // excluded storageDeletedAt, a real bug: a photo cleaned up by
@@ -129,8 +137,15 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
     }),
     db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
     getPreferredTemplateOrder(companyId, TEMPLATE_IDS),
+    // Only the existing slug, never lazily generated here — this is a
+    // placeholder suggestion on a form, not a real "visit my bio page"
+    // moment, so it shouldn't create one on every poster-page load.
+    db.company.findUnique({ where: { id: companyId }, select: { publicBioSlug: true } }),
   ]);
   const companyLogoUrl = brandKit?.logoAsset ? storage.url(brandKit.logoAsset.storageKey) : null;
+  const appUrl = getAppUrl();
+  const suggestedQrUrl =
+    companyForQr?.publicBioSlug && appUrl ? `${appUrl}/bio/${companyForQr.publicBioSlug}` : undefined;
 
   return (
     <div className="flex flex-col gap-8">
@@ -143,6 +158,7 @@ async function PosterMode({ companyId, companyName }: { companyId: string; compa
         photoAssets={photoAssets}
         defaultBackgroundSource={photoAssets.length > 0 ? "PHOTO" : "BRAND"}
         preferredTemplateOrder={preferredTemplates.map((t) => t.template)}
+        suggestedQrUrl={suggestedQrUrl}
       />
 
       {posters.length > 0 && (

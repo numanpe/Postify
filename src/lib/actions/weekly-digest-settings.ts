@@ -21,3 +21,16 @@ export async function updateWeeklyDigestPreference(formData: FormData): Promise<
 
   revalidatePath("/settings");
 }
+
+// Growth Tools #7's other real "turn this back on" half — same reason
+// as updateWeeklyDigestPreference above.
+export async function updateInactivityNudgePreference(formData: FormData): Promise<void> {
+  const { company } = await requireCompany();
+
+  await db.company.update({
+    where: { id: company.id },
+    data: { inactivityNudgeEnabled: formData.get("inactivityNudgeEnabled") === "on" },
+  });
+
+  revalidatePath("/settings");
+}

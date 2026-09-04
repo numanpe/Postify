@@ -20,6 +20,7 @@ export function PosterForm({
   defaultHeadline,
   onSuccess,
   preferredTemplateOrder,
+  suggestedQrUrl,
 }: {
   photoAssets: PhotoAsset[];
   // Computed server-side (see poster/page.tsx): PHOTO with the most
@@ -46,6 +47,11 @@ export function PosterForm({
   // fixed order when there isn't enough evidence yet (a brand-new
   // company, or fewer than the minimum sample size for every template).
   preferredTemplateOrder?: readonly string[];
+  // Growth Tools #5 — the company's own real public bio link (only
+  // passed when one already exists; see studio/[mode]/page.tsx), shown
+  // as a placeholder suggestion, never auto-filled. The field itself
+  // accepts any real URL, not just this one.
+  suggestedQrUrl?: string;
 }) {
   const [state, action, pending] = useActionState(generatePoster, undefined);
   const dict = useDict().poster;
@@ -129,6 +135,22 @@ export function PosterForm({
           placeholder={dict.ctaPlaceholder}
           className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="qrCodeUrl" className="text-sm font-medium">
+          {dict.qrCodeUrl} <span className="font-normal text-ink-soft dark:text-ink-soft-dark">{common.optional}</span>
+        </label>
+        <input
+          id="qrCodeUrl"
+          name="qrCodeUrl"
+          type="text"
+          inputMode="url"
+          maxLength={500}
+          placeholder={suggestedQrUrl ?? dict.qrCodeUrlPlaceholder}
+          className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
+        />
+        <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.qrCodeUrlHint}</p>
       </div>
 
       <div className="flex flex-col gap-1">
