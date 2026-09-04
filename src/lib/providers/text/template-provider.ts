@@ -19,7 +19,9 @@ import type {
   GeneratePosterHighlightsInput,
   GeneratePosterHighlightsOutput,
   PosterBenefit,
+  EditPosterInput,
   EditPosterOutput,
+  GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
 import { INDUSTRY_COMPOSITION_STYLE, type Industry } from "@/lib/industry-packs";
@@ -610,10 +612,22 @@ export class TemplateTextProvider implements TextProvider {
   // free-form edit instruction needs actual language understanding this
   // tier doesn't have. Same "no" as clarifyTopic's own doc comment, not
   // a fake best-effort attempt.
-  async editPosterSpec(): Promise<EditPosterOutput> {
+  //
+  // Real bug, found live testing against a real account (2026-09-04):
+  // this used to ignore its own input entirely (a 0-arg override of an
+  // interface method that takes EditPosterInput — TypeScript allows a
+  // method to declare fewer params than the interface it implements, so
+  // this compiled clean while silently never branching on locale), so
+  // an Arabic-locale company got this English message even after
+  // poster-edit-modal.tsx was fixed to actually render it (a separate,
+  // related bug fixed in the same pass — see that file's own comment).
+  async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
     return {
       available: false,
-      unavailableReason: "Editing a poster with a written instruction needs a connected AI provider — add one in Settings.",
+      unavailableReason:
+        input.context.locale === "AR"
+          ? "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات."
+          : "Editing a poster with a written instruction needs a connected AI provider — add one in Settings.",
       providerName: this.name,
     };
   }
@@ -623,11 +637,19 @@ export class TemplateTextProvider implements TextProvider {
   // suggestions needs actual language understanding this tier doesn't
   // have. The free tier's real fallback is getTopicSuggestionChips's
   // day-rotated pool (company-context.ts), not a fake personalized
-  // answer here.
-  async generateTopicSuggestions(): Promise<GenerateTopicSuggestionsOutput> {
+  // answer here. Currently this unavailableReason is never actually
+  // rendered anywhere (getSmartTopicSuggestions falls back to real
+  // template chips silently rather than showing an error) — still made
+  // locale-aware here for the same reason editPosterSpec's was, so a
+  // future caller that DOES surface it doesn't inherit the same latent
+  // gap.
+  async generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput> {
     return {
       available: false,
-      unavailableReason: "Smarter, AI-personalized suggestions need a connected AI provider — add one in Settings.",
+      unavailableReason:
+        input.context.locale === "AR"
+          ? "الاقتراحات الأذكى المخصصة بالذكاء الاصطناعي تحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات."
+          : "Smarter, AI-personalized suggestions need a connected AI provider — add one in Settings.",
       providerName: this.name,
     };
   }

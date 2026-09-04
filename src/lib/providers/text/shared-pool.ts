@@ -185,23 +185,32 @@ function tryShared<Args extends unknown[], R>(
 // provider exists. Distinguishes that from the genuinely-unconfigured
 // case, which keeps the original, accurate, unchanged message.
 function tryShareWithHonestUnavailable<
-  Args extends unknown[],
+  Input extends { context: { locale: "EN" | "AR" } },
   R extends { available: boolean; unavailableReason?: string },
->(sharedMethod: (...args: Args) => Promise<R>, templateMethod: () => Promise<R>): (...args: Args) => Promise<R> {
-  return async (...args: Args) => {
+>(
+  sharedMethod: (input: Input) => Promise<R>,
+  templateMethod: (input: Input) => Promise<R>,
+): (input: Input) => Promise<R> {
+  return async (input: Input) => {
     try {
-      const result = await sharedMethod(...args);
+      const result = await sharedMethod(input);
       await recordSharedPoolSuccess();
       return result;
     } catch (error) {
       if (error instanceof GeminiQuotaExhaustedError) {
         await recordSharedPoolExhaustion();
       }
-      const fallbackResult = await templateMethod();
+      const fallbackResult = await templateMethod(input);
+      // Real bug, found live testing against a real account
+      // (2026-09-04): this message used to be hardcoded English only,
+      // same latent locale gap as editPosterSpec's own template
+      // message before it was fixed in the same pass.
       return {
         ...fallbackResult,
         unavailableReason:
-          "Free AI is temporarily unavailable right now — try again shortly, or add your own key in Settings for guaranteed access.",
+          input.context.locale === "AR"
+            ? "الذكاء الاصطناعي المجاني غير متاح مؤقتًا الآن — حاول مرة أخرى قريبًا، أو أضف مفتاحك الخاص من الإعدادات لضمان الوصول."
+            : "Free AI is temporarily unavailable right now — try again shortly, or add your own key in Settings for guaranteed access.",
       };
     }
   };
@@ -267,13 +276,13 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
     // fixes the SEPARATE, still-real problem that ANY failure here — a
     // genuine exhaustion or a future transient error — would keep
     // showing the same misleading "no provider" message otherwise.
-    editPosterSpec: tryShareWithHonestUnavailable<[EditPosterInput], EditPosterOutput>(
+    editPosterSpec: tryShareWithHonestUnavailable<EditPosterInput, EditPosterOutput>(
       shared.editPosterSpec.bind(shared),
       template.editPosterSpec.bind(template),
     ),
-    generateTopicSuggestions: tryShareWithHonestUnavailable<
-      [GenerateTopicSuggestionsInput],
-      GenerateTopicSuggestionsOutput
-    >(shared.generateTopicSuggestions.bind(shared), template.generateTopicSuggestions.bind(template)),
+    generateTopicSuggestions: tryShareWithHonestUnavailable<GenerateTopicSuggestionsInput, GenerateTopicSuggestionsOutput>(
+      shared.generateTopicSuggestions.bind(shared),
+      template.generateTopicSuggestions.bind(template),
+    ),
   };
 }

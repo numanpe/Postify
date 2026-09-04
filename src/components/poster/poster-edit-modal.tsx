@@ -10,8 +10,9 @@ import { ActionIcons } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 // Natural-language poster editing (2026-09-03) — real scope, stated
-// plainly in the modal itself via editUnavailable/editCannotApply
-// copy, not just in code comments: template/text/color/image-slot
+// plainly in the modal itself via state.reason/editCannotApply copy
+// (see the unavailable-state comment below for why state.reason, not a
+// static dict string), not just in code comments: template/text/color/image-slot
 // changes only, honestly declined otherwise (see the actual prompt in
 // prompt.ts's buildPosterEditPrompt). History is fetched lazily on
 // first open (a direct call into poster-edit.ts's own "use server"
@@ -75,9 +76,20 @@ export function PosterEditModal({ posterId }: { posterId: string }) {
             />
           </div>
 
+          {/* Real bug, found live testing against a real account
+              (2026-09-04): this used to always render the static
+              dict.editUnavailable string, completely ignoring
+              state.reason — the server-computed message that correctly
+              distinguishes "never configured" from "a real provider
+              exists but this one attempt failed" (see shared-pool.ts's
+              tryShareWithHonestUnavailable). The distinction was being
+              computed correctly and then thrown away before it ever
+              reached the screen. state.reason is always a real,
+              non-empty string from the server, so it's the one source
+              of truth here — dict.editUnavailable is unused now. */}
           {state?.status === "unavailable" && (
             <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">
-              {dict.editUnavailable}
+              {state.reason}
             </p>
           )}
           {state?.status === "cannotApply" && (
