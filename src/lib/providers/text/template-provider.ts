@@ -621,13 +621,19 @@ export class TemplateTextProvider implements TextProvider {
   // an Arabic-locale company got this English message even after
   // poster-edit-modal.tsx was fixed to actually render it (a separate,
   // related bug fixed in the same pass — see that file's own comment).
+  //
+  // Both strings reuse dictionaries.ts's own existing editUnavailable
+  // wording verbatim (EN and AR) rather than inventing new phrasing —
+  // that dict string was written for this exact real-world case and
+  // was the ONLY thing actually shown before poster-edit-modal.tsx's
+  // fix, so it's the canonical text, not a fresh translation.
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
     return {
       available: false,
       unavailableReason:
         input.context.locale === "AR"
-          ? "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات."
-          : "Editing a poster with a written instruction needs a connected AI provider — add one in Settings.",
+          ? "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات، أو اطلب من فريقك ذلك."
+          : "Editing with a written instruction needs a connected AI provider — add one in Settings, or ask your team to.",
       providerName: this.name,
     };
   }
@@ -646,9 +652,16 @@ export class TemplateTextProvider implements TextProvider {
   async generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput> {
     return {
       available: false,
+      // AR rewritten (2026-09-04) from an earlier, grammatically
+      // awkward draft ("الاقتراحات الأذكى" — the elative "أذكى" reads
+      // stiffly as a definite attributive here) to a verbal-noun
+      // construction, and switched to the same "مخصصة بالذكاء
+      // الاصطناعي" ("AI-personalized") phrase dict.smartSuggestionsAiLabel
+      // already established for this exact feature, instead of a
+      // second, independently-worded translation of the same concept.
       unavailableReason:
         input.context.locale === "AR"
-          ? "الاقتراحات الأذكى المخصصة بالذكاء الاصطناعي تحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات."
+          ? "توليد اقتراحات ذكية مخصصة بالذكاء الاصطناعي يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات."
           : "Smarter, AI-personalized suggestions need a connected AI provider — add one in Settings.",
       providerName: this.name,
     };

@@ -204,12 +204,16 @@ function tryShareWithHonestUnavailable<
       // Real bug, found live testing against a real account
       // (2026-09-04): this message used to be hardcoded English only,
       // same latent locale gap as editPosterSpec's own template
-      // message before it was fixed in the same pass.
+      // message before it was fixed in the same pass. AR wording
+      // (2026-09-04 revision) reuses dictionaries.ts's own
+      // sharedAiExhaustedText vocabulary for this exact "shared pool
+      // temporarily out" concept (اربط مفتاح ... في الإعدادات) instead
+      // of an independently-worded translation.
       return {
         ...fallbackResult,
         unavailableReason:
           input.context.locale === "AR"
-            ? "الذكاء الاصطناعي المجاني غير متاح مؤقتًا الآن — حاول مرة أخرى قريبًا، أو أضف مفتاحك الخاص من الإعدادات لضمان الوصول."
+            ? "الذكاء الاصطناعي المجاني غير متاح مؤقتًا الآن — حاول مرة أخرى قريبًا، أو اربط مفتاحك الخاص في الإعدادات لضمان الوصول."
             : "Free AI is temporarily unavailable right now — try again shortly, or add your own key in Settings for guaranteed access.",
       };
     }
