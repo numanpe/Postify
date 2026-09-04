@@ -25,7 +25,6 @@ export const ACTIVE_COMPANY_COOKIE = "active_company_id";
 // would reintroduce the exact "N un-deduplicated round trips per request"
 // bug this file's requireUser() comment already documents fixing once.
 export const resolveActiveMembership = cache(async function resolveActiveMembership(userId: string) {
-  const __t0 = Date.now();
   const [cookieStore, memberships] = await Promise.all([
     cookies(),
     db.companyMember.findMany({
@@ -34,7 +33,6 @@ export const resolveActiveMembership = cache(async function resolveActiveMembers
       orderBy: { createdAt: "asc" },
     }),
   ]);
-  console.log(`[PERF] resolveActiveMembership db query: ${Date.now() - __t0}ms`);
   if (memberships.length === 0) return null;
   const activeId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value;
   return memberships.find((m) => m.companyId === activeId) ?? memberships[0];
@@ -52,9 +50,7 @@ export const resolveActiveMembership = cache(async function resolveActiveMembers
 // Server Component in one request automatically, cutting it back down
 // to one real query.
 export const requireUser = cache(async function requireUser() {
-  const __t0 = Date.now();
   const session = await auth();
-  console.log(`[PERF] auth() call: ${Date.now() - __t0}ms`);
   if (!session?.user) {
     redirect("/auth/login");
   }
@@ -71,12 +67,10 @@ export const requireUser = cache(async function requireUser() {
   // hits (auth)/layout.tsx's own "already authenticated? bounce back
   // to /" check, producing a genuine infinite redirect loop (found via
   // Playwright, not by inspection — see that route's comment).
-  const __t1 = Date.now();
   const record = await db.user.findUnique({
     where: { id: session.user.id },
     select: { status: true },
   });
-  console.log(`[PERF] db.user.findUnique: ${Date.now() - __t1}ms`);
   if (!record) {
     redirect("/auth/login");
   }
@@ -93,12 +87,9 @@ export const requireUser = cache(async function requireUser() {
 // query that includes an equivalent membership check), per CLAUDE.md's
 // data-layer isolation requirement.
 export const requireCompany = cache(async function requireCompany() {
-  const __t0 = Date.now();
   const user = await requireUser();
-  console.log(`[PERF] requireCompany after requireUser: ${Date.now() - __t0}ms total`);
 
   const membership = await resolveActiveMembership(user.id);
-  console.log(`[PERF] requireCompany after resolveActiveMembership: ${Date.now() - __t0}ms total`);
 
   if (!membership) {
     redirect("/create-company");
