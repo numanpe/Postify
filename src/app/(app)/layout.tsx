@@ -17,8 +17,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const __layoutT0 = Date.now();
   const { user, company } = await requireCompany();
+  console.log(`[PERF] layout after requireCompany: ${Date.now() - __layoutT0}ms`);
   const locale = await getLocale();
+  console.log(`[PERF] layout after getLocale: ${Date.now() - __layoutT0}ms`);
   const dict = getDictionary(locale);
 
   // Cheap on top of requireCompany()'s own membership lookup (id/name
@@ -30,6 +33,7 @@ export default async function AppLayout({
     select: { company: { select: { id: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
+  console.log(`[PERF] layout after memberships query: ${Date.now() - __layoutT0}ms TOTAL`);
 
   return (
     <LocaleProvider locale={locale}>

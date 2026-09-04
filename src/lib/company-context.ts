@@ -33,10 +33,12 @@ export interface CompanyContext {
 // resolved through requireCompany()'s membership check, never a
 // client-supplied id.
 export async function getCompanyContext(companyId: string): Promise<CompanyContext> {
+  const __t0 = Date.now();
   const company = await db.company.findUniqueOrThrow({
     where: { id: companyId },
     include: { creativeDna: true },
   });
+  console.log(`[PERF] getCompanyContext db query: ${Date.now() - __t0}ms`);
 
   // Company.primaryIndustry is a plain DB string column, not narrowed
   // to the Industry union — resolveIndustry (industry-packs.ts) is the

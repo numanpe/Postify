@@ -21,8 +21,11 @@ export default async function CampaignsPage({
   // this only saves them retyping what they already said.
   searchParams: Promise<{ objective?: string; days?: string; page?: string }>;
 }) {
+  const __pageT0 = Date.now();
   const { company } = await requireCompany();
+  console.log(`[PERF] campaigns page after requireCompany: ${Date.now() - __pageT0}ms`);
   const locale = await getLocale();
+  console.log(`[PERF] campaigns page after getLocale: ${Date.now() - __pageT0}ms`);
   const dict = getDictionary(locale);
   const { objective, days, page: pageParam } = await searchParams;
   const parsedDays = days ? Number(days) : undefined;
@@ -41,8 +44,10 @@ export default async function CampaignsPage({
     }),
     db.campaign.count({ where: { companyId: company.id } }),
   ]);
+  console.log(`[PERF] campaigns page after campaigns query: ${Date.now() - __pageT0}ms`);
   const totalPages = Math.max(1, Math.ceil(totalCampaignCount / CAMPAIGNS_PER_PAGE));
   const topicSuggestions = getTopicSuggestionChips(await getCompanyContext(company.id));
+  console.log(`[PERF] campaigns page after getCompanyContext: ${Date.now() - __pageT0}ms TOTAL`);
 
   return (
     <div className="flex flex-col gap-8">
