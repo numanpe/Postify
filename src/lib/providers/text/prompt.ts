@@ -641,7 +641,7 @@ export function buildPosterEditPrompt(input: EditPosterInput): { system: string;
     "You edit a structured poster specification based on a real user's plain-language instruction. You do NOT generate pixels or images directly — you only produce an updated version of the same JSON structure, which a separate real rendering pipeline draws exactly as given.",
     "",
     `Valid "template" values, each a genuinely different layout (this is the only way to "move" where things sit — there is no way to reposition one element within a single template): ${JSON.stringify(TEMPLATE_IDS)}.`,
-    `Valid "backgroundSource" values: ${JSON.stringify(BACKGROUND_SOURCE_VALUES)}. "PHOTO" requires a real backgroundAssetId from the list below; "AI" means a new background image will be generated separately — set newImageRequest to describe what it should show.`,
+    `Valid "backgroundSource" values: ${JSON.stringify(BACKGROUND_SOURCE_VALUES)}. "PHOTO" requires a real backgroundAssetId from the list below; "AI" means a new background image will be generated separately — set newImageRequest to describe what it should show. CRITICAL: whenever the instruction asks to change what the background actually DEPICTS (a different scene, object, or subject — not just a color/style tweak) and no real photo fits, you MUST set backgroundSource to "AI", even if it was something else before. Setting newImageRequest without also setting backgroundSource to "AI" is invalid and the whole edit will be rejected.`,
     "colors.primary/secondary/accent must each be a real 6-digit hex color (e.g. \"#1a2b3c\") — either kept from the current spec or a genuine, sensible new color if the instruction asks for a color change. Never leave a color empty or invent a non-hex value.",
     "headline/subhead/cta are free text — edit only what the instruction actually asks about; leave every other field byte-identical to the current spec.",
     "",
@@ -719,10 +719,26 @@ export function parsePosterEditResponse(
     throw new ProviderError(providerName, "Poster-edit response has an empty headline.");
   }
 
-  const newImageRequest =
-    updatedSpec.backgroundSource === "AI" && typeof record.newImageRequest === "string" && record.newImageRequest.trim()
-      ? record.newImageRequest.trim()
-      : null;
+  // Real bug, found live (2026-09-04): a real instruction ("make big
+  // grass bales in the background") produced a response where the model
+  // correctly understood the request as new image CONTENT (it filled in
+  // newImageRequest) but left backgroundSource on its old, non-"AI"
+  // value — the mismatch this app's own contract says is invalid (the
+  // system prompt: "newImageRequest must be null unless backgroundSource
+  // is AI"). The old code silently discarded newImageRequest in that
+  // case and rendered with the unchanged background, so the edit
+  // appeared to do nothing — no error, no explanation, exactly the
+  // reported symptom. Detecting the mismatch and failing honestly here
+  // (matching CLAUDE.md's "no fake functionality") converts that silent
+  // no-op into a real, actionable error instead.
+  const rawNewImageRequest = typeof record.newImageRequest === "string" ? record.newImageRequest.trim() : "";
+  if (rawNewImageRequest && updatedSpec.backgroundSource !== "AI") {
+    throw new ProviderError(
+      providerName,
+      "The edit understood you want new background imagery but didn't set that up correctly. Try rephrasing to be explicit, e.g. \"generate a new AI background showing...\".",
+    );
+  }
+  const newImageRequest = updatedSpec.backgroundSource === "AI" && rawNewImageRequest ? rawNewImageRequest : null;
 
   return { canApply: true, explanation: explanation || "Updated.", updatedSpec, newImageRequest };
 }

@@ -11,11 +11,26 @@ import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate
 import { DEFAULT_GRADIENT } from "@/lib/providers/image/gradient-provider";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
 import type { PosterEditSpec } from "@/lib/providers/text/types";
+import type { FallbackInfo } from "@/lib/providers/fallback-log";
 
 export type PosterEditState =
   | { status: "unavailable"; reason: string }
   | { status: "cannotApply"; explanation: string }
-  | { status: "success"; posterId: string; explanation: string; warnings: string[] }
+  | {
+      status: "success";
+      posterId: string;
+      explanation: string;
+      warnings: string[];
+      // Real bug fix (2026-09-04): generatePosterCore already returns
+      // these (poster.ts's two actions already forward them), but this
+      // action was silently dropping them — so a real image-generation
+      // fallback during an edit (e.g. the requested AI background
+      // failing over to the brand gradient) never reached the user, who
+      // just saw a plain "Updated." with no explanation for why the
+      // background didn't match what they asked for.
+      backgroundProviderName?: string;
+      fallbackFrom?: FallbackInfo[];
+    }
   | { status: "error"; error: string }
   | undefined;
 
@@ -128,6 +143,8 @@ export async function editPoster(_prevState: PosterEditState, formData: FormData
       posterId: genResult.posterId,
       explanation: result.explanation ?? "Updated.",
       warnings: [...warnings, ...genResult.warnings],
+      backgroundProviderName: genResult.backgroundProviderName,
+      fallbackFrom: genResult.fallbackFrom,
     };
   } catch (error) {
     if (error instanceof PosterGenerationError) {

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 // to avoid N+1-style unbounded per-card work.
 export function PosterEditModal({ posterId }: { posterId: string }) {
   const dict = useDict().poster;
+  const common = useDict().common;
   const locale = useLocale();
   const sheetRef = useRef<BottomSheetHandle>(null);
   const [state, action, pending] = useActionState(editPoster, undefined);
@@ -110,6 +111,19 @@ export function PosterEditModal({ posterId }: { posterId: string }) {
                   {warning}
                 </p>
               ))}
+              {/* Real bug fix (2026-09-04): this action's own result
+                  already carried a real fallback disclosure when the AI
+                  background genuinely degraded to a fallback provider —
+                  see poster-edit.ts's own doc comment — but nothing
+                  rendered it, so an edit that silently fell back to the
+                  brand gradient looked identical to one that fully
+                  succeeded. Same real disclosure pattern poster-form.tsx
+                  already uses for the same case. */}
+              {state.fallbackFrom && state.fallbackFrom.length > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {common.fallbackNotice(state.backgroundProviderName ?? dict.backgroundAI, state.fallbackFrom[0].fromProvider)}
+                </p>
+              )}
             </div>
           )}
 
