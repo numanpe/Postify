@@ -27,10 +27,20 @@ const limiters = redis
         limiter: Ratelimit.slidingWindow(3, "1 h"),
         prefix: "ratelimit:password-reset",
       }),
+      // 15-feature request, Tier 1 #3 (2026-09-04) — the one genuinely
+      // new PUBLIC, unauthenticated write endpoint this app has (submit
+      // a testimonial, which triggers a real poster generation). A
+      // human filling out a real form a handful of times is normal; a
+      // script hammering it to burn quota or spam junk text is not.
+      "testimonial-submit": new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "1 h"),
+        prefix: "ratelimit:testimonial-submit",
+      }),
     }
   : null;
 
-export type RateLimitAction = "login" | "signup" | "password-reset";
+export type RateLimitAction = "login" | "signup" | "password-reset" | "testimonial-submit";
 
 // x-forwarded-for is the real client IP on Vercel (and behind any
 // standard reverse proxy) — req.ip isn't available from a Server Action,

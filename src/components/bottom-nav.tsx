@@ -36,6 +36,7 @@ export function BottomNav() {
     { href: "/brand-kit", label: dict.nav.brandKit, icon: NavIcons.brandKit },
     { href: "/settings", label: dict.nav.settings, icon: NavIcons.settings },
     { href: "/repurpose", label: dict.nav.repurpose, icon: NavIcons.repurpose },
+    { href: "/growth", label: dict.nav.growth, icon: NavIcons.growth },
     { href: "/inbox", label: dict.nav.inbox, icon: NavIcons.inbox },
     { href: "/help", label: dict.nav.help, icon: NavIcons.help },
   ];

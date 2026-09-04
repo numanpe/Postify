@@ -41,6 +41,7 @@ import {
   HelpCircle,
   Inbox,
   Wand2,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const NavIcons = {
   addCompany: Building2,
   help: HelpCircle,
   inbox: Inbox,
+  growth: TrendingUp,
 } satisfies Record<string, LucideIcon>;
 
 export const ActionIcons = {

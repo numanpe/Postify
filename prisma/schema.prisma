@@ -228,6 +228,8 @@ model Company {
   creativeSignals       CreativeSignal[]
   providerFallbackEvents ProviderFallbackEvent[]
   recurringPlan         RecurringPlan?
+  testimonials          Testimonial[]
+  promoCodes            PromoCode[]
 }
 
 enum PublishingMode {
@@ -355,14 +357,60 @@ enum SignalSource {
   EDIT
   REGEN_REJECTED
   REGEN_CHOSEN
-  // Not produced anywhere yet — no like/dislike control exists in the
-  // UI (confirmed by a full audit before this enum was written). Kept
-  // here, unused, only so a future explicit rating control has an
-  // obvious, correctly-weighted place to plug into this same signal
-  // system rather than inventing a second one (see signals.ts's
-  // SIGNAL_STRENGTH table and its own comment on this).
+  // Real, in use since Phase 7's Teach AI feature (src/lib/actions/
+  // teach-ai.ts) — the comment that used to say "not produced anywhere
+  // yet" here predates that and is stale; also now the redemption
+  // signal for PromoCode below (src/lib/actions/promo-codes.ts).
   LIKE
   DISLIKE
+}
+
+// 15-feature request, Tier 1 #3 (2026-09-04): "Testimonial -> Poster."
+// A customer-facing public link/form (src/app/testimonial/[slug]) lets
+// a real customer type a short review; submitting it auto-generates a
+// real poster through the existing engine (generatePosterCore) — same
+// Brand Kit/quality-gate/RTL path every other poster uses, never a
+// separate, lesser pipeline. posterId is a plain string, NOT a Prisma
+// relation, same deliberate convention as CreativeSignal above — a
+// testimonial's own record should survive even if its generated poster
+// is later deleted from Media Library.
+model Testimonial {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerName String?
+  text         String
+  posterId     String?
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// 15-feature request, Tier 1 #4 (2026-09-04): "Promo Codes with
+// Redemption Tracking." A real, unique code a business generates and
+// manually embeds into a caption/poster's own free-text fields (no new
+// generation-pipeline wiring — every template already supports
+// arbitrary text) — deliberately NOT auto-inserted anywhere, so this
+// stays a small, self-contained feature rather than touching every
+// template/prompt. redemptionCount is incremented by a real manual
+// "mark as redeemed" action (src/lib/actions/promo-codes.ts), which
+// also records a real LIKE-strength CreativeSignal — the strongest
+// existing explicit-signal tier, since a redeemed code is about as
+// concrete a real-world success signal as this app can observe.
+// posterId is a plain string (same non-relation convention as
+// CreativeSignal/Testimonial above), optional — a code can exist before
+// any specific poster does.
+model PromoCode {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code            String   @unique
+  label           String?
+  posterId        String?
+  redemptionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([companyId])
 }
 
 // Auto-tagging in Phase 1 is limited to structural metadata (mime type,

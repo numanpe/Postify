@@ -20,7 +20,7 @@ export interface Dictionary {
   nav: {
     studio: string; poster: string; video: string; campaigns: string; publish: string;
     media: string; brandKit: string; settings: string; signOut: string; repurpose: string; menu: string;
-    createContent: string; help: string; inbox: string;
+    createContent: string; help: string; inbox: string; growth: string;
   };
   common: {
     save: string; cancel: string; remove: string; delete: string; retry: string;
@@ -316,6 +316,42 @@ export interface Dictionary {
     resultTitle: string; resultPoster: string; resultVideo: string; resultCaptions: string;
     copyButton: string; copiedToast: string;
   };
+  growth: {
+    title: string; subtitle: string;
+    reviewsTitle: string; reviewsDesc: string;
+    testimonialsTitle: string; testimonialsDesc: string;
+    promoCodesTitle: string; promoCodesDesc: string;
+  };
+  reviewRequest: {
+    title: string; subtitle: string;
+    noWhatsapp: string; goToSettings: string;
+    customerPhoneLabel: string; customerPhoneHint: string;
+    messagePreviewLabel: string;
+    regenerate: string; openWhatsapp: string;
+  };
+  testimonials: {
+    title: string; subtitle: string;
+    shareLinkLabel: string; copyLink: string; copiedToast: string;
+    listTitle: string; noneYet: string; viewPoster: string; generating: string; failed: string;
+    posterHeadline: string;
+  };
+  testimonialPublic: {
+    title: string; subtitle: (companyName: string) => string;
+    nameLabel: string; nameOptional: string;
+    textLabel: string; textPlaceholder: string;
+    submit: string; submitting: string;
+    thankYouTitle: string; thankYouBody: string;
+    error: string; notFound: string;
+    tooManySubmissions: string; tooShort: string; tooLong: (max: number) => string; nameTooLong: string;
+  };
+  promoCodes: {
+    title: string; subtitle: string;
+    labelInput: string; labelPlaceholder: string;
+    createButton: string;
+    listTitle: string; noneYet: string;
+    redeemedCount: (n: number) => string;
+    markRedeemed: string; copyCode: string; copiedToast: string;
+  };
   socialPreview: {
     trigger: string; title: string; close: string; disclaimer: string;
     tabInstagram: string; tabFacebook: string; tabLinkedin: string; tabTiktok: string;
@@ -362,6 +398,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       createContent: "Create Content",
       help: "Help",
       inbox: "Inbox",
+      growth: "Growth Tools",
     },
     common: {
       save: "Save",
@@ -1074,6 +1111,71 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       copyButton: "Copy",
       copiedToast: "Copied.",
     },
+    growth: {
+      title: "Growth Tools",
+      subtitle: "Small, free tools that help bring in more customers — no extra setup, no hidden cost.",
+      reviewsTitle: "Ask for a Review",
+      reviewsDesc: "Draft a friendly review request and send it yourself over WhatsApp.",
+      testimonialsTitle: "Testimonial → Poster",
+      testimonialsDesc: "Share a link with a happy customer — their words become a real poster.",
+      promoCodesTitle: "Promo Codes",
+      promoCodesDesc: "Create a trackable code to include in your posts and offers.",
+    },
+    reviewRequest: {
+      title: "Ask for a Review",
+      subtitle: "A short, friendly message ready to send — you choose who it goes to.",
+      noWhatsapp: "Add your business WhatsApp number in Brand Kit first, so we know it's really coming from you.",
+      goToSettings: "Add it in Brand Kit",
+      customerPhoneLabel: "Customer's WhatsApp number (optional)",
+      customerPhoneHint: "Leave blank to pick the contact yourself when WhatsApp opens.",
+      messagePreviewLabel: "Message",
+      regenerate: "Try another wording",
+      openWhatsapp: "Open in WhatsApp",
+    },
+    testimonials: {
+      title: "Testimonial → Poster",
+      subtitle: "Share this link with a happy customer. Whatever they type becomes a real poster in your Media Library — nothing is published automatically.",
+      shareLinkLabel: "Your testimonial link",
+      copyLink: "Copy link",
+      copiedToast: "Copied.",
+      listTitle: "Submitted testimonials",
+      noneYet: "No testimonials submitted yet.",
+      viewPoster: "View poster",
+      generating: "Poster is being generated…",
+      failed: "Poster generation failed for this one — the testimonial itself is still saved.",
+      posterHeadline: "What our customers say",
+    },
+    testimonialPublic: {
+      title: "Share your experience",
+      subtitle: (companyName: string) => `${companyName} would love to hear what you think — it only takes a moment.`,
+      nameLabel: "Your name",
+      nameOptional: "(optional)",
+      textLabel: "Your review",
+      textPlaceholder: "What did you like? A sentence or two is perfect.",
+      submit: "Submit",
+      submitting: "Submitting…",
+      thankYouTitle: "Thank you!",
+      thankYouBody: "Your review has been shared. We really appreciate it.",
+      error: "Something went wrong — please try again.",
+      notFound: "This link isn't available.",
+      tooManySubmissions: "Too many submissions — please try again in a bit.",
+      tooShort: "Please share a little more detail.",
+      tooLong: (max: number) => `Please keep it under ${max} characters.`,
+      nameTooLong: "That name is too long.",
+    },
+    promoCodes: {
+      title: "Promo Codes",
+      subtitle: "Create a code to include in a post or caption, then mark it redeemed when a customer uses it.",
+      labelInput: "What's this code for?",
+      labelPlaceholder: "e.g. Weekend Sale",
+      createButton: "Create code",
+      listTitle: "Your codes",
+      noneYet: "No promo codes yet.",
+      redeemedCount: (n: number) => (n === 1 ? "1 redemption" : `${n} redemptions`),
+      markRedeemed: "+1 Redeemed",
+      copyCode: "Copy code",
+      copiedToast: "Copied.",
+    },
     socialPreview: {
       trigger: "Preview",
       title: "Preview on Social Media",
@@ -1164,6 +1266,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       createContent: "إنشاء محتوى",
       help: "المساعدة",
       inbox: "الوارد",
+      growth: "أدوات النمو",
     },
     common: {
       save: "حفظ",
@@ -1870,6 +1973,71 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       resultVideo: "فيديو جديد",
       resultCaptions: "نسخ التسمية التوضيحية",
       copyButton: "نسخ",
+      copiedToast: "تم النسخ.",
+    },
+    growth: {
+      title: "أدوات النمو",
+      subtitle: "أدوات صغيرة ومجانية تساعدكم على جذب المزيد من العملاء — بلا إعداد إضافي وبلا تكلفة خفية.",
+      reviewsTitle: "اطلب تقييمًا",
+      reviewsDesc: "جهّز رسالة ودّية لطلب تقييم، وأرسلها بنفسك عبر واتساب.",
+      testimonialsTitle: "من تقييم إلى ملصق",
+      testimonialsDesc: "شارك رابطًا مع عميل راضٍ — كلماته تتحول إلى ملصق حقيقي.",
+      promoCodesTitle: "أكواد الخصم",
+      promoCodesDesc: "أنشئ كودًا قابلًا للتتبع لتضمينه في منشوراتك وعروضك.",
+    },
+    reviewRequest: {
+      title: "اطلب تقييمًا",
+      subtitle: "رسالة قصيرة وودّية جاهزة للإرسال — أنتم تختارون لمن تُرسل.",
+      noWhatsapp: "أضيفوا رقم واتساب عملكم من هوية العلامة أولًا، حتى نتأكد أن الرسالة تصلكم فعلاً منكم.",
+      goToSettings: "أضيفوه من هوية العلامة",
+      customerPhoneLabel: "رقم واتساب العميل (اختياري)",
+      customerPhoneHint: "اتركوه فارغًا لاختيار جهة الاتصال بأنفسكم عند فتح واتساب.",
+      messagePreviewLabel: "الرسالة",
+      regenerate: "جرّب صياغة أخرى",
+      openWhatsapp: "فتح في واتساب",
+    },
+    testimonials: {
+      title: "من تقييم إلى ملصق",
+      subtitle: "شاركوا هذا الرابط مع عميل راضٍ. مهما كتب، يتحول إلى ملصق حقيقي في مكتبة الوسائط لديكم — لا شيء يُنشر تلقائيًا.",
+      shareLinkLabel: "رابط التقييمات الخاص بكم",
+      copyLink: "نسخ الرابط",
+      copiedToast: "تم النسخ.",
+      listTitle: "التقييمات المُرسلة",
+      noneYet: "لا توجد تقييمات مُرسلة بعد.",
+      viewPoster: "عرض الملصق",
+      generating: "جارٍ إنشاء الملصق…",
+      failed: "فشل إنشاء الملصق لهذا التقييم — التقييم نفسه محفوظ رغم ذلك.",
+      posterHeadline: "ماذا يقول عملاؤنا",
+    },
+    testimonialPublic: {
+      title: "شاركونا تجربتكم",
+      subtitle: (companyName: string) => `تسعد ${companyName} بمعرفة رأيكم — الأمر يستغرق لحظة فقط.`,
+      nameLabel: "اسمكم",
+      nameOptional: "(اختياري)",
+      textLabel: "تقييمكم",
+      textPlaceholder: "ما الذي أعجبكم؟ جملة أو جملتان تكفيان.",
+      submit: "إرسال",
+      submitting: "جارٍ الإرسال…",
+      thankYouTitle: "شكرًا لكم!",
+      thankYouBody: "تم مشاركة تقييمكم. نقدّر ذلك حقًا.",
+      error: "حدث خطأ ما — يرجى المحاولة مرة أخرى.",
+      notFound: "هذا الرابط غير متاح.",
+      tooManySubmissions: "عدد كبير جدًا من المحاولات — يرجى المحاولة مرة أخرى بعد قليل.",
+      tooShort: "يرجى مشاركة القليل من التفاصيل الإضافية.",
+      tooLong: (max: number) => `يرجى ألا يتجاوز النص ${max} حرفًا.`,
+      nameTooLong: "هذا الاسم طويل جدًا.",
+    },
+    promoCodes: {
+      title: "أكواد الخصم",
+      subtitle: "أنشئوا كودًا لتضمينه في منشور أو تسمية توضيحية، ثم علّموه كمستخدم عندما يستخدمه أحد العملاء.",
+      labelInput: "لماذا هذا الكود؟",
+      labelPlaceholder: "مثال: عرض نهاية الأسبوع",
+      createButton: "إنشاء كود",
+      listTitle: "أكوادكم",
+      noneYet: "لا توجد أكواد خصم بعد.",
+      redeemedCount: (n: number) => (n === 1 ? "استخدام واحد" : `${n} استخدامات`),
+      markRedeemed: "+1 تم الاستخدام",
+      copyCode: "نسخ الكود",
       copiedToast: "تم النسخ.",
     },
     socialPreview: {
