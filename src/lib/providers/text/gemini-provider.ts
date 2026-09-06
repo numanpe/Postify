@@ -23,6 +23,8 @@ import type {
   CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
+  EditVideoScriptInput,
+  EditVideoScriptOutput,
   GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
@@ -45,6 +47,8 @@ import {
   parseCondensePosterHeadlineResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
+  buildVideoScriptEditPrompt,
+  parseVideoScriptEditResponse,
   buildTopicSuggestionsPrompt,
   parseTopicSuggestionsResponse,
 } from "./prompt";
@@ -268,6 +272,29 @@ const POSTER_EDIT_RESPONSE_SCHEMA = {
     explanation: { type: "STRING" },
     updatedSpec: { ...POSTER_EDIT_SPEC_SCHEMA, nullable: true },
     newImageRequest: { type: "STRING", nullable: true },
+  },
+  required: ["canApply", "explanation"],
+};
+
+const VIDEO_SCRIPT_EDIT_SPEC_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    hook: { type: "STRING" },
+    context: { type: "STRING" },
+    value: { type: "STRING" },
+    message: { type: "STRING" },
+    cta: { type: "STRING" },
+  },
+  required: ["hook", "context", "value", "message", "cta"],
+  propertyOrdering: ["hook", "context", "value", "message", "cta"],
+};
+
+const VIDEO_SCRIPT_EDIT_RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    canApply: { type: "BOOLEAN" },
+    explanation: { type: "STRING" },
+    updatedScript: { ...VIDEO_SCRIPT_EDIT_SPEC_SCHEMA, nullable: true },
   },
   required: ["canApply", "explanation"],
 };
@@ -602,6 +629,33 @@ export class GeminiTextProvider implements TextProvider {
       updatedSpec: updatedSpec ?? undefined,
       explanation,
       newImageRequest: newImageRequest ?? undefined,
+      providerName: this.name,
+      estimatedCostUsd,
+    };
+  }
+
+  async editVideoScriptSpec(input: EditVideoScriptInput): Promise<EditVideoScriptOutput> {
+    const { system, user } = buildVideoScriptEditPrompt(input);
+    // Same structural-comparison reasoning as editPosterSpec's own
+    // token-budget comment above (this file's real hidden-thinking-token
+    // measurement was specific to that schema's greater nesting depth):
+    // this response is generateScript's flat 5-string schema (700) plus
+    // canApply/explanation, so 800 gives modest extra headroom for the
+    // wrapper fields without editPosterSpec's own confirmed truncation
+    // history. Revisit with real evidence if truncation is ever seen.
+    const { content, estimatedCostUsd, finishReason } = await this.generateContent(system, user, {
+      jsonMode: true,
+      maxTokens: 800,
+      responseSchema: VIDEO_SCRIPT_EDIT_RESPONSE_SCHEMA,
+    });
+
+    const parsed = this.parseJsonOrThrow("editVideoScriptSpec", "video script edit", content, finishReason);
+
+    const { explanation, updatedScript } = parseVideoScriptEditResponse(parsed, this.name, input.currentScript);
+    return {
+      available: true,
+      updatedScript: updatedScript ?? undefined,
+      explanation,
       providerName: this.name,
       estimatedCostUsd,
     };

@@ -46,6 +46,7 @@ export function withDeletionAvoidance(provider: TextProvider, companyId: string)
     clarifyTopic: (input) => provider.clarifyTopic(input),
     generatePosterHighlights: (input) => provider.generatePosterHighlights(input),
     editPosterSpec: (input) => provider.editPosterSpec(input),
+    editVideoScriptSpec: (input) => provider.editVideoScriptSpec(input),
     generateTopicSuggestions: (input) => provider.generateTopicSuggestions(input),
     condensePosterHeadline: (input) => provider.condensePosterHeadline(input),
     async generateCaption(input: GenerateCaptionInput): Promise<GenerateCaptionOutput> {

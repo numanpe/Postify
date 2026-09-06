@@ -23,6 +23,8 @@ import type {
   PosterBenefit,
   EditPosterInput,
   EditPosterOutput,
+  EditVideoScriptInput,
+  EditVideoScriptOutput,
   GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
@@ -649,6 +651,24 @@ export class TemplateTextProvider implements TextProvider {
   // was the ONLY thing actually shown before poster-edit-modal.tsx's
   // fix, so it's the canonical text, not a fresh translation.
   async editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput> {
+    return {
+      available: false,
+      unavailableReason:
+        input.context.locale === "AR"
+          ? "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات، أو اطلب من فريقك ذلك."
+          : "Editing with a written instruction needs a connected AI provider — add one in Settings, or ask your team to.",
+      providerName: this.name,
+    };
+  }
+
+  // Same real "no" as editPosterSpec above, same reason: reinterpreting
+  // a freeform instruction against a real script needs actual language
+  // understanding this tier doesn't have — there's no honest
+  // deterministic fallback for this the way generateScript itself has
+  // one (a template pool). Reuses editPosterSpec's exact wording (same
+  // real constraint, same canonical dict string) rather than inventing
+  // separate phrasing for the same underlying limitation.
+  async editVideoScriptSpec(input: EditVideoScriptInput): Promise<EditVideoScriptOutput> {
     return {
       available: false,
       unavailableReason:

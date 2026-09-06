@@ -23,6 +23,8 @@ import type {
   CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
+  EditVideoScriptInput,
+  EditVideoScriptOutput,
   GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
@@ -45,6 +47,8 @@ import {
   parseCondensePosterHeadlineResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
+  buildVideoScriptEditPrompt,
+  parseVideoScriptEditResponse,
   buildTopicSuggestionsPrompt,
   parseTopicSuggestionsResponse,
 } from "./prompt";
@@ -293,6 +297,34 @@ export class OpenAITextProvider implements TextProvider {
       updatedSpec: updatedSpec ?? undefined,
       explanation,
       newImageRequest: newImageRequest ?? undefined,
+      providerName: this.name,
+      estimatedCostUsd,
+    };
+  }
+
+  async editVideoScriptSpec(input: EditVideoScriptInput): Promise<EditVideoScriptOutput> {
+    const { system, user } = buildVideoScriptEditPrompt(input);
+    // Structurally between generateScript's flat 5-string schema (500)
+    // and editPosterSpec's nested-object schema (700) — this response
+    // is the same 5 flat strings as generateScript, just wrapped with
+    // canApply/explanation, so 600 splits the difference. Reasoned by
+    // the same structural-comparison approach editPosterSpec's own
+    // token-budget comments use, not an independently confirmed
+    // failure — revisit with real evidence if truncation is seen.
+    const { content, estimatedCostUsd } = await this.chatCompletion(system, user, { jsonMode: true, maxTokens: 600 });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (error) {
+      throw new ProviderError(this.name, "OpenAI returned malformed video-script-edit JSON.", error);
+    }
+
+    const { explanation, updatedScript } = parseVideoScriptEditResponse(parsed, this.name, input.currentScript);
+    return {
+      available: true,
+      updatedScript: updatedScript ?? undefined,
+      explanation,
       providerName: this.name,
       estimatedCostUsd,
     };

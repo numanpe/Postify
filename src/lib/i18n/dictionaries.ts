@@ -157,6 +157,14 @@ export interface Dictionary {
     sceneDragHandleAria: (n: number) => string; sceneAddAria: string;
     sceneJumpToScript: string; sceneJumpToScriptAria: (section: string) => string;
     sceneMediaSwapUnavailableLegacy: string;
+    aiScriptEditTitle: string; aiScriptEditQuickActionsLabel: string;
+    aiScriptEditQuickPunchier: string; aiScriptEditQuickShorten: string;
+    aiScriptEditQuickStrongerCta: string; aiScriptEditQuickSimplify: string;
+    aiScriptEditFreeformLabel: string; aiScriptEditFreeformPlaceholder: string;
+    aiScriptEditSubmit: string; aiScriptEditSubmitting: string;
+    aiScriptEditUnavailable: string; aiScriptEditCannotApply: string;
+    aiScriptEditBeforeAfterTitle: string; aiScriptEditBefore: string; aiScriptEditAfter: string;
+    aiScriptEditApply: string; aiScriptEditDiscard: string; aiScriptEditApplied: string;
   };
   campaigns: {
     title: string; subtitle: (name: string) => string; yourCampaigns: string;
@@ -715,6 +723,24 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneEditorSaving: "Re-rendering…",
       sceneEditorSaved: "Scenes updated.",
       sceneCurrentMedia: "Current media",
+      aiScriptEditTitle: "AI suggestions",
+      aiScriptEditQuickActionsLabel: "Quick actions",
+      aiScriptEditQuickPunchier: "Make it punchier",
+      aiScriptEditQuickShorten: "Shorten this",
+      aiScriptEditQuickStrongerCta: "Make the CTA stronger",
+      aiScriptEditQuickSimplify: "Simplify the language",
+      aiScriptEditFreeformLabel: "Or describe a change",
+      aiScriptEditFreeformPlaceholder: "e.g. mention our delivery speed",
+      aiScriptEditSubmit: "Ask AI",
+      aiScriptEditSubmitting: "Thinking…",
+      aiScriptEditUnavailable: "Editing with a written instruction needs a connected AI provider — add one in Settings, or ask your team to.",
+      aiScriptEditCannotApply: "That request isn't something this editor can do:",
+      aiScriptEditBeforeAfterTitle: "Suggested change",
+      aiScriptEditBefore: "Before",
+      aiScriptEditAfter: "After",
+      aiScriptEditApply: "Use this version",
+      aiScriptEditDiscard: "Discard",
+      aiScriptEditApplied: "Applied below — review it, then Save script to re-render with the new narration.",
     },
     campaigns: {
       title: "Campaigns",
@@ -1602,6 +1628,24 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       sceneEditorSaving: "جارٍ إعادة الإنتاج…",
       sceneEditorSaved: "تم تحديث المشاهد.",
       sceneCurrentMedia: "الوسائط الحالية",
+      aiScriptEditTitle: "اقتراحات الذكاء الاصطناعي",
+      aiScriptEditQuickActionsLabel: "إجراءات سريعة",
+      aiScriptEditQuickPunchier: "اجعله أكثر تأثيرًا",
+      aiScriptEditQuickShorten: "اختصر هذا",
+      aiScriptEditQuickStrongerCta: "عزّز عبارة الحث على اتخاذ إجراء",
+      aiScriptEditQuickSimplify: "بسّط اللغة",
+      aiScriptEditFreeformLabel: "أو صِف التغيير الذي تريده",
+      aiScriptEditFreeformPlaceholder: "مثال: اذكر سرعة التوصيل لدينا",
+      aiScriptEditSubmit: "اسأل الذكاء الاصطناعي",
+      aiScriptEditSubmitting: "جارٍ التفكير…",
+      aiScriptEditUnavailable: "التعديل بتعليمات مكتوبة يحتاج إلى مزوّد ذكاء اصطناعي متصل — أضف واحدًا من الإعدادات، أو اطلب من فريقك ذلك.",
+      aiScriptEditCannotApply: "هذا الطلب ليس شيئًا يمكن لهذا المحرر تنفيذه:",
+      aiScriptEditBeforeAfterTitle: "التغيير المقترح",
+      aiScriptEditBefore: "قبل",
+      aiScriptEditAfter: "بعد",
+      aiScriptEditApply: "استخدم هذه النسخة",
+      aiScriptEditDiscard: "تجاهل",
+      aiScriptEditApplied: "تم التطبيق أدناه — راجعه، ثم اضغط حفظ النص لإعادة الإنتاج بالتعليق الصوتي الجديد.",
     },
     campaigns: {
       title: "الحملات",

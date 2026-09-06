@@ -23,6 +23,8 @@ import type {
   CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
+  EditVideoScriptInput,
+  EditVideoScriptOutput,
   GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
@@ -45,6 +47,8 @@ import {
   parseCondensePosterHeadlineResponse,
   buildPosterEditPrompt,
   parsePosterEditResponse,
+  buildVideoScriptEditPrompt,
+  parseVideoScriptEditResponse,
   buildTopicSuggestionsPrompt,
   parseTopicSuggestionsResponse,
 } from "./prompt";
@@ -295,6 +299,33 @@ export class AnthropicTextProvider implements TextProvider {
       updatedSpec: updatedSpec ?? undefined,
       explanation,
       newImageRequest: newImageRequest ?? undefined,
+      providerName: this.name,
+      estimatedCostUsd,
+    };
+  }
+
+  async editVideoScriptSpec(input: EditVideoScriptInput): Promise<EditVideoScriptOutput> {
+    const { system, user } = buildVideoScriptEditPrompt(input);
+    // Same structural-comparison reasoning as editPosterSpec's own
+    // token-budget comment above: this response is generateScript's
+    // flat 5-string schema (500) plus canApply/explanation, strictly
+    // smaller than editPosterSpec's nested-object schema (700) — 600
+    // splits the difference. Revisit with real evidence if truncation
+    // is ever seen.
+    const { content, estimatedCostUsd } = await this.messagesRequest(system, user, 600);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripCodeFence(content));
+    } catch (error) {
+      throw new ProviderError(this.name, "Anthropic returned malformed video-script-edit JSON.", error);
+    }
+
+    const { explanation, updatedScript } = parseVideoScriptEditResponse(parsed, this.name, input.currentScript);
+    return {
+      available: true,
+      updatedScript: updatedScript ?? undefined,
+      explanation,
       providerName: this.name,
       estimatedCostUsd,
     };

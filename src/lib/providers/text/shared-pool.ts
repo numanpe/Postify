@@ -23,6 +23,8 @@ import type {
   CondensePosterHeadlineOutput,
   EditPosterInput,
   EditPosterOutput,
+  EditVideoScriptInput,
+  EditVideoScriptOutput,
   GenerateTopicSuggestionsInput,
   GenerateTopicSuggestionsOutput,
 } from "./types";
@@ -294,6 +296,14 @@ export async function resolveSharedOrTemplateTextProvider(): Promise<TextProvide
     editPosterSpec: tryShareWithHonestUnavailable<EditPosterInput, EditPosterOutput>(
       shared.editPosterSpec.bind(shared),
       template.editPosterSpec.bind(template),
+    ),
+    // Same honest-unavailable treatment as editPosterSpec just above —
+    // a real shared-pool attempt that fails (exhaustion, transient
+    // error) must say so, never fall back to the template's misleading
+    // "no provider" message when a provider genuinely was attempted.
+    editVideoScriptSpec: tryShareWithHonestUnavailable<EditVideoScriptInput, EditVideoScriptOutput>(
+      shared.editVideoScriptSpec.bind(shared),
+      template.editVideoScriptSpec.bind(template),
     ),
     generateTopicSuggestions: tryShareWithHonestUnavailable<GenerateTopicSuggestionsInput, GenerateTopicSuggestionsOutput>(
       shared.generateTopicSuggestions.bind(shared),

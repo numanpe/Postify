@@ -11,6 +11,7 @@ import {
   uploadSceneMediaAsset,
   type SwapSceneMediaState,
 } from "@/lib/actions/video-edit";
+import { suggestVideoScriptEdit } from "@/lib/actions/video-script-ai-edit";
 import { Button } from "@/components/ui/button";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
 import { useDict } from "@/components/i18n/locale-provider";
@@ -260,6 +261,8 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
         );
       })}
 
+      <AiScriptSuggestions videoId={videoId} labels={labels} currentScript={fields} onApply={(updated) => setFields(updated)} />
+
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.editReRendersWholeVideo}</p>
       {state && "error" in state && (
         <p role="alert" className="text-red-600 dark:text-red-400">
@@ -276,6 +279,173 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
         {dict.scriptEditorSave}
       </Button>
     </form>
+  );
+}
+
+// AI-powered script editing (2026-09-06) — quick-action + freeform
+// instructions, both routed through the same suggestVideoScriptEdit
+// action (a single instruction string; a quick action is just a
+// preset instruction, not a separate code path). This is a SUGGESTION
+// step only: it never touches the outer ScriptEditorSection form's own
+// save/re-render path directly — onApply just updates that form's local
+// `fields` state (same as if the user had typed the new text
+// themselves), so the existing "Save script" button and its real
+// full-re-render behavior stay the single, unchanged way an edit
+// actually applies. Nested inside ScriptEditorSection's own <form> —
+// every interactive element here is type="button" so nothing here can
+// accidentally submit that outer form (same rule SceneMediaUploadField
+// above already establishes for the same reason).
+function AiScriptSuggestions({
+  videoId,
+  labels,
+  currentScript,
+  onApply,
+}: {
+  videoId: string;
+  labels: Record<(typeof SCRIPT_KEYS)[number], string>;
+  currentScript: VideoScript;
+  onApply: (script: VideoScript) => void;
+}) {
+  const dict = useDict().video;
+  const [state, action, pending] = useActionState(suggestVideoScriptEdit, undefined);
+  const [instruction, setInstruction] = useState("");
+  // null = no suggestion decided yet (or a fresh request is pending);
+  // once the user picks Apply/Discard, the diff box hides until the
+  // next request — a stale suggestion is never left applicable twice.
+  const [outcome, setOutcome] = useState<"applied" | "discarded" | null>(null);
+
+  function runInstruction(text: string) {
+    setOutcome(null);
+    const formData = new FormData();
+    formData.set("videoId", videoId);
+    formData.set("instruction", text);
+    startTransition(() => action(formData));
+  }
+
+  const quickActions: { label: string; instruction: string }[] = [
+    {
+      label: dict.aiScriptEditQuickPunchier,
+      instruction: "Make the whole script punchier and more energetic, while keeping it natural spoken language.",
+    },
+    { label: dict.aiScriptEditQuickShorten, instruction: "Shorten the script overall, keeping the key message intact." },
+    {
+      label: dict.aiScriptEditQuickStrongerCta,
+      instruction: "Make the call-to-action (cta) section stronger and more compelling.",
+    },
+    { label: dict.aiScriptEditQuickSimplify, instruction: "Simplify the language throughout — use simpler, everyday words." },
+  ];
+
+  const showDiff = state?.status === "success" && outcome === null;
+  const changedKeys = showDiff
+    ? SCRIPT_KEYS.filter((key) => state.updatedScript[key] !== currentScript[key])
+    : [];
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2">
+      <h4 className="text-xs font-semibold">{dict.aiScriptEditTitle}</h4>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">{dict.aiScriptEditQuickActionsLabel}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {quickActions.map((qa) => (
+            <button
+              key={qa.label}
+              type="button"
+              disabled={pending}
+              onClick={() => runInstruction(qa.instruction)}
+              className="rounded-full border border-paper-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-night-border"
+            >
+              {qa.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`ai-script-instruction-${videoId}`} className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">
+          {dict.aiScriptEditFreeformLabel}
+        </label>
+        <div className="flex gap-1.5">
+          <input
+            id={`ai-script-instruction-${videoId}`}
+            type="text"
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder={dict.aiScriptEditFreeformPlaceholder}
+            className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
+          />
+          <Button
+            type="button"
+            size="sm"
+            pending={pending}
+            pendingLabel={dict.aiScriptEditSubmitting}
+            disabled={!instruction.trim()}
+            onClick={() => runInstruction(instruction.trim())}
+          >
+            {dict.aiScriptEditSubmit}
+          </Button>
+        </div>
+      </div>
+
+      {state?.status === "unavailable" && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {state.reason}
+        </p>
+      )}
+      {state?.status === "cannotApply" && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {dict.aiScriptEditCannotApply} {state.explanation}
+        </p>
+      )}
+      {state?.status === "error" && (
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
+
+      {showDiff && (
+        <div className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-xs">
+          <p className="font-medium">{dict.aiScriptEditBeforeAfterTitle}</p>
+          <p className="text-ink-soft dark:text-ink-soft-dark">{state.explanation}</p>
+          {/* changedKeys is never empty here in practice — the action's
+              own parseVideoScriptEditResponse already throws a real
+              error (surfaced above as state.status === "error") rather
+              than returning a "success" with no actual diff, the same
+              silent-no-op guard editPosterSpec established. */}
+          {changedKeys.map((key) => (
+            <div key={key} className="flex flex-col gap-0.5">
+              <span className="font-medium">{labels[key]}</span>
+              <p className="text-ink-soft line-through dark:text-ink-soft-dark">{currentScript[key]}</p>
+              <p>{state.updatedScript[key]}</p>
+            </div>
+          ))}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                onApply(state.updatedScript);
+                setOutcome("applied");
+              }}
+              className="rounded bg-primary px-2 py-1 font-medium text-paper dark:bg-primary-dark dark:text-night"
+            >
+              {dict.aiScriptEditApply}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOutcome("discarded")}
+              className="text-start text-ink-soft underline dark:text-ink-soft-dark"
+            >
+              {dict.aiScriptEditDiscard}
+            </button>
+          </div>
+        </div>
+      )}
+      {outcome === "applied" && (
+        <p role="status" className="text-xs text-green-700 dark:text-green-400">
+          {dict.aiScriptEditApplied}
+        </p>
+      )}
+    </div>
   );
 }
 

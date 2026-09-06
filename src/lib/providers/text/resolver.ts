@@ -90,6 +90,7 @@ const METHOD_PRESENCE: Record<Exclude<keyof TextProvider, "name">, true> = {
   clarifyTopic: true,
   generatePosterHighlights: true,
   editPosterSpec: true,
+  editVideoScriptSpec: true,
   generateTopicSuggestions: true,
   condensePosterHeadline: true,
 };

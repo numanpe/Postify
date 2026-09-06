@@ -341,6 +341,44 @@ export interface EditPosterOutput {
   fallbackFrom?: FallbackInfo[];
 }
 
+// AI-powered video script editing (2026-09-06) — reuses the exact
+// structured-edit + honest-mismatch pattern editPosterSpec established:
+// the AI receives the real current script and a plain-language
+// instruction, returns a constrained, schema-validated update, and the
+// parser (parseVideoScriptEditResponse, prompt.ts) throws a real error
+// rather than silently keeping the old script when the response claims
+// a change but doesn't actually contain one — the same silent-no-op
+// bug class editPosterSpec's own newImageRequest/backgroundSource
+// mismatch fix closed for posters. Deliberately scoped to narrated
+// videos only (see suggestVideoScriptEdit, video-script-ai-edit.ts) —
+// non-narrated videos don't have a single 5-section "script" a user
+// edits directly, only per-scene on-screen text.
+export interface EditVideoScriptInput {
+  context: CompanyContext;
+  currentScript: VideoScriptSections;
+  instruction: string;
+}
+
+export interface EditVideoScriptOutput {
+  // False for the free/template tier (no real AI to interpret a
+  // freeform instruction — same honest gap as EditPosterOutput) or a
+  // real shared-pool attempt that failed this one time; see
+  // EditPosterOutput's own doc comment for the full reasoning, reused
+  // verbatim here via shared-pool.ts's tryShareWithHonestUnavailable.
+  available: boolean;
+  unavailableReason?: string;
+  // Set together: always shown to the user as a real before/after, and
+  // the user must explicitly apply it — nothing here ever re-renders a
+  // video on its own (see suggestVideoScriptEdit/editVideoScript's own
+  // two-step design).
+  updatedScript?: VideoScriptSections;
+  explanation?: string;
+  providerName: string;
+  model?: string;
+  estimatedCostUsd?: number;
+  fallbackFrom?: FallbackInfo[];
+}
+
 // Smarter topic suggestions (2026-09-04) — the AI-driven half. Grounded
 // in two real, already-existing inputs only: business context already
 // extracted (CompanyContext) and real learned preference signals
@@ -404,6 +442,7 @@ export interface TextProvider {
   clarifyTopic(input: ClarifyTopicInput): Promise<ClarifyTopicOutput>;
   generatePosterHighlights(input: GeneratePosterHighlightsInput): Promise<GeneratePosterHighlightsOutput>;
   editPosterSpec(input: EditPosterInput): Promise<EditPosterOutput>;
+  editVideoScriptSpec(input: EditVideoScriptInput): Promise<EditVideoScriptOutput>;
   generateTopicSuggestions(input: GenerateTopicSuggestionsInput): Promise<GenerateTopicSuggestionsOutput>;
   condensePosterHeadline(input: CondensePosterHeadlineInput): Promise<CondensePosterHeadlineOutput>;
 }

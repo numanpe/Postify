@@ -16,6 +16,8 @@ import type {
   EditPosterInput,
   PosterEditSpec,
   GenerateTopicSuggestionsInput,
+  EditVideoScriptInput,
+  VideoScriptSections,
 } from "./types";
 import { ProviderError } from "./types";
 import { hashtagCapForPlatforms } from "./hashtag-limits";
@@ -741,6 +743,92 @@ export function parsePosterEditResponse(
   const newImageRequest = updatedSpec.backgroundSource === "AI" && rawNewImageRequest ? rawNewImageRequest : null;
 
   return { canApply: true, explanation: explanation || "Updated.", updatedSpec, newImageRequest };
+}
+
+const SCRIPT_EDIT_SECTION_KEYS: (keyof VideoScriptSections)[] = ["hook", "context", "value", "message", "cta"];
+
+// Reuses editPosterSpec's exact structured-edit shape (buildPosterEditPrompt's
+// own doc comment above explains the real reasoning this mirrors) —
+// applied to a video's 5-section narration script instead of a poster's
+// layout fields. Scoped to narrated videos only: see
+// EditVideoScriptInput's own doc comment (types.ts) for why.
+export function buildVideoScriptEditPrompt(input: EditVideoScriptInput): { system: string; user: string } {
+  const { context, currentScript, instruction } = input;
+  const { locale } = context;
+
+  const languageInstruction =
+    locale === "AR"
+      ? "Write explanation and any edited script text in natural, culturally idiomatic Arabic if the instruction itself is in Arabic, or matches the current script's own language — never force a language switch the user didn't ask for."
+      : "Write explanation and any edited text in English unless the instruction is itself in another language, in which case match it.";
+
+  const system = [
+    "You edit a real short-form video voiceover script based on a real user's plain-language instruction. The script has exactly five sections, in spoken order: hook (grabs attention), context (sets up the situation), value (the benefit to the viewer), message (the specific point/product), cta (call to action).",
+    "Each section must stay natural spoken language (1-2 short sentences) — never written/marketing copy, never hashtags or emoji, never stage directions.",
+    "Edit only what the instruction actually asks about; leave every other section's wording byte-identical to the current script unless the change genuinely requires touching it (e.g. \"make it punchier\" may reasonably touch every section; \"make the CTA stronger\" should only touch cta).",
+    "",
+    "Real capability boundary — be honest about this, don't attempt what isn't real:",
+    "- You CAN: rewrite/rephrase/shorten/lengthen/restyle any of the five sections' wording, and change tone, energy, or emphasis.",
+    "- You CANNOT: add or remove a section, add scenes, change narration voice/music/visuals, or invent specific facts (prices, dates, promises) not already present in the current script or the instruction. If asked for any of this, set canApply to false and explain honestly in plain language, without attempting a broken or partial workaround.",
+    "- Every one of the five sections must remain non-empty real spoken text in your response — never blank a section out, even if asked to \"remove\" one (explain in that case that removing a whole section isn't something this editor does, and point out the script editor's own per-section remove control does that instead).",
+    "",
+    languageInstruction,
+    'Respond with ONLY a JSON object: {"canApply": true|false, "explanation": "...", "updatedScript": {"hook": "...", "context": "...", "value": "...", "message": "...", "cta": "..."} | null}',
+    "updatedScript must be null when canApply is false.",
+  ].join(" ");
+
+  const user = `Current script:\n${JSON.stringify(currentScript)}\n\nUser's instruction: "${instruction}"`;
+
+  return { system, user };
+}
+
+export function parseVideoScriptEditResponse(
+  parsed: unknown,
+  providerName: string,
+  currentScript: VideoScriptSections,
+): { canApply: boolean; explanation: string; updatedScript: VideoScriptSections | null } {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new ProviderError(providerName, "Video-script-edit response wasn't a JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  const canApply = record.canApply === true;
+  const explanation = typeof record.explanation === "string" && record.explanation.trim() ? record.explanation.trim() : "";
+  if (!canApply) {
+    return { canApply: false, explanation: explanation || "That isn't something this editor can do.", updatedScript: null };
+  }
+
+  const scriptRaw = record.updatedScript as Record<string, unknown> | undefined;
+  if (typeof scriptRaw !== "object" || scriptRaw === null) {
+    throw new ProviderError(providerName, "Video-script-edit response said canApply but is missing updatedScript.");
+  }
+
+  const updatedScript = {} as VideoScriptSections;
+  for (const key of SCRIPT_EDIT_SECTION_KEYS) {
+    const value = scriptRaw[key];
+    if (typeof value !== "string" || !value.trim()) {
+      throw new ProviderError(providerName, `Video-script-edit response has an empty or invalid "${key}" section.`);
+    }
+    updatedScript[key] = value.trim();
+  }
+
+  // The video-shaped equivalent of editPosterSpec's own
+  // newImageRequest/backgroundSource mismatch check (see
+  // parsePosterEditResponse's doc comment above): a response that
+  // claims canApply (it understood and applied a real change) but
+  // returns a script byte-identical to the one it started from is the
+  // same silent-no-op risk class, just without a second field to be
+  // inconsistent with — here the "change" itself never happened at
+  // all. Converts that into a real, honest error instead of a
+  // full re-render that produces no visible difference and no
+  // explanation why.
+  const unchanged = SCRIPT_EDIT_SECTION_KEYS.every((key) => updatedScript[key] === currentScript[key]);
+  if (unchanged) {
+    throw new ProviderError(
+      providerName,
+      "The edit didn't actually change the script. Try rephrasing your instruction to be more specific about what should be different.",
+    );
+  }
+
+  return { canApply: true, explanation: explanation || "Updated.", updatedScript };
 }
 
 // Smarter topic suggestions — see GenerateTopicSuggestionsInput's own
