@@ -66,11 +66,9 @@ export class OpenAIVoiceProvider implements VoiceProvider {
       if (response.status === 429) {
         throw new VoiceProviderError(this.name, "OpenAI rate-limited this request. Try again shortly.");
       }
-      const body = await response.text().catch(() => "");
-      throw new VoiceProviderError(
-        this.name,
-        `OpenAI text-to-speech request failed (${response.status}). ${body.slice(0, 200)}`,
-      );
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new VoiceProviderError(this.name, `OpenAI's text-to-speech service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     return Buffer.from(await response.arrayBuffer());
@@ -104,11 +102,9 @@ export class OpenAIVoiceProvider implements VoiceProvider {
       if (response.status === 401) {
         throw new VoiceProviderError(this.name, "OpenAI rejected the API key — check it in Settings.");
       }
-      const body = await response.text().catch(() => "");
-      throw new VoiceProviderError(
-        this.name,
-        `OpenAI transcription request failed (${response.status}). ${body.slice(0, 200)}`,
-      );
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new VoiceProviderError(this.name, `OpenAI's transcription service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     const data = (await response.json()) as WhisperWordsResponse;

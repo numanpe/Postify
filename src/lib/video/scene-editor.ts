@@ -22,6 +22,7 @@ import {
 } from "@/lib/video/timeline";
 import { POSTER_DIMENSIONS } from "@/lib/poster/dimensions";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
+import { honestImageErrorMessage, honestVoiceErrorMessage } from "@/lib/video/honest-error";
 
 export class VideoEditError extends Error {}
 
@@ -269,7 +270,7 @@ async function reRenderNarratedVideo(
     narrationWords = narrationResult.words;
   } catch (error) {
     if (error instanceof VoiceProviderError) {
-      throw new VideoEditError(`${error.providerName}: ${error.message}`);
+      throw new VideoEditError(honestVoiceErrorMessage(error));
     }
     throw error;
   }
@@ -371,7 +372,7 @@ async function reRenderNarratedVideo(
       });
     } catch (error) {
       if (error instanceof ImageProviderError) {
-        throw new VideoEditError(`${error.providerName}: ${error.message}`);
+        throw new VideoEditError(honestImageErrorMessage(error));
       }
       throw error;
     }
@@ -459,7 +460,7 @@ export async function swapNarratedVideoSceneMedia(
         mediaAssetId: null,
       };
     } catch (error) {
-      if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
+      if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
       throw error;
     }
   }
@@ -576,7 +577,7 @@ export async function editNonNarratedVideoScenes(
           kind = "AI_STILL";
           mediaAssetId = null;
         } catch (error) {
-          if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
+          if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
           throw error;
         }
       }
@@ -621,7 +622,7 @@ export async function editNonNarratedVideoScenes(
           kind = "AI_STILL";
           mediaAssetId = null;
         } catch (error) {
-          if (error instanceof ImageProviderError) throw new VideoEditError(`${error.providerName}: ${error.message}`);
+          if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
           throw error;
         }
       }

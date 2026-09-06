@@ -144,10 +144,11 @@ export interface Dictionary {
     scriptEditorRemoveSection: string; scriptEditorRemoveLastWarning: string;
     scriptEditorSave: string; scriptEditorSaving: string; scriptEditorSaved: string;
     sceneEditorTitle: string;
-    sceneMediaSwap: string; sceneMediaSwapPickTitle: string; sceneMediaSwapChooseAsset: string;
-    sceneMediaSwapGenerateAi: string; sceneMediaSwapSave: string; sceneMediaSwapSaving: string;
+    sceneMediaSwapPickTitle: string;
+    sceneMediaSwapGenerateAi: string; sceneMediaSwapGenerating: string;
     sceneMediaSwapCancel: string; sceneMediaSwapSaved: string;
-    sceneMediaUploadLabel: string; sceneMediaUploading: string; sceneMediaUploadError: string;
+    sceneMediaSwapLibrarySection: string; sceneMediaSwapUploadSection: string; sceneMediaSwapGenerateSection: string;
+    sceneMediaDropHint: string; sceneMediaUploading: string;
     sceneReorderDisabledNarrated: string; sceneDurationDisabledNarrated: string;
     sceneRemoveGuidanceNarrated: string;
     sceneMoveUp: string; sceneMoveDown: string; sceneDurationLabel: string; sceneOverlayTextLabel: string;
@@ -690,17 +691,16 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       scriptEditorSaving: "Re-rendering…",
       scriptEditorSaved: "Script updated.",
       sceneEditorTitle: "Scenes",
-      sceneMediaSwap: "Swap media",
       sceneMediaSwapPickTitle: "Choose new media for this scene",
-      sceneMediaSwapChooseAsset: "Choose from Media Library",
+      sceneMediaSwapLibrarySection: "Choose from Media Library",
+      sceneMediaSwapUploadSection: "Upload new",
+      sceneMediaSwapGenerateSection: "Generate with AI",
+      sceneMediaDropHint: "Drag a photo or video here, or click to browse",
       sceneMediaSwapGenerateAi: "Generate a new AI background instead",
-      sceneMediaSwapSave: "Use this",
-      sceneMediaSwapSaving: "Re-rendering…",
+      sceneMediaSwapGenerating: "Generating…",
       sceneMediaSwapCancel: "Cancel",
       sceneMediaSwapSaved: "Scene media updated.",
-      sceneMediaUploadLabel: "Upload a new photo/video",
       sceneMediaUploading: "Uploading…",
-      sceneMediaUploadError: "Could not upload that file.",
       sceneReorderDisabledNarrated: "Not available for narrated videos — reordering would desync the voiceover from what's on screen.",
       sceneDurationDisabledNarrated: "Not available for narrated videos — a scene's length follows the real narration timing.",
       sceneRemoveGuidanceNarrated: "To remove this scene, delete its text in the script editor above.",
@@ -1595,17 +1595,16 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       scriptEditorSaving: "جارٍ إعادة الإنتاج…",
       scriptEditorSaved: "تم تحديث النص.",
       sceneEditorTitle: "المشاهد",
-      sceneMediaSwap: "تبديل الوسائط",
       sceneMediaSwapPickTitle: "اختر وسائط جديدة لهذا المشهد",
-      sceneMediaSwapChooseAsset: "اختر من مكتبة الوسائط",
+      sceneMediaSwapLibrarySection: "اختر من مكتبة الوسائط",
+      sceneMediaSwapUploadSection: "تحميل جديد",
+      sceneMediaSwapGenerateSection: "إنشاء بالذكاء الاصطناعي",
+      sceneMediaDropHint: "اسحب صورة أو فيديو هنا، أو اضغط للتصفح",
       sceneMediaSwapGenerateAi: "أو أنشئ خلفية جديدة بالذكاء الاصطناعي",
-      sceneMediaSwapSave: "استخدم هذا",
-      sceneMediaSwapSaving: "جارٍ إعادة الإنتاج…",
+      sceneMediaSwapGenerating: "جارٍ الإنشاء…",
       sceneMediaSwapCancel: "إلغاء",
       sceneMediaSwapSaved: "تم تحديث وسائط المشهد.",
-      sceneMediaUploadLabel: "تحميل صورة/فيديو جديد",
       sceneMediaUploading: "جارٍ التحميل…",
-      sceneMediaUploadError: "تعذّر تحميل هذا الملف.",
       sceneReorderDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — إعادة الترتيب ستُفقد تزامن التعليق الصوتي مع ما يظهر على الشاشة.",
       sceneDurationDisabledNarrated: "غير متاح للفيديوهات ذات التعليق الصوتي — مدة المشهد تتبع توقيت التعليق الصوتي الفعلي.",
       sceneRemoveGuidanceNarrated: "لحذف هذا المشهد، احذف نصه من محرّر النص أعلاه.",

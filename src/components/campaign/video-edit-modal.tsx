@@ -9,13 +9,13 @@ import {
   swapVideoSceneMedia,
   editVideoScenes,
   uploadSceneMediaAsset,
-  type SwapSceneMediaState,
 } from "@/lib/actions/video-edit";
 import { suggestVideoScriptEdit } from "@/lib/actions/video-script-ai-edit";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
 import { useDict } from "@/components/i18n/locale-provider";
-import { ActionIcons } from "@/components/icons";
+import { ActionIcons, NavIcons } from "@/components/icons";
 import { SceneThumbnailStrip } from "@/components/campaign/scene-thumbnail-strip";
 
 export interface VideoSceneForEdit {
@@ -39,6 +39,15 @@ export interface SceneMediaAssetOption {
   id: string;
   fileName: string;
   mimeType: string;
+  // Real Media Library preview URL (PickableMediaAsset.url, src/lib/media.ts)
+  // — added for the visual picker redesign (2026-09-07). Only ever a
+  // real, renderable image for image/* assets; video/* assets show a
+  // real video-icon badge instead of attempting a frame preview — the
+  // same honest limitation the main Media Library grid already has
+  // (media/page.tsx shows raw mimeType text for videos, no thumbnail
+  // extraction exists yet for a plain uploaded video), not a fake
+  // preview.
+  url: string;
 }
 
 interface VideoScript {
@@ -541,57 +550,178 @@ function NarratedSceneList({
   );
 }
 
-// A real upload, immediately — not deferred to whatever "Save" the
-// caller submits later. Shared by both SceneMediaSwapButton modes so
-// there's one real upload path (uploadSceneMediaAsset,
-// src/lib/actions/video-edit.ts), not two.
+// Visual redesign (2026-09-07) — a real grid of actual thumbnails,
+// replacing a plain <select> of filenames (a user picked "WhatsApp
+// Image 2026-08-11 at 6.29.41 PM.jpeg" blind, never seeing the photo).
+// Shared by both SceneMediaSwapButton modes. Images render their real
+// Media Library preview (asset.url — see PickableMediaAsset's own doc
+// comment, src/lib/media.ts); video assets show a real video-icon
+// badge instead of a fake/placeholder frame — this app has no frame-
+// extraction for a plain uploaded video yet (the main Media Library
+// grid has the same honest limitation), so showing one here would be
+// exactly the kind of fake preview CLAUDE.md's "no fake functionality"
+// rule prohibits.
+function MediaThumbnailGrid({
+  assets,
+  onSelect,
+  disabled,
+  dict,
+}: {
+  assets: SceneMediaAssetOption[];
+  onSelect: (asset: SceneMediaAssetOption) => void;
+  disabled?: boolean;
+  dict: ReturnType<typeof useDict>["video"];
+}) {
+  if (assets.length === 0) return null;
+  return (
+    <div className="grid max-h-56 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+      {assets.map((asset) => (
+        <button
+          key={asset.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onSelect(asset)}
+          aria-label={asset.fileName}
+          title={asset.fileName}
+          className="aspect-square overflow-hidden rounded-lg border border-paper-border bg-paper-card transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-60 dark:border-night-border dark:bg-night-card dark:hover:border-primary-dark"
+        >
+          {asset.mimeType.startsWith("image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a real Media Library thumbnail from arbitrary storage, not a static asset next/image can optimize
+            <img src={asset.url} alt={asset.fileName} className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-center">
+              <NavIcons.video size={18} aria-hidden="true" className="text-ink-soft dark:text-ink-soft-dark" />
+              <span className="line-clamp-1 text-[10px] text-ink-soft dark:text-ink-soft-dark">{dict.kindVideo}</span>
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// A real drag-and-drop dropzone, immediately uploading — not deferred
+// to whatever "Save" the caller submits later. Shared by both
+// SceneMediaSwapButton modes so there's one real upload path
+// (uploadSceneMediaAsset, src/lib/actions/video-edit.ts), not two.
 //
 // No <form> here on purpose: every caller already renders this inside
-// another <form> (the scene editor's own Save, or the narrated swap's
-// own submit) — a nested <form> is invalid HTML and browsers don't
-// define real nested-submit behavior. useActionState's dispatch works
-// the same way called directly with a FormData as it does bound to a
-// form's action, so a plain onChange building that FormData is enough.
-function SceneMediaUploadField({
+// another <form> or a direct-dispatch picker panel (the scene editor's
+// own Save, or the narrated swap's own actions) — a nested <form> is
+// invalid HTML and browsers don't define real nested-submit behavior.
+// useActionState's dispatch works the same way called directly with a
+// FormData as it does bound to a form's action, so onDrop/onChange
+// building that FormData is enough.
+function UploadDropzone({
   onUploaded,
 }: {
-  onUploaded: (media: { assetId: string; fileName: string; mimeType: string }) => void;
+  onUploaded: (media: { assetId: string; fileName: string; mimeType: string; url: string }) => void;
 }) {
   const dict = useDict().video;
   const [state, action, pending] = useActionState(uploadSceneMediaAsset, undefined);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (state && "assetId" in state) onUploaded({ assetId: state.assetId, fileName: state.fileName, mimeType: state.mimeType });
+    if (state && "assetId" in state) onUploaded(state);
     // onUploaded intentionally excluded — callers pass a fresh closure
     // each render; re-firing on identity change (not just a real new
     // upload) would re-report the same upload repeatedly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
+  function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.set("file", file);
+    startTransition(() => action(formData));
+  }
+
   return (
     <div className="flex flex-col gap-1">
-      <label className="w-fit cursor-pointer text-start text-xs underline">
-        {pending ? dict.sceneMediaUploading : dict.sceneMediaUploadLabel}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-disabled={pending}
+        onClick={() => !pending && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (pending) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!pending) setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (!pending) handleFiles(e.dataTransfer.files);
+        }}
+        className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-3 text-center transition-colors ${
+          pending ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+        } ${
+          isDragOver
+            ? "border-primary bg-primary/5 dark:border-primary-dark dark:bg-primary-dark/10"
+            : "border-paper-border hover:border-primary/60 dark:border-night-border dark:hover:border-primary-dark/60"
+        }`}
+      >
+        {pending ? <Spinner /> : <ActionIcons.uploadMedia size={18} aria-hidden="true" className="text-ink-soft dark:text-ink-soft-dark" />}
+        <span className="text-xs font-medium">{pending ? dict.sceneMediaUploading : dict.sceneMediaDropHint}</span>
         <input
+          ref={inputRef}
           type="file"
           accept="image/*,video/*"
           disabled={pending}
           className="sr-only"
           onChange={(e) => {
-            const file = e.target.files?.[0];
+            handleFiles(e.target.files);
             e.target.value = "";
-            if (!file) return;
-            const formData = new FormData();
-            formData.set("file", file);
-            startTransition(() => action(formData));
           }}
         />
-      </label>
+      </div>
       {state && "error" in state && (
-        <p role="alert" className="text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
           {state.error}
         </p>
       )}
+    </div>
+  );
+}
+
+// The "generate a new AI background" affordance — a real, labeled
+// action with its own icon, distinct from the plain-text link it
+// replaces. `pending` only ever reflects a REAL in-flight request
+// (the narrated/real-form mode's actual swapVideoSceneMedia call);
+// non-narrated mode defers the real generation to the batch "Save
+// scenes" submit, so it never shows a spinner for work that isn't
+// actually happening yet — see this button's two call sites.
+function GenerateAiButton({ onClick, pending, dict }: { onClick: () => void; pending: boolean; dict: ReturnType<typeof useDict>["video"] }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={pending}
+      className="flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-dashed border-paper-border px-3 py-2 text-xs font-medium transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-70 dark:border-night-border dark:hover:border-primary-dark"
+    >
+      {pending ? <Spinner /> : <ActionIcons.aiGenerate size={16} aria-hidden="true" />}
+      {pending ? dict.sceneMediaSwapGenerating : dict.sceneMediaSwapGenerateAi}
+    </button>
+  );
+}
+
+// A small labeled section wrapper — the real visual hierarchy/grouping
+// this redesign asked for (pick existing / upload new / generate new
+// as three clearly separated groups, not a flat list of options).
+function PickerSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h5 className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft dark:text-ink-soft-dark">{title}</h5>
+      {children}
     </div>
   );
 }
@@ -622,7 +752,6 @@ function SceneMediaSwapButton({
   onClose: () => void;
 }) {
   const dict = useDict().video;
-  const [selectedAssetId, setSelectedAssetId] = useState(sceneMediaAssets[0]?.id ?? "");
   const boundAction = scriptKey ? swapVideoSceneMedia.bind(null, videoId, scriptKey) : undefined;
   const [state, action, pending] = useActionState(boundAction ?? swapVideoSceneMedia.bind(null, videoId, ""), undefined);
   useRefreshOnSuccess(state && "success" in state ? true : undefined);
@@ -630,145 +759,99 @@ function SceneMediaSwapButton({
   if (onPicked) {
     // Local (non-narrated editor) mode — no server action here, just
     // report the pick back up to the parent's in-progress scene list.
+    // A single click/drop/generate-tap applies the choice immediately
+    // (real professional-picker behavior — no separate confirm step),
+    // then closes.
     return (
-      <div className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-xs">
+      <div className="flex flex-col gap-3 rounded-lg border border-paper-border p-3 text-xs dark:border-night-border">
         <p className="font-medium">{dict.sceneMediaSwapPickTitle}</p>
         {sceneMediaAssets.length > 0 && (
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedAssetId}
-              onChange={(e) => setSelectedAssetId(e.target.value)}
-              aria-label={dict.sceneMediaSwapPickTitle}
-              className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
-            >
-              {sceneMediaAssets.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.fileName}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                const asset = sceneMediaAssets.find((a) => a.id === selectedAssetId);
-                if (asset) onPicked({ assetId: asset.id, fileName: asset.fileName });
+          <PickerSection title={dict.sceneMediaSwapLibrarySection}>
+            <MediaThumbnailGrid
+              assets={sceneMediaAssets}
+              dict={dict}
+              onSelect={(asset) => {
+                onPicked({ assetId: asset.id, fileName: asset.fileName });
                 onClose();
               }}
-              className="rounded bg-primary px-2 py-1 font-medium text-paper dark:bg-primary-dark dark:text-night"
-            >
-              {dict.sceneMediaSwapSave}
-            </button>
-          </div>
+            />
+          </PickerSection>
         )}
-        {/* Uploading is itself the pick here — no separate "Save" step,
-            same as choosing an existing asset above then tapping the
-            row's own save button. */}
-        <SceneMediaUploadField
-          onUploaded={(media) => {
-            onPicked(media);
-            onClose();
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            onPicked({ regenerateAi: true });
-            onClose();
-          }}
-          className="text-start underline"
-        >
-          {dict.sceneMediaSwapGenerateAi}
-        </button>
-        <button type="button" onClick={() => onClose()} className="text-start text-ink-soft dark:text-ink-soft-dark">
+        <PickerSection title={dict.sceneMediaSwapUploadSection}>
+          <UploadDropzone
+            onUploaded={(media) => {
+              onPicked(media);
+              onClose();
+            }}
+          />
+        </PickerSection>
+        <PickerSection title={dict.sceneMediaSwapGenerateSection}>
+          <GenerateAiButton
+            pending={false}
+            dict={dict}
+            onClick={() => {
+              onPicked({ regenerateAi: true });
+              onClose();
+            }}
+          />
+        </PickerSection>
+        <button type="button" onClick={() => onClose()} className="min-h-[44px] text-start text-ink-soft dark:text-ink-soft-dark">
           {dict.sceneMediaSwapCancel}
         </button>
       </div>
     );
   }
 
-  return (
-    <SceneMediaSwapForm
-      dict={dict}
-      sceneMediaAssets={sceneMediaAssets}
-      selectedAssetId={selectedAssetId}
-      setSelectedAssetId={setSelectedAssetId}
-      action={action}
-      pending={pending}
-      state={state}
-      onClose={onClose}
-    />
-  );
-}
-
-// Narrated mode's real-form branch, split out only so the new upload
-// field can extend its own local copy of the asset list (the freshly
-// uploaded file needs to show up as a selectable option before the
-// user hits "Use this" — this component isn't the right place to keep
-// that extra state).
-function SceneMediaSwapForm({
-  dict,
-  sceneMediaAssets,
-  selectedAssetId,
-  setSelectedAssetId,
-  action,
-  pending,
-  state,
-  onClose,
-}: {
-  dict: ReturnType<typeof useDict>["video"];
-  sceneMediaAssets: SceneMediaAssetOption[];
-  selectedAssetId: string;
-  setSelectedAssetId: (id: string) => void;
-  action: (formData: FormData) => void;
-  pending: boolean;
-  state: SwapSceneMediaState;
-  onClose: () => void;
-}) {
-  const [assets, setAssets] = useState(sceneMediaAssets);
+  // Narrated mode: a real request, dispatched directly (same no-<form>
+  // reasoning as UploadDropzone above — this panel already sits
+  // outside any wrapping <form>, but stays consistent with the local
+  // branch's direct-dispatch shape rather than mixing patterns).
+  function swap(formData: FormData) {
+    startTransition(() => action(formData));
+  }
 
   return (
-    <form action={action} className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2 text-xs">
+    <div className="flex flex-col gap-3 rounded-lg border border-paper-border p-3 text-xs dark:border-night-border">
       <p className="font-medium">{dict.sceneMediaSwapPickTitle}</p>
-      {assets.length > 0 && (
-        <div className="flex items-center gap-2">
-          <select
-            name="assetId"
-            value={selectedAssetId}
-            onChange={(e) => setSelectedAssetId(e.target.value)}
-            aria-label={dict.sceneMediaSwapPickTitle}
-            className="flex-1 rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
-          >
-            {assets.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.fileName}
-              </option>
-            ))}
-          </select>
-          <Button type="submit" size="sm" pending={pending} pendingLabel={dict.sceneMediaSwapSaving}>
-            {dict.sceneMediaSwapSave}
-          </Button>
-        </div>
+      {sceneMediaAssets.length > 0 && (
+        <PickerSection title={dict.sceneMediaSwapLibrarySection}>
+          <MediaThumbnailGrid
+            assets={sceneMediaAssets}
+            dict={dict}
+            disabled={pending}
+            onSelect={(asset) => {
+              const formData = new FormData();
+              formData.set("assetId", asset.id);
+              swap(formData);
+            }}
+          />
+        </PickerSection>
       )}
-      <SceneMediaUploadField
-        onUploaded={(media) => {
-          setAssets((prev) => [{ id: media.assetId, fileName: media.fileName, mimeType: media.mimeType }, ...prev]);
-          setSelectedAssetId(media.assetId);
-        }}
-      />
-      <button
-        type="submit"
-        name="regenerateAi"
-        value="true"
-        disabled={pending}
-        className="text-start underline disabled:opacity-60"
-      >
-        {dict.sceneMediaSwapGenerateAi}
-      </button>
-      <button type="button" onClick={() => onClose()} className="text-start text-ink-soft dark:text-ink-soft-dark">
+      <PickerSection title={dict.sceneMediaSwapUploadSection}>
+        <UploadDropzone
+          onUploaded={(media) => {
+            const formData = new FormData();
+            formData.set("assetId", media.assetId);
+            swap(formData);
+          }}
+        />
+      </PickerSection>
+      <PickerSection title={dict.sceneMediaSwapGenerateSection}>
+        <GenerateAiButton
+          pending={pending}
+          dict={dict}
+          onClick={() => {
+            const formData = new FormData();
+            formData.set("regenerateAi", "true");
+            swap(formData);
+          }}
+        />
+      </PickerSection>
+      <button type="button" onClick={() => onClose()} className="min-h-[44px] text-start text-ink-soft dark:text-ink-soft-dark">
         {dict.sceneMediaSwapCancel}
       </button>
       {state && "error" in state && (
-        <p role="alert" className="text-red-600 dark:text-red-400">
+        <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
           {state.error}
         </p>
       )}
@@ -777,7 +860,7 @@ function SceneMediaSwapForm({
           {dict.sceneMediaSwapSaved}
         </p>
       )}
-    </form>
+    </div>
   );
 }
 

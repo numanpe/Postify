@@ -74,11 +74,9 @@ export class FishAudioVoiceProvider implements VoiceProvider {
       if (response.status === 503) {
         throw new VoiceProviderError(this.name, "Fish Audio's servers are overloaded right now. Try again shortly.");
       }
-      const body = await response.text().catch(() => "");
-      throw new VoiceProviderError(
-        this.name,
-        `Fish Audio text-to-speech request failed (${response.status}). ${body.slice(0, 200)}`,
-      );
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new VoiceProviderError(this.name, `Fish Audio's text-to-speech service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
     if (!response.body) {
       throw new VoiceProviderError(this.name, "Fish Audio returned no response stream.");

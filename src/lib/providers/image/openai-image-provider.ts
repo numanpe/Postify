@@ -60,11 +60,14 @@ export class OpenAIImageProvider implements ImageProvider {
       if (response.status === 429) {
         throw new ImageProviderError(this.name, "OpenAI rate-limited this request. Try again shortly.");
       }
-      const body = await response.text().catch(() => "");
-      throw new ImageProviderError(
-        this.name,
-        `OpenAI image request failed (${response.status}). ${body.slice(0, 200)}`,
-      );
+      // Real bug found live (2026-09-07): this used to embed up to 200
+      // raw characters of OpenAI's own response body directly into a
+      // user-facing message — genuinely raw technical text (could be
+      // JSON fragments, internal API jargon), not the honest-but-plain-
+      // language standard every other message in this file already
+      // meets. The real HTTP status is still useful context; the raw
+      // body itself never was.
+      throw new ImageProviderError(this.name, `OpenAI's image service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     const data = (await response.json()) as OpenAIImageResponse;

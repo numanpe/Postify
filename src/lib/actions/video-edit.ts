@@ -183,7 +183,7 @@ export async function swapVideoSceneMedia(
 
 export type UploadSceneMediaState =
   | { error: string }
-  | { assetId: string; fileName: string; mimeType: string }
+  | { assetId: string; fileName: string; mimeType: string; url: string }
   | undefined;
 
 // Inline "upload a new photo/video" from the Scene Editor's swap picker
@@ -213,7 +213,7 @@ export async function uploadSceneMediaAsset(
   }
 
   const asset = await createMediaAssetFromFile({ companyId: company.id, uploadedById: user.id, file });
-  return { assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType };
+  return { assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType, url: storage.url(asset.storageKey) };
 }
 
 export type EditScenesState = { error: string } | { success: true } | undefined;

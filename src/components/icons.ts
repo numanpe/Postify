@@ -42,6 +42,7 @@ import {
   Inbox,
   Wand2,
   TrendingUp,
+  ImagePlus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -75,6 +76,13 @@ export const ActionIcons = {
   generate: Zap,
   share: Share2,
   edit: Wand2,
+  // Distinct from `generate` (Zap, the plain "make this" action) — the
+  // wand specifically means "AI interprets/creates," reused verbatim
+  // from `edit`'s own meaning (poster's "Edit with AI") for the same
+  // real concept, just under a clearer name for a fresh-generation
+  // context rather than an edit-in-place one.
+  aiGenerate: Wand2,
+  uploadMedia: ImagePlus,
 } satisfies Record<string, LucideIcon>;
 
 // lucide-react no longer ships per-brand logo marks (Instagram/

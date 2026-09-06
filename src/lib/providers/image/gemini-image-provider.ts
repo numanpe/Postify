@@ -129,10 +129,9 @@ export class GeminiImageProvider implements ImageProvider {
       if (response.status === 429) {
         throw new ImageProviderError(this.name, "Google rate-limited this request. Try again shortly.");
       }
-      throw new ImageProviderError(
-        this.name,
-        `Google Gemini image request failed (${response.status}). ${body.slice(0, 200)}`,
-      );
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new ImageProviderError(this.name, `Google Gemini's image service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     const data = (await response.json()) as GeminiInteractionResponse;

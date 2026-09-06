@@ -125,7 +125,9 @@ export class CloudflareFluxImageProvider implements ImageProvider {
       if (isQuotaExhausted) {
         throw new CloudflareQuotaExhaustedError(this.name, "Today's free AI image quota is used up.");
       }
-      throw new ImageProviderError(this.name, `Cloudflare Workers AI (FLUX) request failed (${response.status}). ${body.slice(0, 200)}`);
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new ImageProviderError(this.name, `Cloudflare's image service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     let data: { result?: { image?: string } };
@@ -201,7 +203,9 @@ export class CloudflareSdxlImageProvider implements ImageProvider {
       if (isQuotaExhausted) {
         throw new CloudflareQuotaExhaustedError(this.name, "Today's free AI image quota is used up.");
       }
-      throw new ImageProviderError(this.name, `Cloudflare Workers AI (SDXL) request failed (${response.status}). ${body.slice(0, 200)}`);
+      // Same real fix as openai-image-provider.ts's own comment: no raw
+      // response body in a user-facing message, real HTTP status kept.
+      throw new ImageProviderError(this.name, `Cloudflare's image service returned an unexpected error (HTTP ${response.status}). Try again shortly.`);
     }
 
     // Real, confirmed-live: SDXL returns raw binary image bytes

@@ -23,6 +23,7 @@ import {
   SCRIPT_SECTION_KEYS,
 } from "@/lib/video/timeline";
 import { POSTER_DIMENSIONS } from "@/lib/poster/dimensions";
+import { honestImageErrorMessage, honestVoiceErrorMessage, honestScriptErrorMessage } from "@/lib/video/honest-error";
 
 export interface GenerateVideoCoreInput {
   companyId: string;
@@ -110,7 +111,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     if (scriptResult.fallbackFrom) fallbackFrom.push(...scriptResult.fallbackFrom);
   } catch (error) {
     if (error instanceof ProviderError) {
-      throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
+      throw new VideoGenerationError(honestScriptErrorMessage(error));
     }
     throw error;
   }
@@ -138,7 +139,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       if (narrationResult.fallbackFrom) fallbackFrom.push(...narrationResult.fallbackFrom);
     } catch (error) {
       if (error instanceof VoiceProviderError) {
-        throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
+        throw new VideoGenerationError(honestVoiceErrorMessage(error));
       }
       throw error;
     }
@@ -265,7 +266,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
         // genuine dead end (nothing real generated yet AND nothing
         // uploaded) still fails honestly, matching the upfront guard.
         if (freeAiStills.length === 0 && orderedAssets.length === 0) {
-          throw new VideoGenerationError(`${error.providerName}: ${error.message}`);
+          throw new VideoGenerationError(honestImageErrorMessage(error));
         }
         fallbackFrom.push({ fromProvider: error.providerName, reason: error.message });
         await logProviderFallback({

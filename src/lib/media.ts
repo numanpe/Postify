@@ -82,6 +82,13 @@ export interface PickableMediaAsset {
   id: string;
   fileName: string;
   mimeType: string;
+  // Real, ready-to-render preview URL — added for the scene media
+  // picker's visual redesign (2026-09-07), which needs an actual image
+  // to show per option instead of a filename. Resolved here once so
+  // every current/future caller of this shared function gets it for
+  // free, the same "one real place" reasoning this function's own doc
+  // comment already gives for existing.
+  url: string;
 }
 
 // Shared by every real "pick from your media" selector (poster
@@ -98,7 +105,7 @@ export async function getPickableMediaAssets(
   companyId: string,
   { includeVideo }: { includeVideo: boolean },
 ): Promise<PickableMediaAsset[]> {
-  return db.mediaAsset.findMany({
+  const assets = await db.mediaAsset.findMany({
     where: {
       companyId,
       // Never offer a generated poster/video's own output, or the
@@ -120,6 +127,7 @@ export async function getPickableMediaAssets(
     },
     orderBy: { createdAt: "desc" },
     take: PICKABLE_MEDIA_ASSETS_LIMIT,
-    select: { id: true, fileName: true, mimeType: true },
+    select: { id: true, fileName: true, mimeType: true, storageKey: true },
   });
+  return assets.map(({ storageKey, ...rest }) => ({ ...rest, url: storage.url(storageKey) }));
 }
