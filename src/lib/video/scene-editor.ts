@@ -23,6 +23,7 @@ import {
 import { POSTER_DIMENSIONS } from "@/lib/poster/dimensions";
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 import { honestImageErrorMessage, honestVoiceErrorMessage } from "@/lib/video/honest-error";
+import { logProviderFallback } from "@/lib/providers/fallback-log";
 
 export class VideoEditError extends Error {}
 
@@ -131,11 +132,114 @@ interface ScenePlan {
   overlayText: string | null;
 }
 
+// Real bug found live (2026-09-07): every scene-editor entry point that
+// generates AI B-roll (re-render, single-scene swap, non-narrated
+// regenerate) hard-failed the whole request on the first genuine
+// ImageProviderError — even though getAiImageProviderForCompany already
+// chains BYOK -> the shared pool internally, so reaching this catch
+// means BOTH are already exhausted. video/generate.ts's own initial-
+// generation pipeline already falls through to reusing real content in
+// exactly this situation (the earlier "AI B-roll hard-stop fix"); this
+// closes the same gap for every EDIT entry point, which never got it.
+interface SceneImagePool {
+  // An AI still THIS SAME request already generated successfully —
+  // real content, not a placeholder, just reused rather than spending
+  // more of the shared daily quota on an already-failing attempt.
+  freeAiStills: { buffer: Buffer; mimeType: string }[];
+  // The company's own real uploaded photos/videos — the last-resort
+  // fallback, only reached when both the AI call AND freeAiStills are
+  // exhausted. Never used silently: every use appends a real warning.
+  realAssets: { id: string; storageKey: string; mimeType: string }[];
+  warnings: string[];
+}
+
+async function loadRealAssetFallbackPool(
+  companyId: string,
+  excludeMediaAssetIds: Set<string>,
+): Promise<{ id: string; storageKey: string; mimeType: string }[]> {
+  const assets = await db.mediaAsset.findMany({
+    where: {
+      companyId,
+      posterOutput: null,
+      videoOutput: null,
+      brandKitLogo: null,
+      storageDeletedAt: null,
+      OR: [{ mimeType: { startsWith: "image/" } }, { mimeType: { startsWith: "video/" } }],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, storageKey: true, mimeType: true },
+  });
+  // Prefer real assets not already used elsewhere in this same video
+  // (avoids an obvious duplicate scene) — but a company with very few
+  // real uploads is still a real, valid fallback candidate, so this
+  // only reorders, never drops, the excluded ones.
+  const fresh = assets.filter((a) => !excludeMediaAssetIds.has(a.id));
+  const reused = assets.filter((a) => excludeMediaAssetIds.has(a.id));
+  return [...fresh, ...reused];
+}
+
+// The real resilience chain: the requested AI generation (itself
+// already BYOK -> shared pool, see getAiImageProviderForCompany) ->
+// an AI still this request already generated -> one of the company's
+// own real uploads -> only THEN the honest "temporarily busy" error.
+// A user should see that error only when every one of these has
+// genuinely been exhausted, not on the first provider hiccup.
+async function generateSceneImageWithFallback(
+  companyId: string,
+  imageResolution: NonNullable<Awaited<ReturnType<typeof getAiImageProviderForCompany>>>,
+  params: { companyName: string; industry: Industry; tone: string; topic: string; widthPx: number; heightPx: number },
+  pool: SceneImagePool,
+): Promise<{ buffer: Buffer; mimeType: string; kind: SceneKind; mediaAssetId: string | null }> {
+  try {
+    const result = await imageResolution.provider.generateBackground(params);
+    if (imageResolution.source === "SHARED_POOL") {
+      pool.freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
+    }
+    return { buffer: result.buffer, mimeType: result.mimeType, kind: "AI_STILL", mediaAssetId: null };
+  } catch (error) {
+    if (!(error instanceof ImageProviderError)) throw error;
+    if (pool.freeAiStills.length > 0) {
+      const reused = pool.freeAiStills[0];
+      pool.warnings.push(`${honestImageErrorMessage(error)} Reused a background already generated for this video instead.`);
+      await logProviderFallback({
+        companyId,
+        capability: "IMAGE",
+        method: "generateBackground",
+        fromProvider: error.providerName,
+        toProvider: "reused an already-generated background for this video",
+        reason: error.message,
+      });
+      return { buffer: reused.buffer, mimeType: reused.mimeType, kind: "AI_STILL", mediaAssetId: null };
+    }
+    if (pool.realAssets.length > 0) {
+      const asset = pool.realAssets[0];
+      const buffer = await storage.get(asset.storageKey);
+      const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
+      pool.warnings.push(`${honestImageErrorMessage(error)} Used one of your uploaded photos/videos for this scene instead.`);
+      await logProviderFallback({
+        companyId,
+        capability: "IMAGE",
+        method: "generateBackground",
+        fromProvider: error.providerName,
+        toProvider: "reused a real uploaded photo/video for this scene",
+        reason: error.message,
+      });
+      return { buffer, mimeType: asset.mimeType, kind, mediaAssetId: asset.id };
+    }
+    throw new VideoEditError(honestImageErrorMessage(error));
+  }
+}
+
 async function persistRender(
   video: { id: string; companyId: string; assetId: string; scenes: LoadedScene[] },
   rendered: Awaited<ReturnType<typeof renderVideo>>,
   scenePlans: ScenePlan[],
   scriptUpdate?: VideoScriptSections,
+  // Real fallback-substitution disclosures (SceneImagePool.warnings) —
+  // never silent, always surfaced alongside the render's own real
+  // quality-gate warnings below.
+  extraWarnings: string[] = [],
 ) {
   const storageKey = buildStorageKey(video.companyId, `video-edit-${Date.now()}.mp4`);
   await storage.put(storageKey, rendered.mp4);
@@ -206,9 +310,10 @@ async function persistRender(
   if (!rendered.qualityGate.passed) {
     throw new VideoEditError(`Quality check failed on the re-render: ${failMessages.join(" ")}`);
   }
-  const warnings = rendered.qualityGate.issues
-    .filter((issue) => issue.severity === "warning")
-    .map((issue) => issue.message);
+  const warnings = [
+    ...extraWarnings,
+    ...rendered.qualityGate.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.message),
+  ];
 
   return { videoId: video.id, warnings };
 }
@@ -249,6 +354,11 @@ async function reRenderNarratedVideo(
   video: LoadedVideo,
   newScript: VideoScriptSections,
   mediaOverride?: { scriptKey: string; kind: SceneKind; buffer: Buffer; mimeType: string; mediaAssetId: string | null },
+  // A real fallback-substitution warning already produced building
+  // mediaOverride itself (swapNarratedVideoSceneMedia's own AI-generate
+  // branch) — carried through so it still reaches the user even though
+  // this function builds its own separate pool for the OTHER sections.
+  overrideWarnings: string[] = [],
 ): Promise<{ videoId: string; warnings: string[] }> {
   const activeKeys = SCRIPT_SECTION_KEYS.filter((key) => newScript[key].trim());
   if (activeKeys.length === 0) {
@@ -286,9 +396,17 @@ async function reRenderNarratedVideo(
   // once, so this loop can call the free pool as many times as
   // generate.ts's initial pass can.
   const MAX_FREE_AI_STILLS_PER_EDIT = 2;
-  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
-
   const existingByKey = new Map(video.scenes.filter((s) => s.scriptKey).map((s) => [s.scriptKey as string, s]));
+  const pool: SceneImagePool = {
+    freeAiStills: [],
+    realAssets: imageResolution
+      ? await loadRealAssetFallbackPool(
+          companyId,
+          new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
+        )
+      : [],
+    warnings: [],
+  };
 
   const scenePlans: ScenePlan[] = [];
   for (const section of sectionTimings) {
@@ -333,9 +451,9 @@ async function reRenderNarratedVideo(
       );
     }
     const atFreePoolCap =
-      imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
-    if (atFreePoolCap && freeAiStills.length > 0) {
-      const reused = freeAiStills[scenePlans.length % freeAiStills.length];
+      imageResolution.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+    if (atFreePoolCap && pool.freeAiStills.length > 0) {
+      const reused = pool.freeAiStills[scenePlans.length % pool.freeAiStills.length];
       scenePlans.push({
         section,
         kind: "AI_STILL",
@@ -348,34 +466,22 @@ async function reRenderNarratedVideo(
       });
       continue;
     }
-    try {
-      const result = await imageResolution.provider.generateBackground({
-        companyName: renderCtx.companyName,
-        industry: renderCtx.industry,
-        tone: renderCtx.tone,
-        topic: section.text,
-        widthPx: width,
-        heightPx: height,
-      });
-      if (imageResolution.source === "SHARED_POOL") {
-        freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
-      }
-      scenePlans.push({
-        section,
-        kind: "AI_STILL",
-        buffer: result.buffer,
-        mimeType: result.mimeType,
-        mediaAssetId: null,
-        scriptKey: section.key,
-        durationSec: null,
-        overlayText: null,
-      });
-    } catch (error) {
-      if (error instanceof ImageProviderError) {
-        throw new VideoEditError(honestImageErrorMessage(error));
-      }
-      throw error;
-    }
+    const generated = await generateSceneImageWithFallback(
+      companyId,
+      imageResolution,
+      { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: section.text, widthPx: width, heightPx: height },
+      pool,
+    );
+    scenePlans.push({
+      section,
+      kind: generated.kind,
+      buffer: generated.buffer,
+      mimeType: generated.mimeType,
+      mediaAssetId: generated.mediaAssetId,
+      scriptKey: section.key,
+      durationSec: null,
+      overlayText: null,
+    });
   }
 
   const { musicBuffer, logoBuffer, brandAccentColor } = await fetchMusicAndLogo(companyId, renderCtx.industry);
@@ -395,7 +501,7 @@ async function reRenderNarratedVideo(
     brandAccentColor,
   });
 
-  return persistRender(video, rendered, scenePlans, newScript);
+  return persistRender(video, rendered, scenePlans, newScript, [...overrideWarnings, ...pool.warnings]);
 }
 
 // Public: edit a narrated video's script text. Empty section text
@@ -427,6 +533,7 @@ export async function swapNarratedVideoSceneMedia(
   }
 
   let override: { scriptKey: string; kind: SceneKind; buffer: Buffer; mimeType: string; mediaAssetId: string | null };
+  let overrideWarnings: string[] = [];
   if ("assetId" in media) {
     const asset = await db.mediaAsset.findFirst({ where: { id: media.assetId, companyId } });
     if (!asset) throw new VideoEditError("That photo/video could not be found.");
@@ -443,29 +550,31 @@ export async function swapNarratedVideoSceneMedia(
     }
     const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
     const sectionText = video.script[sceneScriptKey as keyof VideoScriptSections] ?? video.topic;
-    try {
-      const result = await imageResolution.provider.generateBackground({
-        companyName: renderCtx.companyName,
-        industry: renderCtx.industry,
-        tone: renderCtx.tone,
-        topic: sectionText,
-        widthPx: width,
-        heightPx: height,
-      });
-      override = {
-        scriptKey: sceneScriptKey,
-        kind: "AI_STILL",
-        buffer: result.buffer,
-        mimeType: result.mimeType,
-        mediaAssetId: null,
-      };
-    } catch (error) {
-      if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
-      throw error;
-    }
+    const pool: SceneImagePool = {
+      freeAiStills: [],
+      realAssets: await loadRealAssetFallbackPool(
+        companyId,
+        new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
+      ),
+      warnings: [],
+    };
+    const generated = await generateSceneImageWithFallback(
+      companyId,
+      imageResolution,
+      { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: sectionText, widthPx: width, heightPx: height },
+      pool,
+    );
+    override = {
+      scriptKey: sceneScriptKey,
+      kind: generated.kind,
+      buffer: generated.buffer,
+      mimeType: generated.mimeType,
+      mediaAssetId: generated.mediaAssetId,
+    };
+    overrideWarnings = pool.warnings;
   }
 
-  return reRenderNarratedVideo(companyId, video, video.script, override);
+  return reRenderNarratedVideo(companyId, video, video.script, override, overrideWarnings);
 }
 
 // ---------------------------------------------------------------------
@@ -518,6 +627,11 @@ export async function editNonNarratedVideoScenes(
   const renderCtx = await buildRenderContext(companyId, video);
   const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
   const existingById = new Map(video.scenes.map((s) => [s.id, s]));
+  // Fetched once, not per-scene (a real, incidental efficiency fix
+  // alongside the resilience one below — this used to call
+  // getAiImageProviderForCompany fresh inside the loop on every scene
+  // that needed AI, up to MAX_SCENES times per submission).
+  const imageResolution = await getAiImageProviderForCompany(companyId);
   // Same shared-quota fairness cap as the main generation pipeline (see
   // generate.ts) — a single edit submission can touch up to MAX_SCENES
   // (10) scenes at once, so unbounded regeneration here could burn far
@@ -526,11 +640,21 @@ export async function editNonNarratedVideoScenes(
   // implicit "unchanged AI_STILL scene wasn't persisted, redo it"
   // paths below, since both draw on the same quota in the same request.
   const MAX_FREE_AI_STILLS_PER_EDIT = 2;
-  const freeAiStills: { buffer: Buffer; mimeType: string }[] = [];
+  const pool: SceneImagePool = {
+    freeAiStills: [],
+    realAssets: imageResolution
+      ? await loadRealAssetFallbackPool(
+          companyId,
+          new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
+        )
+      : [],
+    warnings: [],
+  };
 
   const scenePlans: ScenePlan[] = [];
   for (const edited of editedScenes) {
     const existing = edited.existingSceneId ? existingById.get(edited.existingSceneId) : undefined;
+    const needsAi = (edited.media && "regenerateAi" in edited.media) || (!edited.media && existing?.kind === "AI_STILL" && !existing.mediaAssetId);
 
     let kind: SceneKind;
     let buffer: Buffer;
@@ -544,88 +668,38 @@ export async function editNonNarratedVideoScenes(
       mimeType = asset.mimeType;
       kind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
       mediaAssetId = asset.id;
-    } else if (edited.media && "regenerateAi" in edited.media) {
-      const imageResolution = await getAiImageProviderForCompany(companyId);
+    } else if (needsAi) {
       if (!imageResolution) {
         throw new VideoEditError(
-          "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
+          existing?.kind === "AI_STILL"
+            ? "This scene's AI background wasn't saved and no AI image provider is configured anymore — choose a real photo/video for it instead."
+            : "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
         );
       }
-      const atFreePoolCap =
-        imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
-      if (atFreePoolCap && freeAiStills.length > 0) {
-        const reused = freeAiStills[scenePlans.length % freeAiStills.length];
+      const atFreePoolCap = imageResolution.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+      if (atFreePoolCap && pool.freeAiStills.length > 0) {
+        const reused = pool.freeAiStills[scenePlans.length % pool.freeAiStills.length];
         buffer = reused.buffer;
         mimeType = reused.mimeType;
         kind = "AI_STILL";
         mediaAssetId = null;
       } else {
-        try {
-          const result = await imageResolution.provider.generateBackground({
-            companyName: renderCtx.companyName,
-            industry: renderCtx.industry,
-            tone: renderCtx.tone,
-            topic: edited.overlayText,
-            widthPx: width,
-            heightPx: height,
-          });
-          if (imageResolution.source === "SHARED_POOL") {
-            freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
-          }
-          buffer = result.buffer;
-          mimeType = result.mimeType;
-          kind = "AI_STILL";
-          mediaAssetId = null;
-        } catch (error) {
-          if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
-          throw error;
-        }
+        const generated = await generateSceneImageWithFallback(
+          companyId,
+          imageResolution,
+          { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: edited.overlayText, widthPx: width, heightPx: height },
+          pool,
+        );
+        buffer = generated.buffer;
+        mimeType = generated.mimeType;
+        kind = generated.kind;
+        mediaAssetId = generated.mediaAssetId;
       }
     } else if (existing?.mediaAssetId && existing.mediaAsset) {
       buffer = await fetchRealAssetBuffer(existing.mediaAsset.storageKey);
       mimeType = existing.mediaAsset.mimeType;
       kind = existing.kind as SceneKind;
       mediaAssetId = existing.mediaAssetId;
-    } else if (existing?.kind === "AI_STILL") {
-      // Unchanged AI-still scene — never persisted, real disclosed
-      // limitation (see this module's top-of-file notes): regenerate
-      // fresh rather than silently drop the scene.
-      const imageResolution = await getAiImageProviderForCompany(companyId);
-      if (!imageResolution) {
-        throw new VideoEditError(
-          "This scene's AI background wasn't saved and no AI image provider is configured anymore — choose a real photo/video for it instead.",
-        );
-      }
-      const atFreePoolCap =
-        imageResolution.source === "SHARED_POOL" && freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
-      if (atFreePoolCap && freeAiStills.length > 0) {
-        const reused = freeAiStills[scenePlans.length % freeAiStills.length];
-        buffer = reused.buffer;
-        mimeType = reused.mimeType;
-        kind = "AI_STILL";
-        mediaAssetId = null;
-      } else {
-        try {
-          const result = await imageResolution.provider.generateBackground({
-            companyName: renderCtx.companyName,
-            industry: renderCtx.industry,
-            tone: renderCtx.tone,
-            topic: edited.overlayText,
-            widthPx: width,
-            heightPx: height,
-          });
-          if (imageResolution.source === "SHARED_POOL") {
-            freeAiStills.push({ buffer: result.buffer, mimeType: result.mimeType });
-          }
-          buffer = result.buffer;
-          mimeType = result.mimeType;
-          kind = "AI_STILL";
-          mediaAssetId = null;
-        } catch (error) {
-          if (error instanceof ImageProviderError) throw new VideoEditError(honestImageErrorMessage(error));
-          throw error;
-        }
-      }
     } else {
       throw new VideoEditError("Choose a photo/video (or generate an AI background) for every scene.");
     }
@@ -668,5 +742,5 @@ export async function editNonNarratedVideoScenes(
     brandAccentColor,
   });
 
-  return persistRender(video, rendered, scenePlans);
+  return persistRender(video, rendered, scenePlans, undefined, pool.warnings);
 }

@@ -118,7 +118,7 @@ export async function editVideoAsset(
   }
 }
 
-export type EditScriptState = { error: string } | { success: true } | undefined;
+export type EditScriptState = { error: string } | { success: true; warnings: string[] } | undefined;
 
 const SCRIPT_KEYS = ["hook", "context", "value", "message", "cta"] as const;
 
@@ -138,16 +138,16 @@ export async function editVideoScript(
   }
 
   try {
-    await editNarratedVideoScript(videoId, company.id, newScript);
+    const result = await editNarratedVideoScript(videoId, company.id, newScript);
     await revalidateVideoViews(videoId);
-    return { success: true };
+    return { success: true, warnings: result.warnings };
   } catch (error) {
     if (error instanceof VideoEditError) return { error: error.message };
     return { error: error instanceof Error ? error.message : "Could not re-render this video." };
   }
 }
 
-export type SwapSceneMediaState = { error: string } | { success: true } | undefined;
+export type SwapSceneMediaState = { error: string } | { success: true; warnings: string[] } | undefined;
 
 // Narrated videos: swap one scene's media, script text unchanged (still
 // a near-full re-render — see scene-editor.ts's own notes on why).
@@ -167,14 +167,14 @@ export async function swapVideoSceneMedia(
   }
 
   try {
-    await swapNarratedVideoSceneMedia(
+    const result = await swapNarratedVideoSceneMedia(
       videoId,
       company.id,
       sceneScriptKey,
       regenerateAi ? { regenerateAi: true } : { assetId: assetId as string },
     );
     await revalidateVideoViews(videoId);
-    return { success: true };
+    return { success: true, warnings: result.warnings };
   } catch (error) {
     if (error instanceof VideoEditError) return { error: error.message };
     return { error: error instanceof Error ? error.message : "Could not re-render this video." };
@@ -216,7 +216,7 @@ export async function uploadSceneMediaAsset(
   return { assetId: asset.id, fileName: asset.fileName, mimeType: asset.mimeType, url: storage.url(asset.storageKey) };
 }
 
-export type EditScenesState = { error: string } | { success: true } | undefined;
+export type EditScenesState = { error: string } | { success: true; warnings: string[] } | undefined;
 
 // Non-narrated (free-tier) videos: reorder / duration / add / remove /
 // swap / overlay-text — the client component serializes the full edited
@@ -242,9 +242,9 @@ export async function editVideoScenes(
   }
 
   try {
-    await editNonNarratedVideoScenes(videoId, company.id, editedScenes);
+    const result = await editNonNarratedVideoScenes(videoId, company.id, editedScenes);
     await revalidateVideoViews(videoId);
-    return { success: true };
+    return { success: true, warnings: result.warnings };
   } catch (error) {
     if (error instanceof VideoEditError) return { error: error.message };
     return { error: error instanceof Error ? error.message : "Could not re-render this video." };

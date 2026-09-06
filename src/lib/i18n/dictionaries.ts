@@ -141,7 +141,7 @@ export interface Dictionary {
     scriptEditorTitle: string; scriptEditorHint: string;
     scriptEditorHook: string; scriptEditorContext: string; scriptEditorValue: string;
     scriptEditorMessage: string; scriptEditorCta: string;
-    scriptEditorRemoveSection: string; scriptEditorRemoveLastWarning: string;
+    scriptEditorRemoveSection: string; scriptEditorRemoveLastWarning: string; scriptEditorRegenerateSection: string;
     scriptEditorSave: string; scriptEditorSaving: string; scriptEditorSaved: string;
     sceneEditorTitle: string;
     sceneMediaSwapPickTitle: string;
@@ -686,6 +686,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       scriptEditorMessage: "Message",
       scriptEditorCta: "Call to action",
       scriptEditorRemoveSection: "Remove this section",
+      scriptEditorRegenerateSection: "Regenerate with AI",
       scriptEditorRemoveLastWarning: "At least one section needs text.",
       scriptEditorSave: "Save script",
       scriptEditorSaving: "Re-rendering…",
@@ -1590,6 +1591,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       scriptEditorMessage: "الرسالة",
       scriptEditorCta: "دعوة لاتخاذ إجراء",
       scriptEditorRemoveSection: "حذف هذا القسم",
+      scriptEditorRegenerateSection: "إعادة الإنشاء بالذكاء الاصطناعي",
       scriptEditorRemoveLastWarning: "يجب أن يحتوي قسم واحد على الأقل على نص.",
       scriptEditorSave: "حفظ النص",
       scriptEditorSaving: "جارٍ إعادة الإنتاج…",

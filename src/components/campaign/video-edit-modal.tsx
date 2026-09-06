@@ -10,7 +10,7 @@ import {
   editVideoScenes,
   uploadSceneMediaAsset,
 } from "@/lib/actions/video-edit";
-import { suggestVideoScriptEdit } from "@/lib/actions/video-script-ai-edit";
+import { suggestVideoScriptEdit, type SuggestVideoScriptEditState } from "@/lib/actions/video-script-ai-edit";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
@@ -233,6 +233,29 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
   };
   const activeCount = SCRIPT_KEYS.filter((key) => fields[key].trim()).length;
 
+  // Lifted out of AiScriptSuggestions (2026-09-07) so a per-section
+  // "Regenerate with AI" button — right next to that section's own
+  // "Remove this section," per this feature's real request — can
+  // trigger the exact same suggestion request/diff-preview the
+  // freeform/quick-action inputs already use, all landing in the one
+  // AiScriptSuggestions panel the user already knows to look at,
+  // instead of duplicating that preview UI five more times.
+  const [aiState, aiAction, aiPending] = useActionState(suggestVideoScriptEdit, undefined);
+  const [aiOutcome, setAiOutcome] = useState<"applied" | "discarded" | null>(null);
+  // Which section (if any) a REGENERATE button triggered the current
+  // request for — purely so that section's own button can show a real
+  // "Regenerating…" pending state instead of a generic one.
+  const [regeneratingKey, setRegeneratingKey] = useState<(typeof SCRIPT_KEYS)[number] | null>(null);
+
+  function runAiInstruction(text: string, sectionKey: (typeof SCRIPT_KEYS)[number] | null) {
+    setAiOutcome(null);
+    setRegeneratingKey(sectionKey);
+    const formData = new FormData();
+    formData.set("videoId", videoId);
+    formData.set("instruction", text);
+    startTransition(() => aiAction(formData));
+  }
+
   return (
     <form action={action} className="flex flex-col gap-3">
       <div>
@@ -242,21 +265,38 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
 
       {SCRIPT_KEYS.map((key) => {
         const isLastActive = activeCount === 1 && fields[key].trim().length > 0;
+        const isRegeneratingThis = aiPending && regeneratingKey === key;
         return (
           <div key={key} className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <label htmlFor={`script-${videoId}-${key}`} className="text-xs font-medium">
                 {labels[key]}
               </label>
-              <button
-                type="button"
-                disabled={isLastActive}
-                title={isLastActive ? dict.scriptEditorRemoveLastWarning : undefined}
-                onClick={() => setFields((f) => ({ ...f, [key]: "" }))}
-                className="text-xs font-medium text-ink-soft underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:text-ink-soft-dark dark:hover:text-ink-dark"
-              >
-                {dict.scriptEditorRemoveSection}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={aiPending}
+                  onClick={() =>
+                    runAiInstruction(
+                      `Rewrite only the ${key} section with completely fresh, different wording — keep every other section exactly as-is.`,
+                      key,
+                    )
+                  }
+                  className="flex items-center gap-1 text-xs font-medium text-ink-soft underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:text-ink-soft-dark dark:hover:text-ink-dark"
+                >
+                  {isRegeneratingThis && <Spinner />}
+                  {isRegeneratingThis ? dict.aiScriptEditSubmitting : dict.scriptEditorRegenerateSection}
+                </button>
+                <button
+                  type="button"
+                  disabled={isLastActive}
+                  title={isLastActive ? dict.scriptEditorRemoveLastWarning : undefined}
+                  onClick={() => setFields((f) => ({ ...f, [key]: "" }))}
+                  className="text-xs font-medium text-ink-soft underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:text-ink-soft-dark dark:hover:text-ink-dark"
+                >
+                  {dict.scriptEditorRemoveSection}
+                </button>
+              </div>
             </div>
             <textarea
               id={`script-${videoId}-${key}`}
@@ -270,7 +310,17 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
         );
       })}
 
-      <AiScriptSuggestions videoId={videoId} labels={labels} currentScript={fields} onApply={(updated) => setFields(updated)} />
+      <AiScriptSuggestions
+        videoId={videoId}
+        labels={labels}
+        currentScript={fields}
+        state={aiState}
+        pending={aiPending}
+        outcome={aiOutcome}
+        setOutcome={setAiOutcome}
+        runInstruction={(text) => runAiInstruction(text, null)}
+        onApply={(updated) => setFields(updated)}
+      />
 
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.editReRendersWholeVideo}</p>
       {state && "error" in state && (
@@ -279,9 +329,16 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
         </p>
       )}
       {state && "success" in state && (
-        <p role="status" className="text-green-700 dark:text-green-400">
-          {dict.scriptEditorSaved} {dict.editSuccessPreview}
-        </p>
+        <>
+          <p role="status" className="text-green-700 dark:text-green-400">
+            {dict.scriptEditorSaved} {dict.editSuccessPreview}
+          </p>
+          {state.warnings.map((warning) => (
+            <p key={warning} className="text-xs text-amber-600 dark:text-amber-400">
+              {warning}
+            </p>
+          ))}
+        </>
       )}
 
       <Button type="submit" size="sm" pending={pending} pendingLabel={dict.scriptEditorSaving}>
@@ -308,28 +365,29 @@ function AiScriptSuggestions({
   videoId,
   labels,
   currentScript,
+  state,
+  pending,
+  outcome,
+  setOutcome,
+  runInstruction,
   onApply,
 }: {
   videoId: string;
   labels: Record<(typeof SCRIPT_KEYS)[number], string>;
   currentScript: VideoScript;
+  // Lifted into ScriptEditorSection (2026-09-07) so the per-section
+  // "Regenerate with AI" buttons and this panel's own quick-action/
+  // freeform inputs all share one real request + one diff-preview UI,
+  // instead of duplicating it five more times.
+  state: SuggestVideoScriptEditState;
+  pending: boolean;
+  outcome: "applied" | "discarded" | null;
+  setOutcome: (outcome: "applied" | "discarded" | null) => void;
+  runInstruction: (text: string) => void;
   onApply: (script: VideoScript) => void;
 }) {
   const dict = useDict().video;
-  const [state, action, pending] = useActionState(suggestVideoScriptEdit, undefined);
   const [instruction, setInstruction] = useState("");
-  // null = no suggestion decided yet (or a fresh request is pending);
-  // once the user picks Apply/Discard, the diff box hides until the
-  // next request — a stale suggestion is never left applicable twice.
-  const [outcome, setOutcome] = useState<"applied" | "discarded" | null>(null);
-
-  function runInstruction(text: string) {
-    setOutcome(null);
-    const formData = new FormData();
-    formData.set("videoId", videoId);
-    formData.set("instruction", text);
-    startTransition(() => action(formData));
-  }
 
   const quickActions: { label: string; instruction: string }[] = [
     {
@@ -856,9 +914,16 @@ function SceneMediaSwapButton({
         </p>
       )}
       {state && "success" in state && (
-        <p role="status" className="text-green-700 dark:text-green-400">
-          {dict.sceneMediaSwapSaved}
-        </p>
+        <>
+          <p role="status" className="text-green-700 dark:text-green-400">
+            {dict.sceneMediaSwapSaved}
+          </p>
+          {state.warnings.map((warning) => (
+            <p key={warning} className="text-amber-600 dark:text-amber-400">
+              {warning}
+            </p>
+          ))}
+        </>
       )}
     </div>
   );
@@ -1027,9 +1092,16 @@ function NonNarratedSceneEditor({
         </p>
       )}
       {state && "success" in state && (
-        <p role="status" className="text-green-700 dark:text-green-400">
-          {dict.sceneEditorSaved} {dict.editSuccessPreview}
-        </p>
+        <>
+          <p role="status" className="text-green-700 dark:text-green-400">
+            {dict.sceneEditorSaved} {dict.editSuccessPreview}
+          </p>
+          {state.warnings.map((warning) => (
+            <p key={warning} className="text-xs text-amber-600 dark:text-amber-400">
+              {warning}
+            </p>
+          ))}
+        </>
       )}
 
       <Button type="submit" size="sm" pending={pending} pendingLabel={dict.sceneEditorSaving}>
