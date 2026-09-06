@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
 import { useDict } from "@/components/i18n/locale-provider";
-import { ActionIcons, NavIcons } from "@/components/icons";
+import { ActionIcons, NavIcons, SectionIcons } from "@/components/icons";
 import { SceneThumbnailStrip } from "@/components/campaign/scene-thumbnail-strip";
 
 export interface VideoSceneForEdit {
@@ -133,71 +133,83 @@ export function VideoEditModal({
             )}
           </div>
 
-          <form action={trimAction} className="flex flex-col gap-3">
-            <input type="hidden" name="trimStart" value={trimStart} />
-            <input type="hidden" name="trimEnd" value={trimEnd} />
+          <div className="flex flex-col gap-3 rounded-lg border border-paper-border p-3 dark:border-night-border">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+              <ActionIcons.trim size={16} aria-hidden="true" />
+              {dict.editVideoTrimSectionTitle}
+            </h3>
+            <form action={trimAction} className="flex flex-col gap-3">
+              <input type="hidden" name="trimStart" value={trimStart} />
+              <input type="hidden" name="trimEnd" value={trimEnd} />
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">
-                {dict.editVideoTrimStart}: {trimStart.toFixed(1)}s
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={duration || 1}
-                step={0.1}
-                value={trimStart}
-                disabled={duration === 0}
-                onChange={(e) => setTrimStart(Math.min(Number(e.target.value), trimEnd - 0.5))}
-                className="min-h-[48px] accent-current"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">{dict.editVideoTrimStart}</label>
+                  <span className="rounded-full bg-paper-card px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-ink-soft dark:bg-night-card dark:text-ink-soft-dark">
+                    {trimStart.toFixed(1)}s
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 1}
+                  step={0.1}
+                  value={trimStart}
+                  disabled={duration === 0}
+                  onChange={(e) => setTrimStart(Math.min(Number(e.target.value), trimEnd - 0.5))}
+                  className="min-h-[48px] accent-current"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">
-                {dict.editVideoTrimEnd}: {trimEnd.toFixed(1)}s
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={duration || 1}
-                step={0.1}
-                value={trimEnd}
-                disabled={duration === 0}
-                onChange={(e) => setTrimEnd(Math.max(Number(e.target.value), trimStart + 0.5))}
-                className="min-h-[48px] accent-current"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">{dict.editVideoTrimEnd}</label>
+                  <span className="rounded-full bg-paper-card px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-ink-soft dark:bg-night-card dark:text-ink-soft-dark">
+                    {trimEnd.toFixed(1)}s
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 1}
+                  step={0.1}
+                  value={trimEnd}
+                  disabled={duration === 0}
+                  onChange={(e) => setTrimEnd(Math.max(Number(e.target.value), trimStart + 0.5))}
+                  className="min-h-[48px] accent-current"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`overlay-${videoId}`} className="text-xs font-medium">
-                {dict.editVideoOverlayText}
-              </label>
-              <input
-                id={`overlay-${videoId}`}
-                name="overlayText"
-                type="text"
-                maxLength={80}
-                placeholder={dict.editVideoOverlayPlaceholder}
-                className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor={`overlay-${videoId}`} className="text-xs font-medium">
+                  {dict.editVideoOverlayText}
+                </label>
+                <input
+                  id={`overlay-${videoId}`}
+                  name="overlayText"
+                  type="text"
+                  maxLength={80}
+                  placeholder={dict.editVideoOverlayPlaceholder}
+                  className="rounded border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-2 py-1 text-base"
+                />
+              </div>
 
-            {trimState && "error" in trimState && (
-              <p role="alert" className="text-red-600 dark:text-red-400">
-                {trimState.error}
-              </p>
-            )}
-            {trimState && "success" in trimState && (
-              <p role="status" className="text-green-700 dark:text-green-400">
-                {dict.editVideoSaved}
-              </p>
-            )}
+              {trimState && "error" in trimState && (
+                <p role="alert" className="text-red-600 dark:text-red-400">
+                  {trimState.error}
+                </p>
+              )}
+              {trimState && "success" in trimState && (
+                <p role="status" className="text-green-700 dark:text-green-400">
+                  {dict.editVideoSaved}
+                </p>
+              )}
 
-            <Button type="submit" size="sm" pending={trimPending} pendingLabel={dict.editVideoSaving}>
-              {dict.editVideoSave}
-            </Button>
-          </form>
+              <Button type="submit" size="sm" pending={trimPending} pendingLabel={dict.editVideoSaving}>
+                {dict.editVideoSave}
+              </Button>
+            </form>
+          </div>
 
           <hr className="border-paper-border dark:border-night-border" />
 
@@ -259,7 +271,10 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
   return (
     <form action={action} className="flex flex-col gap-3">
       <div>
-        <h3 className="text-sm font-semibold">{dict.scriptEditorTitle}</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+          <SectionIcons.script size={16} aria-hidden="true" />
+          {dict.scriptEditorTitle}
+        </h3>
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.scriptEditorHint}</p>
       </div>
 
@@ -272,7 +287,7 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
               <label htmlFor={`script-${videoId}-${key}`} className="text-xs font-medium">
                 {labels[key]}
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   disabled={aiPending}
@@ -282,19 +297,20 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
                       key,
                     )
                   }
-                  className="flex items-center gap-1 text-xs font-medium text-ink-soft underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:text-ink-soft-dark dark:hover:text-ink-dark"
+                  className="flex items-center gap-1 rounded-full border border-paper-border px-2 py-1 text-[11px] font-medium text-ink-soft transition-colors hover:border-primary hover:text-ink disabled:cursor-not-allowed disabled:opacity-50 dark:border-night-border dark:text-ink-soft-dark dark:hover:border-primary-dark dark:hover:text-ink-dark"
                 >
-                  {isRegeneratingThis && <Spinner />}
+                  {isRegeneratingThis ? <Spinner /> : <ActionIcons.aiGenerate size={12} aria-hidden="true" />}
                   {isRegeneratingThis ? dict.aiScriptEditSubmitting : dict.scriptEditorRegenerateSection}
                 </button>
                 <button
                   type="button"
                   disabled={isLastActive}
                   title={isLastActive ? dict.scriptEditorRemoveLastWarning : undefined}
+                  aria-label={dict.scriptEditorRemoveSection}
                   onClick={() => setFields((f) => ({ ...f, [key]: "" }))}
-                  className="text-xs font-medium text-ink-soft underline hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 dark:text-ink-soft-dark dark:hover:text-ink-dark"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-paper-border text-ink-soft transition-colors hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-night-border dark:text-ink-soft-dark dark:hover:border-red-900 dark:hover:text-red-400"
                 >
-                  {dict.scriptEditorRemoveSection}
+                  <ActionIcons.remove size={13} aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -409,7 +425,10 @@ function AiScriptSuggestions({
 
   return (
     <div className="flex flex-col gap-2 rounded border border-paper-border dark:border-night-border p-2">
-      <h4 className="text-xs font-semibold">{dict.aiScriptEditTitle}</h4>
+      <h4 className="flex items-center gap-1.5 text-xs font-semibold">
+        <ActionIcons.aiGenerate size={14} aria-hidden="true" />
+        {dict.aiScriptEditTitle}
+      </h4>
 
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">{dict.aiScriptEditQuickActionsLabel}</span>
@@ -420,7 +439,7 @@ function AiScriptSuggestions({
               type="button"
               disabled={pending}
               onClick={() => runInstruction(qa.instruction)}
-              className="rounded-full border border-paper-border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-night-border"
+              className="rounded-full border border-paper-border px-2 py-1 text-xs transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-night-border dark:hover:border-primary-dark"
             >
               {qa.label}
             </button>
@@ -558,7 +577,10 @@ function NarratedSceneList({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold">{dict.sceneEditorTitle}</h3>
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <SectionIcons.scenes size={16} aria-hidden="true" />
+        {dict.sceneEditorTitle}
+      </h3>
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.sceneReorderDisabledNarrated}</p>
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.sceneDurationDisabledNarrated}</p>
       <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{dict.sceneRemoveGuidanceNarrated}</p>
@@ -1010,7 +1032,10 @@ function NonNarratedSceneEditor({
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="scenes" value={payload} />
-      <h3 className="text-sm font-semibold">{dict.sceneEditorTitle}</h3>
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        <SectionIcons.scenes size={16} aria-hidden="true" />
+        {dict.sceneEditorTitle}
+      </h3>
 
       <SceneThumbnailStrip
         editable

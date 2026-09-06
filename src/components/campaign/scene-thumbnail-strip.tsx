@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 
 import { useDict } from "@/components/i18n/locale-provider";
+import { ActionIcons } from "@/components/icons";
 
 export interface ThumbnailSceneItem {
   key: string;
@@ -105,12 +106,12 @@ export function SceneThumbnailStrip({
           ref={(el) => {
             cardRefs.current[i] = el;
           }}
-          className={`relative flex w-36 shrink-0 flex-col gap-1.5 rounded-lg border p-1.5 ${
+          className={`relative flex w-36 shrink-0 flex-col gap-1.5 rounded-lg border p-1.5 transition-shadow ${
             dragIndex === i
               ? "opacity-50"
               : overIndex === i && dragIndex !== null
-                ? "border-primary dark:border-primary-dark"
-                : "border-paper-border dark:border-night-border"
+                ? "border-primary shadow-sm dark:border-primary-dark"
+                : "border-paper-border hover:shadow-sm dark:border-night-border"
           }`}
         >
           <button
@@ -141,9 +142,9 @@ export function SceneThumbnailStrip({
               onClick={() => onRemove(i)}
               disabled={items.length === 1}
               aria-label={dict.sceneRemoveAria(i + 1)}
-              className="absolute end-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-night/70 text-base leading-none text-paper disabled:cursor-not-allowed disabled:opacity-40"
+              className="absolute end-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-night/70 text-paper disabled:cursor-not-allowed disabled:opacity-40"
             >
-              ×
+              <ActionIcons.dismiss size={16} aria-hidden="true" />
             </button>
           )}
 
@@ -165,7 +166,7 @@ export function SceneThumbnailStrip({
                 aria-label={dict.sceneDurationLabel}
                 className="min-h-[36px] flex-1 accent-current"
               />
-              <span className="w-8 shrink-0 text-end text-[11px] tabular-nums text-ink-soft dark:text-ink-soft-dark">
+              <span className="w-9 shrink-0 rounded-full bg-paper-card px-1.5 py-0.5 text-center text-[10px] font-medium tabular-nums text-ink-soft dark:bg-night-card dark:text-ink-soft-dark">
                 {item.durationSec.toFixed(1)}s
               </span>
             </div>
@@ -191,9 +192,9 @@ export function SceneThumbnailStrip({
                 onPointerUp={handleDragPointerUp}
                 onPointerCancel={handleDragPointerUp}
                 aria-label={dict.sceneDragHandleAria(i + 1)}
-                className="flex min-h-[36px] flex-1 touch-none items-center justify-center rounded border border-paper-border text-sm text-ink-soft active:cursor-grabbing dark:border-night-border dark:text-ink-soft-dark"
+                className="flex min-h-[36px] flex-1 touch-none items-center justify-center rounded border border-paper-border text-ink-soft active:cursor-grabbing dark:border-night-border dark:text-ink-soft-dark"
               >
-                ⠿
+                <ActionIcons.dragHandle size={16} aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -202,7 +203,7 @@ export function SceneThumbnailStrip({
                 aria-label={dict.sceneMoveUp}
                 className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded border border-paper-border disabled:cursor-not-allowed disabled:opacity-30 dark:border-night-border"
               >
-                ▲
+                <ActionIcons.moveUp size={16} aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -211,7 +212,7 @@ export function SceneThumbnailStrip({
                 aria-label={dict.sceneMoveDown}
                 className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded border border-paper-border disabled:cursor-not-allowed disabled:opacity-30 dark:border-night-border"
               >
-                ▼
+                <ActionIcons.moveDown size={16} aria-hidden="true" />
               </button>
             </div>
           )}
@@ -225,9 +226,9 @@ export function SceneThumbnailStrip({
             onClick={onAdd}
             disabled={maxItems !== undefined && items.length >= maxItems}
             aria-label={dict.sceneAddAria}
-            className="flex min-h-[44px] w-full flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-paper-border text-2xl text-ink-soft disabled:cursor-not-allowed disabled:opacity-40 dark:border-night-border dark:text-ink-soft-dark"
+            className="flex min-h-[44px] w-full flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-paper-border text-ink-soft transition-colors hover:border-primary disabled:cursor-not-allowed disabled:opacity-40 dark:border-night-border dark:text-ink-soft-dark dark:hover:border-primary-dark"
           >
-            +
+            <ActionIcons.add size={22} aria-hidden="true" />
           </button>
         </li>
       )}

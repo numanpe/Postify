@@ -43,6 +43,13 @@ import {
   Wand2,
   TrendingUp,
   ImagePlus,
+  X,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  Plus,
+  FileText,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -83,6 +90,28 @@ export const ActionIcons = {
   // context rather than an edit-in-place one.
   aiGenerate: Wand2,
   uploadMedia: ImagePlus,
+  // Video editor visual redesign (2026-09-07) — replaces literal
+  // unicode glyphs (×, ⠿, ▲/▼, +) that had crept into
+  // scene-thumbnail-strip.tsx with this app's own real icon system, the
+  // same "one shared icon per concept" rule this file's own top comment
+  // already states. dismiss and remove are deliberately different
+  // glyphs for different real actions: dismiss (X) is the small corner
+  // badge on a scene thumbnail ("take this one out of the list, right
+  // here"); remove (Trash2, already defined above) is the explicit
+  // "Remove this section" text action in the script editor — same
+  // real distinction most design systems draw between an inline
+  // dismiss and a deliberate delete.
+  dismiss: X,
+  dragHandle: GripVertical,
+  moveUp: ChevronUp,
+  moveDown: ChevronDown,
+  add: Plus,
+  trim: Scissors,
+} satisfies Record<string, LucideIcon>;
+
+export const SectionIcons = {
+  script: FileText,
+  scenes: Clapperboard,
 } satisfies Record<string, LucideIcon>;
 
 // lucide-react no longer ships per-brand logo marks (Instagram/

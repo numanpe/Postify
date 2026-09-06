@@ -134,7 +134,7 @@ export interface Dictionary {
     motionTemplate: string; motionTemplateStandard: string; motionTemplateStandardHint: string;
     motionTemplateLowerThird: string; motionTemplateLowerThirdHint: string;
     motionTemplateWaveform: string; motionTemplateWaveformHint: string;
-    editVideo: string; editVideoLoading: string; editVideoTrimStart: string; editVideoTrimEnd: string;
+    editVideo: string; editVideoLoading: string; editVideoTrimSectionTitle: string; editVideoTrimStart: string; editVideoTrimEnd: string;
     editVideoOverlayText: string; editVideoOverlayPlaceholder: string;
     editVideoSave: string; editVideoSaving: string; editVideoSaved: string; editVideoCancel: string;
     editReRendersWholeVideo: string; editSuccessPreview: string;
@@ -668,6 +668,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       motionTemplateWaveformHint: "A live waveform band reacts to the narration and music above the captions.",
       editVideo: "Edit Video",
       editVideoLoading: "Loading video…",
+      editVideoTrimSectionTitle: "Trim & overlay",
       editVideoTrimStart: "Trim start",
       editVideoTrimEnd: "Trim end",
       editVideoOverlayText: "Overlay text",
@@ -1573,6 +1574,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       motionTemplateWaveformHint: "شريط موجة صوتية حي يتفاعل مع التعليق الصوتي والموسيقى فوق الترجمة.",
       editVideo: "تعديل الفيديو",
       editVideoLoading: "جارٍ تحميل الفيديو…",
+      editVideoTrimSectionTitle: "القص والنص المُضاف",
       editVideoTrimStart: "بداية القص",
       editVideoTrimEnd: "نهاية القص",
       editVideoOverlayText: "نص فوق الفيديو",
