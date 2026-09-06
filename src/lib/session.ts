@@ -72,7 +72,18 @@ export const requireUser = cache(async function requireUser() {
     select: { status: true },
   });
   if (!record) {
-    redirect("/auth/login");
+    // Real bug found live (2026-09-07): this used to be a bare
+    // redirect("/auth/login") too — the exact same unsafe pattern the
+    // comment above already explains the danger of, just not applied
+    // here. A session cookie whose user id no longer exists in the DB
+    // stays cryptographically valid (redirect() doesn't clear
+    // cookies), so (auth)/layout.tsx's "already authenticated? bounce
+    // back to /" check immediately reverted this, producing the same
+    // class of infinite redirect loop — confirmed live via real
+    // production logs (a `/` <-> `/auth/login` cycle, no
+    // `/create-company` and no `/api/auth/force-signout` in the log,
+    // which is what pointed here specifically).
+    redirect("/api/auth/force-signout?status=session_expired");
   }
   if (record.status !== "ACTIVE") {
     redirect(`/api/auth/force-signout?status=${record.status.toLowerCase()}`);

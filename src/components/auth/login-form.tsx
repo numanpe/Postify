@@ -19,6 +19,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   suspended: "This account is suspended.",
   company_banned: "Your company account has been banned.",
   company_suspended: "Your company account is suspended.",
+  session_expired: "Your session has expired — please sign in again.",
 };
 
 export function LoginForm({ googleConfigured, status }: { googleConfigured: boolean; status?: string }) {
