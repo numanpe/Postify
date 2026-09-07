@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { editPoster, getPosterEditHistory, type PosterEditHistoryEntry } from "@/lib/actions/poster-edit";
 import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-sheet";
@@ -27,6 +28,24 @@ export function PosterEditModal({ posterId }: { posterId: string }) {
   const [state, action, pending] = useActionState(editPoster, undefined);
   const router = useRouter();
   const [history, setHistory] = useState<PosterEditHistoryEntry[] | null>(null);
+  const [instruction, setInstruction] = useState("");
+  // Tracks which success result's instruction field has already been
+  // cleared — compared during render (React's own recommended "adjust
+  // state while rendering" pattern, see the effect below) rather than
+  // via a second setState call inside the effect, which would trigger
+  // an extra cascading render for no real benefit here.
+  const [clearedForPosterId, setClearedForPosterId] = useState<string | null>(null);
+  if (state?.status === "success" && state.posterId !== clearedForPosterId) {
+    setClearedForPosterId(state.posterId);
+    setInstruction("");
+  }
+
+  const quickActions: { label: string; instruction: string }[] = [
+    { label: dict.editQuickBolderHeadline, instruction: "Make the headline bigger and bolder for more impact." },
+    { label: dict.editQuickNewBackground, instruction: "Generate a completely new background that still fits the brand colors." },
+    { label: dict.editQuickDifferentTemplate, instruction: "Switch to a different, more visually striking template." },
+    { label: dict.editQuickSimplify, instruction: "Simplify the text — shorter headline and subhead, easier to read at a glance." },
+  ];
 
   useEffect(() => {
     // A successful edit creates a brand-new Poster row (this app never
@@ -62,16 +81,34 @@ export function PosterEditModal({ posterId }: { posterId: string }) {
       <BottomSheet ref={sheetRef} title={dict.editTitle} closeLabel={dict.editCancel}>
         <form action={action} className="flex flex-col gap-3 pb-2">
           <input type="hidden" name="posterId" value={posterId} />
-          <div className="flex flex-col gap-1">
-            <label htmlFor="instruction" className="text-sm font-medium">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="instruction" className="flex items-center gap-1.5 text-sm font-medium">
+              <ActionIcons.aiGenerate size={14} aria-hidden="true" />
               {dict.editInstructionLabel}
             </label>
+
+            <span className="text-xs font-medium text-ink-soft dark:text-ink-soft-dark">{dict.editQuickActionsLabel}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {quickActions.map((qa) => (
+                <button
+                  key={qa.label}
+                  type="button"
+                  onClick={() => setInstruction(qa.instruction)}
+                  className="rounded-full border border-paper-border px-2 py-1 text-xs transition-colors hover:border-primary dark:border-night-border dark:hover:border-primary-dark"
+                >
+                  {qa.label}
+                </button>
+              ))}
+            </div>
+
             <textarea
               id="instruction"
               name="instruction"
               required
               rows={3}
               dir="auto"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
               placeholder={dict.editInstructionPlaceholder}
               className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
             />
@@ -137,12 +174,23 @@ export function PosterEditModal({ posterId }: { posterId: string }) {
             <h3 className="text-sm font-semibold">{dict.editHistoryTitle}</h3>
             <ul className="flex flex-col gap-2">
               {history.map((entry) => (
-                <li key={entry.posterId} className="text-sm">
-                  <span className="font-medium">{entry.editInstruction ?? dict.editHistoryOriginal}</span>
-                  <span className="text-ink-soft dark:text-ink-soft-dark">
-                    {" — "}
-                    {new Date(entry.createdAt).toLocaleString(locale === "ar" ? "ar" : "en")}
-                  </span>
+                <li key={entry.posterId} className="flex items-center gap-2.5">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-paper-border bg-paper-card dark:border-night-border dark:bg-night-card">
+                    <Image
+                      src={entry.thumbnailUrl}
+                      alt={entry.headline}
+                      fill
+                      sizes="48px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="flex min-w-0 flex-col text-sm">
+                    <span className="truncate font-medium">{entry.editInstruction ?? dict.editHistoryOriginal}</span>
+                    <span className="text-xs text-ink-soft dark:text-ink-soft-dark">
+                      {new Date(entry.createdAt).toLocaleString(locale === "ar" ? "ar" : "en")}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

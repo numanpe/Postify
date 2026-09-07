@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
 import { getCompanyContext } from "@/lib/company-context";
 import { getPickableMediaAssets } from "@/lib/media";
+import { storage } from "@/lib/storage";
 import { generatePosterCore, PosterGenerationError } from "@/lib/poster/generate";
 import { DEFAULT_GRADIENT } from "@/lib/providers/image/gradient-provider";
 import { getTextProviderForCompany } from "@/lib/providers/text/resolver";
@@ -163,6 +164,7 @@ export interface PosterEditHistoryEntry {
   headline: string;
   editInstruction: string | null;
   createdAt: Date;
+  thumbnailUrl: string;
 }
 
 export async function getPosterEditHistory(posterId: string): Promise<PosterEditHistoryEntry[]> {
@@ -175,13 +177,25 @@ export async function getPosterEditHistory(posterId: string): Promise<PosterEdit
   // grow unbounded in one request; 50 versions of one poster is already
   // far beyond realistic use.
   for (let i = 0; i < 50 && currentId; i++) {
-    const poster: { id: string; headline: string; editInstruction: string | null; createdAt: Date; parentPosterId: string | null } | null =
-      await db.poster.findFirst({
-        where: { id: currentId, companyId: company.id },
-        select: { id: true, headline: true, editInstruction: true, createdAt: true, parentPosterId: true },
-      });
+    const poster: {
+      id: string;
+      headline: string;
+      editInstruction: string | null;
+      createdAt: Date;
+      parentPosterId: string | null;
+      asset: { storageKey: string };
+    } | null = await db.poster.findFirst({
+      where: { id: currentId, companyId: company.id },
+      select: { id: true, headline: true, editInstruction: true, createdAt: true, parentPosterId: true, asset: { select: { storageKey: true } } },
+    });
     if (!poster) break;
-    chain.push({ posterId: poster.id, headline: poster.headline, editInstruction: poster.editInstruction, createdAt: poster.createdAt });
+    chain.push({
+      posterId: poster.id,
+      headline: poster.headline,
+      editInstruction: poster.editInstruction,
+      createdAt: poster.createdAt,
+      thumbnailUrl: storage.url(poster.asset.storageKey),
+    });
     currentId = poster.parentPosterId;
   }
   return chain;

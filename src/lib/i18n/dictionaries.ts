@@ -123,6 +123,8 @@ export interface Dictionary {
     editSubmit: string; editSubmitting: string; editCancel: string;
     editUnavailable: string; editCannotApply: string;
     editHistoryTitle: string; editHistoryOriginal: string;
+    editQuickActionsLabel: string; editQuickBolderHeadline: string; editQuickNewBackground: string;
+    editQuickDifferentTemplate: string; editQuickSimplify: string;
   };
   video: {
     title: string; subtitle: (name: string) => string; previousVideos: string; topic: string;
@@ -629,6 +631,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       editCannotApply: "That request isn't something this editor can do:",
       editHistoryTitle: "Edit history",
       editHistoryOriginal: "Original",
+      editQuickActionsLabel: "Quick ideas",
+      editQuickBolderHeadline: "Bolder headline",
+      editQuickNewBackground: "New background",
+      editQuickDifferentTemplate: "Different template",
+      editQuickSimplify: "Simplify text",
       generate: "Generate poster",
       generating: "Generating…",
     },
@@ -1535,6 +1542,11 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       editCannotApply: "هذا الطلب ليس شيئًا يمكن لهذا المحرر فعله:",
       editHistoryTitle: "سجل التعديلات",
       editHistoryOriginal: "الأصلي",
+      editQuickActionsLabel: "أفكار سريعة",
+      editQuickBolderHeadline: "عنوان أكثر جرأة",
+      editQuickNewBackground: "خلفية جديدة",
+      editQuickDifferentTemplate: "قالب مختلف",
+      editQuickSimplify: "تبسيط النص",
       generate: "إنشاء الملصق",
       generating: "جارٍ الإنشاء…",
     },
