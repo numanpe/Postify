@@ -283,7 +283,15 @@ async function VideoMode({
                 key={video.id}
                 className="flex flex-col gap-1 rounded-lg border border-paper-border dark:border-night-border p-2"
               >
-                <video src={storage.url(video.asset.storageKey)} controls className="w-full rounded-md bg-black" />
+                <video
+                  src={storage.url(video.asset.storageKey)}
+                  // Real first-scene thumbnail instead of a black frame
+                  // while metadata loads — same real fix as the Edit
+                  // Video modal's own preview player.
+                  poster={video.scenes[0] ? (resolveSceneThumbnailUrl(video.scenes[0]) ?? undefined) : undefined}
+                  controls
+                  className="w-full rounded-md bg-black"
+                />
                 <p className="truncate text-xs font-medium" title={video.topic}>
                   {video.topic}
                 </p>

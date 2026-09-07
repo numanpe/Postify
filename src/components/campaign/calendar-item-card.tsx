@@ -160,6 +160,10 @@ export async function CalendarItemCard({
         // Burned-in captions are already part of the rendered video itself.
         <video
           src={storage.url(item.video.asset.storageKey)}
+          // Real first-scene thumbnail instead of a black frame while
+          // metadata loads — same real fix as the Edit Video modal's
+          // own preview player.
+          poster={item.video.scenes[0] ? (resolveSceneThumbnailUrl(item.video.scenes[0]) ?? undefined) : undefined}
           controls
           muted
           className="aspect-square w-full rounded bg-black object-cover"

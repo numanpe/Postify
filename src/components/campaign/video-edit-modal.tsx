@@ -115,6 +115,11 @@ export function VideoEditModal({
           <div className="relative">
             <video
               src={videoUrl}
+              // Real first-scene thumbnail (already captured server-side,
+              // see scene-thumbnails.ts) instead of the browser's default
+              // black frame while metadata loads — a real, relevant
+              // preview image, not a placeholder graphic.
+              poster={scenes[0]?.thumbnailUrl ?? undefined}
               controls
               className="max-h-[38vh] w-full rounded bg-black object-contain"
               onLoadedMetadata={(e) => {

@@ -2,6 +2,8 @@
 
 import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 
+import { ActionIcons } from "@/components/icons";
+
 export interface BottomSheetHandle {
   showModal: () => void;
   close: () => void;
@@ -99,9 +101,11 @@ export const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(funct
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="flex min-h-[48px] min-w-[48px] items-center justify-center text-xs underline md:min-h-0 md:min-w-0"
+            aria-label={closeLabel}
+            title={closeLabel}
+            className="flex min-h-[48px] min-w-[48px] items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper-card hover:text-ink dark:text-ink-soft-dark dark:hover:bg-night-card dark:hover:text-ink-dark"
           >
-            {closeLabel}
+            <ActionIcons.dismiss size={18} aria-hidden="true" />
           </button>
         </div>
 
