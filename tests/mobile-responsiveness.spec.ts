@@ -41,7 +41,13 @@ test.describe("EN / LTR", () => {
 
   test("Text inputs render at >=16px to avoid iOS auto-zoom", async ({ page }) => {
     await page.goto("/brand-kit");
-    const urlInput = page.locator('input[name="websiteUrl"]');
+    // /brand-kit genuinely has two separate real forms that happen to
+    // share name="websiteUrl" — brand-kit-form.tsx's own "Import from a
+    // website" field, and public-bio-form.tsx's distinct link-in-bio
+    // "Website (optional)" field. .first() picks the first real one
+    // (the import field); either is equally valid for this font-size
+    // check since both are the same shared input styling.
+    const urlInput = page.locator('input[name="websiteUrl"]').first();
     await expect(urlInput).toBeVisible();
     const fontSize = await urlInput.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
     expect(fontSize).toBeGreaterThanOrEqual(16);
