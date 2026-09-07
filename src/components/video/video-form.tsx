@@ -157,7 +157,13 @@ export function VideoForm({
       </div>
 
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="useNarration" defaultChecked={narrationAvailable} disabled={!narrationAvailable} />
+        <input
+          type="checkbox"
+          name="useNarration"
+          defaultChecked={narrationAvailable}
+          disabled={!narrationAvailable}
+          className="accent-current"
+        />
         {dict.narration}
         {!narrationAvailable && <span className="text-ink-soft dark:text-ink-soft-dark">{dict.narrationHint}</span>}
       </label>
@@ -191,7 +197,7 @@ export function VideoForm({
             {assets.map((asset) => (
               <li key={asset.id}>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="assetIds" value={asset.id} />
+                  <input type="checkbox" name="assetIds" value={asset.id} className="accent-current" />
                   <span className="truncate">{asset.fileName}</span>
                   <span className="text-xs text-ink-soft dark:text-ink-soft-dark">
                     {asset.mimeType.startsWith("video/") ? dict.kindVideo : dict.kindPhoto}

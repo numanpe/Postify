@@ -4,6 +4,8 @@ import { disconnectSocialAccount } from "@/lib/actions/publish";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { requiresAppReview } from "@/lib/providers/social/platform-status";
+import { EmptyState } from "@/components/empty-state";
+import { NavIcons } from "@/components/icons";
 
 interface ConnectedAccount {
   id: string;
@@ -48,7 +50,11 @@ export async function ConnectAccounts({ accounts }: { accounts: ConnectedAccount
       </div>
 
       {accounts.length === 0 ? (
-        <p className="text-sm text-ink-soft dark:text-ink-soft-dark">{dict.noAccounts}</p>
+        // Same shared EmptyState primitive as every other "nothing here
+        // yet" moment (Media Library, Inbox, Campaigns, Share modal) —
+        // this used to be a bare <p>, inconsistent with the rest of the
+        // app's real empty states.
+        <EmptyState icon={NavIcons.publish} title={dict.noAccounts} hint={dict.noAccountsHint} />
       ) : (
         <ul className="flex flex-col gap-2">
           {accounts.map((account) => {

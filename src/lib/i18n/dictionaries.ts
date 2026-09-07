@@ -204,7 +204,7 @@ export interface Dictionary {
     connectedError: (detail: string) => string; noPostersYetPrefix: string;
     noPostersYetSuffix: string; connectFirst: string; processingHint: (n: number) => string;
     zernioRecommendedNote: string;
-    connectedAccounts: string; connectButton: string; noAccounts: string;
+    connectedAccounts: string; connectButton: string; noAccounts: string; noAccountsHint: string;
     reconnectNeeded: string; disconnect: string; publishTo: string; poster: string;
     caption: string; when: string; whenHint: string; queuePost: string; queuing: string;
     autoSchedule: string; autoScheduling: string;
@@ -828,8 +828,9 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         `${n} job${n === 1 ? " is" : "s are"} queued — this app doesn't have a real scheduler wired up in this environment, so click to process the queue yourself (production would run this automatically; see README).`,
       connectedAccounts: "Connected accounts",
       connectButton: "Connect Facebook / Instagram",
-      noAccounts:
-        "No accounts connected yet. Connecting requires a Facebook Page you administer — an Instagram Business account linked to that Page connects automatically.",
+      noAccounts: "No accounts connected yet.",
+      noAccountsHint:
+        "Connecting requires a Facebook Page you administer — an Instagram Business account linked to that Page connects automatically.",
       reconnectNeeded: "reconnect needed",
       disconnect: "Disconnect",
       publishTo: "Publish to",
@@ -1740,8 +1741,8 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
         `${n} ${n === 1 ? "مهمة" : "مهام"} قيد الانتظار — لا يوجد مجدول تلقائي حقيقي في هذه البيئة، لذا اضغط للمعالجة يدويًا (في الإنتاج ستتم هذه العملية تلقائيًا).`,
       connectedAccounts: "الحسابات المتصلة",
       connectButton: "ربط فيسبوك / إنستغرام",
-      noAccounts:
-        "لا توجد حسابات متصلة بعد. يتطلب الربط صفحة فيسبوك تديرها أنت — سيتم ربط حساب إنستغرام للأعمال المرتبط بها تلقائيًا.",
+      noAccounts: "لا توجد حسابات متصلة بعد.",
+      noAccountsHint: "يتطلب الربط صفحة فيسبوك تديرها أنت — سيتم ربط حساب إنستغرام للأعمال المرتبط بها تلقائيًا.",
       reconnectNeeded: "يلزم إعادة الربط",
       disconnect: "قطع الاتصال",
       publishTo: "النشر إلى",
