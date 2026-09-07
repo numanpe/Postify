@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AspectRatio, Prisma, SceneKind as PrismaSceneKind, VideoTemplate } from "@prisma/client";
+import type { AspectRatio, Prisma, SceneKind as PrismaSceneKind, VideoTemplate, VideoMusicMood } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getCompanyContext } from "@/lib/company-context";
@@ -11,7 +11,7 @@ import { getVoiceProviderForCompany } from "@/lib/providers/voice/resolver";
 import { getAiImageProviderForCompany } from "@/lib/providers/image/resolver";
 import { VoiceProviderError } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
-import { getMusicForIndustry } from "@/lib/video/music";
+import { getMusicTrack } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
 import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
 import {
@@ -58,6 +58,8 @@ interface LoadedVideo {
   aspectRatio: AspectRatio;
   template: VideoTemplate;
   hasNarration: boolean;
+  musicTrack: VideoMusicMood | null;
+  musicVolume: number;
   scenes: LoadedScene[];
 }
 
@@ -110,9 +112,9 @@ async function buildRenderContext(companyId: string, video: LoadedVideo): Promis
   };
 }
 
-async function fetchMusicAndLogo(companyId: string, industry: Industry) {
+async function fetchMusicAndLogo(companyId: string, industry: Industry, musicTrack: VideoMusicMood | null) {
   const [musicBuffer, brandKit] = await Promise.all([
-    getMusicForIndustry(industry),
+    getMusicTrack(industry, musicTrack),
     db.brandKit.findUnique({ where: { companyId }, include: { logoAsset: true } }),
   ]);
   const logoBuffer = brandKit?.logoAsset ? await storage.get(brandKit.logoAsset.storageKey) : null;
@@ -179,18 +181,80 @@ async function loadRealAssetFallbackPool(
   return [...fresh, ...reused];
 }
 
+// Shared by both real branches below (a runtime provider failure, and
+// "no provider was even resolvable") — an already-generated still for
+// this same request, then one of the company's own real uploads.
+// Returns null when both are empty so the caller can throw its own
+// honest, context-specific message instead of a generic one.
+async function tryPoolFallback(
+  companyId: string,
+  pool: SceneImagePool,
+  reasonMessage: string,
+  fromProviderLabel: string,
+): Promise<{ buffer: Buffer; mimeType: string; kind: SceneKind; mediaAssetId: string | null } | null> {
+  if (pool.freeAiStills.length > 0) {
+    const reused = pool.freeAiStills[0];
+    pool.warnings.push(`${reasonMessage} Reused a background already generated for this video instead.`);
+    await logProviderFallback({
+      companyId,
+      capability: "IMAGE",
+      method: "generateBackground",
+      fromProvider: fromProviderLabel,
+      toProvider: "reused an already-generated background for this video",
+      reason: reasonMessage,
+    });
+    return { buffer: reused.buffer, mimeType: reused.mimeType, kind: "AI_STILL", mediaAssetId: null };
+  }
+  if (pool.realAssets.length > 0) {
+    const asset = pool.realAssets[0];
+    const buffer = await storage.get(asset.storageKey);
+    const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
+    pool.warnings.push(`${reasonMessage} Used one of your uploaded photos/videos for this scene instead.`);
+    await logProviderFallback({
+      companyId,
+      capability: "IMAGE",
+      method: "generateBackground",
+      fromProvider: fromProviderLabel,
+      toProvider: "reused a real uploaded photo/video for this scene",
+      reason: reasonMessage,
+    });
+    return { buffer, mimeType: asset.mimeType, kind, mediaAssetId: asset.id };
+  }
+  return null;
+}
+
 // The real resilience chain: the requested AI generation (itself
 // already BYOK -> shared pool, see getAiImageProviderForCompany) ->
 // an AI still this request already generated -> one of the company's
 // own real uploads -> only THEN the honest "temporarily busy" error.
 // A user should see that error only when every one of these has
 // genuinely been exhausted, not on the first provider hiccup.
+//
+// Real bug fixed here (found live, 2026-09-07): imageResolution is
+// `null` not just on a runtime failure but ALSO whenever nothing is
+// resolvable up front — most commonly the shared pool's own daily
+// quota already being exhausted (resolveSharedImagePoolForVideo
+// returns null pre-flight in that case, see shared-image-pool.ts).
+// Every call site used to throw immediately on a null resolution,
+// completely bypassing this same fallback chain — so "Generate with
+// AI" on a scene failed outright the instant the shared free quota
+// ran out for the day, even for a company with real uploaded photos
+// sitting right there in its own Media Library. Folding the
+// null-resolution case into this one function (instead of leaving each
+// caller to special-case it) means every caller gets the same real
+// fallback tiers regardless of *why* no fresh generation is possible.
 async function generateSceneImageWithFallback(
   companyId: string,
-  imageResolution: NonNullable<Awaited<ReturnType<typeof getAiImageProviderForCompany>>>,
+  imageResolution: Awaited<ReturnType<typeof getAiImageProviderForCompany>>,
   params: { companyName: string; industry: Industry; tone: string; topic: string; widthPx: number; heightPx: number },
   pool: SceneImagePool,
+  unavailableMessage: string,
 ): Promise<{ buffer: Buffer; mimeType: string; kind: SceneKind; mediaAssetId: string | null }> {
+  if (!imageResolution) {
+    const fallback = await tryPoolFallback(companyId, pool, unavailableMessage, "no AI image provider configured");
+    if (fallback) return fallback;
+    throw new VideoEditError(unavailableMessage);
+  }
   try {
     const result = await imageResolution.provider.generateBackground(params);
     if (imageResolution.source === "SHARED_POOL") {
@@ -199,34 +263,8 @@ async function generateSceneImageWithFallback(
     return { buffer: result.buffer, mimeType: result.mimeType, kind: "AI_STILL", mediaAssetId: null };
   } catch (error) {
     if (!(error instanceof ImageProviderError)) throw error;
-    if (pool.freeAiStills.length > 0) {
-      const reused = pool.freeAiStills[0];
-      pool.warnings.push(`${honestImageErrorMessage(error)} Reused a background already generated for this video instead.`);
-      await logProviderFallback({
-        companyId,
-        capability: "IMAGE",
-        method: "generateBackground",
-        fromProvider: error.providerName,
-        toProvider: "reused an already-generated background for this video",
-        reason: error.message,
-      });
-      return { buffer: reused.buffer, mimeType: reused.mimeType, kind: "AI_STILL", mediaAssetId: null };
-    }
-    if (pool.realAssets.length > 0) {
-      const asset = pool.realAssets[0];
-      const buffer = await storage.get(asset.storageKey);
-      const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
-      pool.warnings.push(`${honestImageErrorMessage(error)} Used one of your uploaded photos/videos for this scene instead.`);
-      await logProviderFallback({
-        companyId,
-        capability: "IMAGE",
-        method: "generateBackground",
-        fromProvider: error.providerName,
-        toProvider: "reused a real uploaded photo/video for this scene",
-        reason: error.message,
-      });
-      return { buffer, mimeType: asset.mimeType, kind, mediaAssetId: asset.id };
-    }
+    const fallback = await tryPoolFallback(companyId, pool, honestImageErrorMessage(error), error.providerName);
+    if (fallback) return fallback;
     throw new VideoEditError(honestImageErrorMessage(error));
   }
 }
@@ -240,6 +278,12 @@ async function persistRender(
   // never silent, always surfaced alongside the render's own real
   // quality-gate warnings below.
   extraWarnings: string[] = [],
+  // Real per-video music control (Music Picker, 2026-09-07) — persisted
+  // here so a music choice survives every future edit, the same way
+  // scriptUpdate persists a script change. Every caller passes its own
+  // effective track/volume (either the video's existing saved choice,
+  // unchanged, or a real new one from the editor), never omitted.
+  musicUpdate?: { track: VideoMusicMood | null; volume: number },
 ) {
   const storageKey = buildStorageKey(video.companyId, `video-edit-${Date.now()}.mp4`);
   await storage.put(storageKey, rendered.mp4);
@@ -279,6 +323,7 @@ async function persistRender(
     data: {
       assetId: newAsset.id,
       ...(scriptUpdate ? { script: scriptUpdate as unknown as Prisma.InputJsonValue } : {}),
+      ...(musicUpdate ? { musicTrack: musicUpdate.track, musicVolume: musicUpdate.volume } : {}),
       scenes: {
         create: scenePlans.map((plan, i) => ({
           order: i,
@@ -359,6 +404,12 @@ async function reRenderNarratedVideo(
   // branch) — carried through so it still reaches the user even though
   // this function builds its own separate pool for the OTHER sections.
   overrideWarnings: string[] = [],
+  // Real per-video music control (Music Picker, 2026-09-07) — omitted
+  // by every caller that isn't the music editor itself, in which case
+  // the video's own already-saved choice (video.musicTrack/musicVolume)
+  // is kept exactly as-is, same "don't touch what wasn't asked about"
+  // rule mediaOverride already follows for the other scenes.
+  musicOverride?: { track: VideoMusicMood | null; volume: number },
 ): Promise<{ videoId: string; warnings: string[] }> {
   const activeKeys = SCRIPT_SECTION_KEYS.filter((key) => newScript[key].trim());
   if (activeKeys.length === 0) {
@@ -372,41 +423,57 @@ async function reRenderNarratedVideo(
     );
   }
   const fullScriptText = activeKeys.map((key) => newScript[key]).join(" ... ");
-  let narrationBuffer: Buffer;
-  let narrationWords;
-  try {
-    const narrationResult = await voiceProvider.generateNarration({ text: fullScriptText });
-    narrationBuffer = narrationResult.audioBuffer;
-    narrationWords = narrationResult.words;
-  } catch (error) {
-    if (error instanceof VoiceProviderError) {
-      throw new VideoEditError(honestVoiceErrorMessage(error));
-    }
-    throw error;
-  }
+
+  // Real performance fix (found live, 2026-09-07): the render context
+  // lookup, AI image provider resolution, and real-asset fallback pool
+  // are three DB round-trips with zero dependency on narration — they
+  // used to sit blocked behind the narration TTS call (a real,
+  // multi-second network request) purely because they were written
+  // sequentially after it. This app's own DB is cross-region from
+  // Vercel (see project_performance_region_mismatch), so each of those
+  // round-trips is real, non-trivial latency, not a rounding error.
+  // Running them concurrently with narration costs nothing (none of the
+  // three ever depend on narration's result) and removes that latency
+  // from the critical path entirely.
+  const [narrationResult, renderCtx, imageResolution, realAssetsPool] = await Promise.all([
+    voiceProvider.generateNarration({ text: fullScriptText }).catch((error) => {
+      if (error instanceof VoiceProviderError) throw new VideoEditError(honestVoiceErrorMessage(error));
+      throw error;
+    }),
+    buildRenderContext(companyId, video),
+    getAiImageProviderForCompany(companyId),
+    loadRealAssetFallbackPool(
+      companyId,
+      new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
+    ),
+  ]);
+  const narrationBuffer = narrationResult.audioBuffer;
+  const narrationWords = narrationResult.words;
 
   const sectionTimings = computeSectionTimingsFromWords(newScript, narrationWords);
   const totalDurationSec = sectionTimings[sectionTimings.length - 1].endSec;
 
-  const renderCtx = await buildRenderContext(companyId, video);
   const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
-  const imageResolution = await getAiImageProviderForCompany(companyId);
   // Same shared-quota fairness cap as the main generation pipeline (see
   // generate.ts) — a script re-edit can touch multiple sections at
   // once, so this loop can call the free pool as many times as
   // generate.ts's initial pass can.
   const MAX_FREE_AI_STILLS_PER_EDIT = 2;
   const existingByKey = new Map(video.scenes.filter((s) => s.scriptKey).map((s) => [s.scriptKey as string, s]));
-  const pool: SceneImagePool = {
-    freeAiStills: [],
-    realAssets: imageResolution
-      ? await loadRealAssetFallbackPool(
-          companyId,
-          new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
-        )
-      : [],
-    warnings: [],
-  };
+  // realAssets loaded regardless of whether imageResolution resolved —
+  // it's the fallback for BOTH a runtime failure and "nothing
+  // resolvable at all" now (see generateSceneImageWithFallback's own
+  // doc comment).
+  const pool: SceneImagePool = { freeAiStills: [], realAssets: realAssetsPool, warnings: [] };
+
+  // Effective music choice: a real new pick from the music editor wins;
+  // otherwise the video's own already-saved choice is kept unchanged.
+  const effectiveMusic = musicOverride ?? { track: video.musicTrack, volume: video.musicVolume };
+
+  // Music/logo fetch has no dependency on narration or the per-scene
+  // loop below either — started now, only awaited right before
+  // renderVideo actually needs it (same real reasoning as above).
+  const musicAndLogoPromise = fetchMusicAndLogo(companyId, renderCtx.industry, effectiveMusic.track);
 
   const scenePlans: ScenePlan[] = [];
   for (const section of sectionTimings) {
@@ -444,14 +511,12 @@ async function reRenderNarratedVideo(
     // Either this scene was AI_STILL (never persisted — real, disclosed
     // limitation, see this feature's design notes) or it's a
     // newly-reintroduced section with no prior scene to reuse. Both
-    // cases need a fresh generation.
-    if (!imageResolution) {
-      throw new VideoEditError(
-        `No saved photo/video exists for "${section.key}" and no AI image provider is configured — add an OpenAI/Gemini key in Settings, choose a real photo/video for this scene instead, or try again shortly if today's free AI visual quota is temporarily used up.`,
-      );
-    }
+    // cases need a fresh generation — generateSceneImageWithFallback
+    // itself now handles "no provider resolvable at all" via the same
+    // real fallback tiers as a runtime failure, so there's no early
+    // throw here anymore.
     const atFreePoolCap =
-      imageResolution.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+      imageResolution?.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
     if (atFreePoolCap && pool.freeAiStills.length > 0) {
       const reused = pool.freeAiStills[scenePlans.length % pool.freeAiStills.length];
       scenePlans.push({
@@ -471,6 +536,7 @@ async function reRenderNarratedVideo(
       imageResolution,
       { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: section.text, widthPx: width, heightPx: height },
       pool,
+      `No saved photo/video exists for "${section.key}" and no AI image provider is configured — add an OpenAI/Gemini key in Settings, choose a real photo/video for this scene instead, or try again shortly if today's free AI visual quota is temporarily used up.`,
     );
     scenePlans.push({
       section,
@@ -484,7 +550,7 @@ async function reRenderNarratedVideo(
     });
   }
 
-  const { musicBuffer, logoBuffer, brandAccentColor } = await fetchMusicAndLogo(companyId, renderCtx.industry);
+  const { musicBuffer, logoBuffer, brandAccentColor } = await musicAndLogoPromise;
 
   const rendered = await renderVideo({
     scenes: scenePlans.map(({ section, kind, buffer, mimeType }) => ({ section, kind, buffer, mimeType })),
@@ -493,6 +559,7 @@ async function reRenderNarratedVideo(
     narrationBuffer,
     narrationWords,
     musicBuffer,
+    musicVolume: effectiveMusic.volume,
     totalDurationSec,
     script: newScript,
     companyLocale: renderCtx.companyLocale,
@@ -501,7 +568,7 @@ async function reRenderNarratedVideo(
     brandAccentColor,
   });
 
-  return persistRender(video, rendered, scenePlans, newScript, [...overrideWarnings, ...pool.warnings]);
+  return persistRender(video, rendered, scenePlans, newScript, [...overrideWarnings, ...pool.warnings], effectiveMusic);
 }
 
 // Public: edit a narrated video's script text. Empty section text
@@ -510,12 +577,18 @@ export async function editNarratedVideoScript(
   videoId: string,
   companyId: string,
   newScript: VideoScriptSections,
+  // Real Music Picker (2026-09-07) — the script editor's own "Save
+  // script" is the one save action every narrated-video edit already
+  // goes through, so a real music change rides along on the same
+  // submit rather than needing a separate re-render request. Omitted
+  // (undefined) keeps the video's existing saved music unchanged.
+  musicOverride?: { track: VideoMusicMood | null; volume: number },
 ): Promise<{ videoId: string; warnings: string[] }> {
   const video = await loadEditableVideo(videoId, companyId);
   if (!video.hasNarration) {
     throw new VideoEditError("This video has no narration — edit its scenes directly instead.");
   }
-  return reRenderNarratedVideo(companyId, video, newScript);
+  return reRenderNarratedVideo(companyId, video, newScript, undefined, [], musicOverride);
 }
 
 // Public: swap ONE scene's media on a narrated video, script text
@@ -541,28 +614,25 @@ export async function swapNarratedVideoSceneMedia(
     const kind: SceneKind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
     override = { scriptKey: sceneScriptKey, kind, buffer, mimeType: asset.mimeType, mediaAssetId: asset.id };
   } else {
-    const renderCtx = await buildRenderContext(companyId, video);
-    const imageResolution = await getAiImageProviderForCompany(companyId);
-    if (!imageResolution) {
-      throw new VideoEditError(
-        "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
-      );
-    }
-    const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
-    const sectionText = video.script[sceneScriptKey as keyof VideoScriptSections] ?? video.topic;
-    const pool: SceneImagePool = {
-      freeAiStills: [],
-      realAssets: await loadRealAssetFallbackPool(
+    // Three independent DB round-trips — run concurrently rather than
+    // as sequential awaits (same real fix as reRenderNarratedVideo).
+    const [renderCtx, imageResolution, realAssetsPool] = await Promise.all([
+      buildRenderContext(companyId, video),
+      getAiImageProviderForCompany(companyId),
+      loadRealAssetFallbackPool(
         companyId,
         new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
       ),
-      warnings: [],
-    };
+    ]);
+    const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
+    const sectionText = video.script[sceneScriptKey as keyof VideoScriptSections] ?? video.topic;
+    const pool: SceneImagePool = { freeAiStills: [], realAssets: realAssetsPool, warnings: [] };
     const generated = await generateSceneImageWithFallback(
       companyId,
       imageResolution,
       { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: sectionText, widthPx: width, heightPx: height },
       pool,
+      "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
     );
     override = {
       scriptKey: sceneScriptKey,
@@ -598,6 +668,10 @@ export async function editNonNarratedVideoScenes(
   videoId: string,
   companyId: string,
   editedScenes: EditableSceneInput[],
+  // Real Music Picker (2026-09-07) — same "rides along on the one real
+  // save action" reasoning as editNarratedVideoScript. Omitted keeps
+  // the video's existing saved music unchanged.
+  musicOverride?: { track: VideoMusicMood | null; volume: number },
 ): Promise<{ videoId: string; warnings: string[] }> {
   const video = await loadEditableVideo(videoId, companyId);
   if (video.hasNarration) {
@@ -624,14 +698,23 @@ export async function editNonNarratedVideoScenes(
     throw new VideoEditError(`The total video length can't exceed ${MAX_TOTAL_DURATION_SEC}s.`);
   }
 
-  const renderCtx = await buildRenderContext(companyId, video);
-  const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
   const existingById = new Map(video.scenes.map((s) => [s.id, s]));
-  // Fetched once, not per-scene (a real, incidental efficiency fix
-  // alongside the resilience one below — this used to call
+  const { width, height } = POSTER_DIMENSIONS[video.aspectRatio];
+  // Three independent DB round-trips — run concurrently rather than as
+  // sequential awaits (real fix, same as the narrated-video paths
+  // above; this app's DB is cross-region from Vercel, so each of these
+  // round-trips is real, non-trivial latency). imageResolution is
+  // fetched once, not per-scene, for the same reason (this used to call
   // getAiImageProviderForCompany fresh inside the loop on every scene
   // that needed AI, up to MAX_SCENES times per submission).
-  const imageResolution = await getAiImageProviderForCompany(companyId);
+  const [renderCtx, imageResolution, realAssetsPool] = await Promise.all([
+    buildRenderContext(companyId, video),
+    getAiImageProviderForCompany(companyId),
+    loadRealAssetFallbackPool(
+      companyId,
+      new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
+    ),
+  ]);
   // Same shared-quota fairness cap as the main generation pipeline (see
   // generate.ts) — a single edit submission can touch up to MAX_SCENES
   // (10) scenes at once, so unbounded regeneration here could burn far
@@ -640,16 +723,20 @@ export async function editNonNarratedVideoScenes(
   // implicit "unchanged AI_STILL scene wasn't persisted, redo it"
   // paths below, since both draw on the same quota in the same request.
   const MAX_FREE_AI_STILLS_PER_EDIT = 2;
-  const pool: SceneImagePool = {
-    freeAiStills: [],
-    realAssets: imageResolution
-      ? await loadRealAssetFallbackPool(
-          companyId,
-          new Set(video.scenes.map((s) => s.mediaAssetId).filter((id): id is string => !!id)),
-        )
-      : [],
-    warnings: [],
-  };
+  // realAssets loaded regardless of whether imageResolution resolved —
+  // it's the fallback for BOTH a runtime failure and "nothing
+  // resolvable at all" now (see generateSceneImageWithFallback's own
+  // doc comment).
+  const pool: SceneImagePool = { freeAiStills: [], realAssets: realAssetsPool, warnings: [] };
+
+  // Effective music choice: a real new pick from the music editor wins;
+  // otherwise the video's own already-saved choice is kept unchanged.
+  const effectiveMusic = musicOverride ?? { track: video.musicTrack, volume: video.musicVolume };
+
+  // Music/logo fetch has no dependency on the per-scene loop below —
+  // started now, only awaited right before renderVideo actually needs
+  // it.
+  const musicAndLogoPromise = fetchMusicAndLogo(companyId, renderCtx.industry, effectiveMusic.track);
 
   const scenePlans: ScenePlan[] = [];
   for (const edited of editedScenes) {
@@ -669,14 +756,8 @@ export async function editNonNarratedVideoScenes(
       kind = asset.mimeType.startsWith("video/") ? "REAL_VIDEO" : "REAL_PHOTO";
       mediaAssetId = asset.id;
     } else if (needsAi) {
-      if (!imageResolution) {
-        throw new VideoEditError(
-          existing?.kind === "AI_STILL"
-            ? "This scene's AI background wasn't saved and no AI image provider is configured anymore — choose a real photo/video for it instead."
-            : "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
-        );
-      }
-      const atFreePoolCap = imageResolution.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
+      const atFreePoolCap =
+        imageResolution?.source === "SHARED_POOL" && pool.freeAiStills.length >= MAX_FREE_AI_STILLS_PER_EDIT;
       if (atFreePoolCap && pool.freeAiStills.length > 0) {
         const reused = pool.freeAiStills[scenePlans.length % pool.freeAiStills.length];
         buffer = reused.buffer;
@@ -689,6 +770,9 @@ export async function editNonNarratedVideoScenes(
           imageResolution,
           { companyName: renderCtx.companyName, industry: renderCtx.industry, tone: renderCtx.tone, topic: edited.overlayText, widthPx: width, heightPx: height },
           pool,
+          existing?.kind === "AI_STILL"
+            ? "This scene's AI background wasn't saved and no AI image provider is configured anymore — choose a real photo/video for it instead."
+            : "Add an OpenAI/Gemini key in Settings, or try again shortly — today's free AI visual quota may be temporarily used up.",
         );
         buffer = generated.buffer;
         mimeType = generated.mimeType;
@@ -724,7 +808,7 @@ export async function editNonNarratedVideoScenes(
   });
   const totalDurationSec = timings[timings.length - 1].endSec;
 
-  const { musicBuffer, logoBuffer, brandAccentColor } = await fetchMusicAndLogo(companyId, renderCtx.industry);
+  const { musicBuffer, logoBuffer, brandAccentColor } = await musicAndLogoPromise;
   const syntheticScript = synthesizeScriptForRender(scenePlans.map((p) => ({ text: p.overlayText ?? "" })));
 
   const rendered = await renderVideo({
@@ -734,6 +818,7 @@ export async function editNonNarratedVideoScenes(
     narrationBuffer: null,
     narrationWords: undefined,
     musicBuffer,
+    musicVolume: effectiveMusic.volume,
     totalDurationSec,
     script: syntheticScript,
     companyLocale: renderCtx.companyLocale,
@@ -742,5 +827,5 @@ export async function editNonNarratedVideoScenes(
     brandAccentColor,
   });
 
-  return persistRender(video, rendered, scenePlans, undefined, pool.warnings);
+  return persistRender(video, rendered, scenePlans, undefined, pool.warnings, effectiveMusic);
 }
