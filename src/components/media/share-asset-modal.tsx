@@ -8,7 +8,10 @@ import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-shee
 import { useDict } from "@/components/i18n/locale-provider";
 import { ActionIcons } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { InstagramAudioPicker } from "@/components/media/instagram-audio-picker";
+
+const CAPTION_MAX_LENGTH = 2200;
 
 export interface ShareTargetOption {
   key: string;
@@ -66,6 +69,7 @@ export function ShareAssetModal({
 
   const eligibleTargets = targets.filter((t) => (assetKind === "video" ? t.acceptsVideo : t.acceptsImages));
   const [targetKey, setTargetKey] = useState(eligibleTargets[0]?.key ?? "");
+  const [caption, setCaption] = useState(defaultCaption);
 
   const success = state && "success" in state;
   useEffect(() => {
@@ -88,47 +92,56 @@ export function ShareAssetModal({
       </button>
       <BottomSheet ref={sheetRef} title={dict.shareTitle} closeLabel={dict.shareCancel}>
         {eligibleTargets.length === 0 ? (
-          <div className="flex flex-col gap-2 pb-4 text-sm">
-            {/* Real bug fixed here (found live via a Direct-Facebook-only
-                company sharing a video): targets.length > 0 but
-                eligibleTargets.length === 0 means the company HAS real
-                connected accounts, none of which support this asset's
-                kind (Direct Meta never supports video — see
-                platform-status.ts's VIDEO_ONLY_PLATFORMS). The old copy
-                said "No connected accounts yet" regardless, which reads
-                as "you haven't connected anything" when that's false —
-                and its only link pointed to /publish (the Direct-connect
-                page), not Settings' aggregator options, which is what
-                would actually unlock this. Never a redirect either way —
-                just a link inside this same modal. */}
-            {/* A second, more specific empty case found live
-                (2026-09-03): a company can have a genuinely saved,
-                selected Zernio credential with zero usable targets
-                because its account-ID mapping is empty/unparseable —
-                real connection, still "no accounts" from targets.length's
-                point of view, but "connect an account" is false (one IS
-                connected) and /publish is the wrong destination (it
-                never lists aggregator connections at all). Checked
-                first since it's the most specific real cause. */}
-            <p className="text-ink-soft dark:text-ink-soft-dark">
-              {targets.length > 0
-                ? assetKind === "video"
-                  ? dict.shareNoEligibleAccountsVideo
-                  : dict.shareNoEligibleAccountsPoster
-                : aggregatorMisconfigured
-                  ? dict.shareAggregatorMisconfigured
-                  : dict.shareNoAccounts}
-            </p>
-            <a
-              href={targets.length > 0 || aggregatorMisconfigured ? "/settings" : connectAccountsHref}
-              className="underline underline-offset-2"
-            >
-              {targets.length > 0
-                ? dict.shareNoEligibleAccountsHint
-                : aggregatorMisconfigured
-                  ? dict.shareAggregatorMisconfiguredHint
-                  : dict.shareNoAccountsHint}
-            </a>
+          // Real bug fixed here (found live via a Direct-Facebook-only
+          // company sharing a video): targets.length > 0 but
+          // eligibleTargets.length === 0 means the company HAS real
+          // connected accounts, none of which support this asset's
+          // kind (Direct Meta never supports video — see
+          // platform-status.ts's VIDEO_ONLY_PLATFORMS). The old copy
+          // said "No connected accounts yet" regardless, which reads
+          // as "you haven't connected anything" when that's false —
+          // and its only link pointed to /publish (the Direct-connect
+          // page), not Settings' aggregator options, which is what
+          // would actually unlock this. Never a redirect either way —
+          // just a link inside this same modal.
+          //
+          // A second, more specific empty case found live
+          // (2026-09-03): a company can have a genuinely saved,
+          // selected Zernio credential with zero usable targets
+          // because its account-ID mapping is empty/unparseable —
+          // real connection, still "no accounts" from targets.length's
+          // point of view, but "connect an account" is false (one IS
+          // connected) and /publish is the wrong destination (it
+          // never lists aggregator connections at all). Checked
+          // first since it's the most specific real cause.
+          //
+          // Reuses the app's one shared EmptyState primitive (Media
+          // Library, Inbox, Campaigns) instead of a bespoke text block
+          // — same real reason every other "nothing here yet" moment
+          // uses it: consistent visual weight instead of a bare
+          // sentence.
+          <div className="pb-4">
+            <EmptyState
+              icon={ActionIcons.share}
+              title={
+                targets.length > 0
+                  ? assetKind === "video"
+                    ? dict.shareNoEligibleAccountsVideo
+                    : dict.shareNoEligibleAccountsPoster
+                  : aggregatorMisconfigured
+                    ? dict.shareAggregatorMisconfigured
+                    : dict.shareNoAccounts
+              }
+              action={{
+                href: targets.length > 0 || aggregatorMisconfigured ? "/settings" : connectAccountsHref,
+                label:
+                  targets.length > 0
+                    ? dict.shareNoEligibleAccountsHint
+                    : aggregatorMisconfigured
+                      ? dict.shareAggregatorMisconfiguredHint
+                      : dict.shareNoAccountsHint,
+              }}
+            />
           </div>
         ) : (
           <form action={action} className="flex flex-col gap-4 pb-4">
@@ -157,16 +170,28 @@ export function ShareAssetModal({
             {assetKind === "video" && instagramAudioAvailable && <InstagramAudioPicker />}
 
             <div className="flex flex-col gap-1">
-              <label htmlFor="caption" className="text-sm font-medium">
-                {dict.shareCaption}
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="caption" className="text-sm font-medium">
+                  {dict.shareCaption}
+                </label>
+                <span
+                  className={`text-xs ${
+                    CAPTION_MAX_LENGTH - caption.length <= 100
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-ink-soft dark:text-ink-soft-dark"
+                  }`}
+                >
+                  {dict.shareCaptionCharsLeft(CAPTION_MAX_LENGTH - caption.length)}
+                </span>
+              </div>
               <textarea
                 id="caption"
                 name="caption"
                 required
                 rows={4}
-                maxLength={2200}
-                defaultValue={defaultCaption}
+                maxLength={CAPTION_MAX_LENGTH}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
                 className="rounded-md border border-paper-border dark:border-night-border bg-paper text-ink dark:bg-night-card dark:text-ink-dark px-3 py-2 text-base"
               />
             </div>

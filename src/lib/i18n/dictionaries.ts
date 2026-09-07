@@ -225,7 +225,7 @@ export interface Dictionary {
     shareNoEligibleAccountsVideo: string; shareNoEligibleAccountsPoster: string; shareNoEligibleAccountsHint: string;
     shareAggregatorMisconfigured: string; shareAggregatorMisconfiguredHint: string;
     shareWhen: string; shareWhenHint: string; sharePublishNow: string; sharePublishing: string;
-    shareSuccessNow: string; shareSuccessScheduled: string;
+    shareSuccessNow: string; shareSuccessScheduled: string; shareCaptionCharsLeft: (count: number) => string;
     audioBrowse: string; audioHint: string; audioMusic: string; audioOriginalSound: string;
     audioSearchPlaceholder: string; audioSearch: string; audioLoading: string; audioNoResults: string;
     audioUntitled: string; audioSelectedLabel: string; audioClear: string;
@@ -888,6 +888,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareAggregatorMisconfigured: "Your publishing provider is connected, but no platform account IDs are set up yet.",
       shareAggregatorMisconfiguredHint: "Add your account IDs in Settings → Publishing to finish connecting it.",
       shareCaption: "Caption",
+      shareCaptionCharsLeft: (count) => `${count} characters left`,
       shareWhen: "When",
       shareWhenHint: "(leave blank to publish now)",
       sharePublishNow: "Share",
@@ -1799,6 +1800,7 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       shareAggregatorMisconfigured: "مزوّد النشر متصل، لكن لم يتم إعداد معرّفات حسابات المنصات بعد.",
       shareAggregatorMisconfiguredHint: "أضف معرّفات حساباتك من الإعدادات ← النشر لإكمال الربط.",
       shareCaption: "التعليق",
+      shareCaptionCharsLeft: (count) => `${count} حرفًا متبقيًا`,
       shareWhen: "الموعد",
       shareWhenHint: "(اتركه فارغًا للنشر الآن)",
       sharePublishNow: "مشاركة",
