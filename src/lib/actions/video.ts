@@ -33,6 +33,15 @@ const VideoSchema = z.object({
     .enum(["STANDARD", "LOWER_THIRD_PROMO", "WAVEFORM_CAPTIONS"])
     .nullish()
     .transform((value) => value ?? "STANDARD"),
+  // Real Music Picker (2026-09-07) — "" (the picker's own "Auto" option)
+  // means industry-based auto-selection; preprocessed to undefined
+  // first since z.enum's nullish() doesn't treat an empty string as
+  // absent the way it does null/undefined.
+  musicTrack: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.enum(["CALM", "CONFIDENT", "UPBEAT", "WARM"]).optional(),
+  ).transform((value) => value ?? null),
+  musicVolume: z.coerce.number().min(0).max(100).nullish().transform((value) => value ?? 100),
 });
 
 export async function generateVideo(
@@ -47,6 +56,8 @@ export async function generateVideo(
     useNarration: formData.get("useNarration"),
     assetIds: formData.getAll("assetIds"),
     template: formData.get("template"),
+    musicTrack: formData.get("musicTrack"),
+    musicVolume: formData.get("musicVolume"),
   });
   if (!parsed.success) {
     return { status: "error", error: parsed.error.issues[0]?.message ?? "Invalid input." };

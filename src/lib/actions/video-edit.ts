@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { VideoMusicMood } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireCompany } from "@/lib/session";
@@ -18,6 +19,25 @@ import {
 import type { VideoScriptSections } from "@/lib/providers/text/types";
 
 export type EditVideoState = { error: string } | { success: true } | undefined;
+
+const MUSIC_MOODS: readonly VideoMusicMood[] = ["CALM", "CONFIDENT", "UPBEAT", "WARM"];
+
+// Real Music Picker (2026-09-07) — shared by both real save actions
+// below (editVideoScript / editVideoScenes), the two forms the music
+// editor UI actually lives in. Both fields are always submitted
+// together by that real UI; returning undefined here (rather than a
+// default track/volume) means "this submission didn't touch music,"
+// so scene-editor.ts correctly keeps the video's existing saved choice
+// instead of silently resetting it.
+function parseMusicOverride(formData: FormData): { track: VideoMusicMood | null; volume: number } | undefined {
+  const trackRaw = formData.get("musicTrack");
+  const volumeRaw = formData.get("musicVolume");
+  if (trackRaw === null && volumeRaw === null) return undefined;
+  const track = typeof trackRaw === "string" && (MUSIC_MOODS as string[]).includes(trackRaw) ? (trackRaw as VideoMusicMood) : null;
+  const parsedVolume = typeof volumeRaw === "string" ? Number(volumeRaw) : NaN;
+  const volume = Number.isFinite(parsedVolume) ? Math.max(0, Math.min(100, parsedVolume)) : 100;
+  return { track, volume };
+}
 
 async function revalidateVideoViews(videoId: string) {
   const video = await db.video.findUnique({
@@ -138,7 +158,7 @@ export async function editVideoScript(
   }
 
   try {
-    const result = await editNarratedVideoScript(videoId, company.id, newScript);
+    const result = await editNarratedVideoScript(videoId, company.id, newScript, parseMusicOverride(formData));
     await revalidateVideoViews(videoId);
     return { success: true, warnings: result.warnings };
   } catch (error) {
@@ -242,7 +262,7 @@ export async function editVideoScenes(
   }
 
   try {
-    const result = await editNonNarratedVideoScenes(videoId, company.id, editedScenes);
+    const result = await editNonNarratedVideoScenes(videoId, company.id, editedScenes, parseMusicOverride(formData));
     await revalidateVideoViews(videoId);
     return { success: true, warnings: result.warnings };
   } catch (error) {

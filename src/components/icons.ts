@@ -112,6 +112,7 @@ export const ActionIcons = {
 export const SectionIcons = {
   script: FileText,
   scenes: Clapperboard,
+  music: Music2,
 } satisfies Record<string, LucideIcon>;
 
 // lucide-react no longer ships per-brand logo marks (Instagram/

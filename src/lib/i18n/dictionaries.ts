@@ -136,6 +136,7 @@ export interface Dictionary {
     motionTemplate: string; motionTemplateStandard: string; motionTemplateStandardHint: string;
     motionTemplateLowerThird: string; motionTemplateLowerThirdHint: string;
     motionTemplateWaveform: string; motionTemplateWaveformHint: string;
+    musicTitle: string; musicTrackLabel: string; musicAuto: string; musicVolumeLabel: string;
     editVideo: string; editVideoLoading: string; editVideoTrimSectionTitle: string; editVideoTrimStart: string; editVideoTrimEnd: string;
     editVideoOverlayText: string; editVideoOverlayPlaceholder: string;
     editVideoSave: string; editVideoSaving: string; editVideoSaved: string; editVideoCancel: string;
@@ -673,6 +674,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       motionTemplateLowerThirdHint: "An animated banner slides in during the opening hook and the call to action.",
       motionTemplateWaveform: "Audio Waveform",
       motionTemplateWaveformHint: "A live waveform band reacts to the narration and music above the captions.",
+      musicTitle: "Music",
+      musicTrackLabel: "Track",
+      musicAuto: "Auto (matches your industry)",
+      musicVolumeLabel: "Volume",
       editVideo: "Edit Video",
       editVideoLoading: "Loading video…",
       editVideoTrimSectionTitle: "Trim & overlay",
@@ -1586,6 +1591,10 @@ export const dictionaries: Record<"en" | "ar", Dictionary> = {
       motionTemplateLowerThirdHint: "شريط متحرك ينزلق خلال الافتتاحية ودعوة اتخاذ الإجراء.",
       motionTemplateWaveform: "موجة صوتية",
       motionTemplateWaveformHint: "شريط موجة صوتية حي يتفاعل مع التعليق الصوتي والموسيقى فوق الترجمة.",
+      musicTitle: "الموسيقى",
+      musicTrackLabel: "المقطوعة",
+      musicAuto: "تلقائي (يطابق مجال نشاطك)",
+      musicVolumeLabel: "مستوى الصوت",
       editVideo: "تعديل الفيديو",
       editVideoLoading: "جارٍ تحميل الفيديو…",
       editVideoTrimSectionTitle: "القص والنص المُضاف",

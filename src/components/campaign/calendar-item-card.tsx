@@ -67,6 +67,8 @@ interface CalendarItemCardProps {
             mediaAsset: { id: string; fileName: string; storageKey: string } | null;
             thumbnailStorageKey: string | null;
           })[];
+          musicTrack: "CALM" | "CONFIDENT" | "UPBEAT" | "WARM" | null;
+          musicVolume: number;
         }
       | null;
     aggregatorPublishLogs: { succeeded: boolean; errorMessage: string | null }[];
@@ -257,6 +259,8 @@ export async function CalendarItemCard({
                 thumbnailUrl: resolveSceneThumbnailUrl(scene),
               }))}
               sceneMediaAssets={sceneMediaAssets}
+              musicTrack={item.video.musicTrack}
+              musicVolume={item.video.musicVolume}
             />
           )}
 

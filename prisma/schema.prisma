@@ -790,6 +790,17 @@ enum VideoTemplate {
   WAVEFORM_CAPTIONS // real audio-reactive waveform band (ffmpeg showwaves) above the captions
 }
 
+// The 4 real bundled tracks (src/lib/video/music.ts, CC BY 4.0,
+// attributed in Settings' MusicCredits) — one mood per value, matching
+// MOOD_FILES exactly. A video with no explicit choice (musicTrack null
+// on Video) keeps the original industry-based auto-selection.
+enum VideoMusicMood {
+  CALM
+  CONFIDENT
+  UPBEAT
+  WARM
+}
+
 // A rendered video. Like Poster, the actual output (`asset`) is a real
 // MP4 produced by src/lib/video/ — no placeholder is ever saved here.
 // `script` is the structured hook/context/value/message/CTA sections
@@ -810,6 +821,15 @@ model Video {
   // BYOK only (OpenAI TTS + Whisper word timestamps) — the free tier
   // ships without spoken narration. See README.md for why.
   hasNarration Boolean
+
+  // Real per-video music control (2026-09-07 Music Picker) — null means
+  // "auto-select by company industry," the original and still-default
+  // behavior (getMusicForIndustry). musicVolume is a real 0-100 user
+  // multiplier over the existing baseline mix level (0.9 ducked-under-
+  // narration / 0.5 solo in render.ts's mixAudioTrack) — 100 preserves
+  // exactly today's default behavior for every existing video.
+  musicTrack  VideoMusicMood?
+  musicVolume Int             @default(100)
 
   scenes VideoScene[]
 

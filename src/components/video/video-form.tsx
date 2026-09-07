@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TopicSuggestions, type TopicSuggestion } from "@/components/ui/topic-suggestions";
 import { useDict } from "@/components/i18n/locale-provider";
 import { NavIcons } from "@/components/icons";
+import { MusicPicker } from "@/components/video/music-picker";
 
 interface MediaAssetOption {
   id: string;
@@ -185,6 +186,8 @@ export function VideoForm({
         </select>
         <p className="text-xs text-ink-soft dark:text-ink-soft-dark">{templateHint}</p>
       </div>
+
+      <MusicPicker dict={dict} />
 
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">

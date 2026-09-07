@@ -220,7 +220,24 @@ export default async function MediaPage({
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((asset) => (
-            <li key={asset.id} className="flex flex-col gap-2 rounded-lg border border-paper-border dark:border-night-border p-2">
+            // Real bug fixed here (found live, 2026-09-07): a video/poster
+            // edit never mutates in place — it always creates a brand-new
+            // MediaAsset row and reassigns the parent Video/Poster's
+            // assetId (see scene-editor.ts's persistRender and poster-
+            // edit.ts's own doc comments). Keying this <li> by asset.id
+            // meant every successful edit's router.refresh() picked up
+            // that new id, which changed this list item's React key and
+            // silently unmounted the whole subtree — closing the open
+            // Edit modal (and any success/warning message it was mid-way
+            // through showing) the instant an edit actually succeeded.
+            // The real stable identity here is the underlying Video/
+            // Poster row, which keeps the same id across every edit; a
+            // raw uploaded photo/video has neither and keeps using its
+            // own asset.id, which is genuinely stable for that case.
+            <li
+              key={asset.videoOutput?.id ?? asset.posterOutput?.id ?? asset.id}
+              className="flex flex-col gap-2 rounded-lg border border-paper-border dark:border-night-border p-2"
+            >
               <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-paper-card dark:bg-night-card">
                 {asset.storageDeletedAt ? (
                   // The real file is gone (cleanupMediaStorage ran after
@@ -263,6 +280,8 @@ export default async function MediaPage({
                     thumbnailUrl: resolveSceneThumbnailUrl(scene),
                   }))}
                   sceneMediaAssets={sceneMediaAssets}
+                  musicTrack={asset.videoOutput.musicTrack}
+                  musicVolume={asset.videoOutput.musicVolume}
                 />
               )}
               {!asset.storageDeletedAt && asset.posterOutput?.backgroundSource === "AI" && (

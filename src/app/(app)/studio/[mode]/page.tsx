@@ -317,6 +317,8 @@ async function VideoMode({
                     thumbnailUrl: resolveSceneThumbnailUrl(scene),
                   }))}
                   sceneMediaAssets={assets}
+                  musicTrack={video.musicTrack}
+                  musicVolume={video.musicVolume}
                 />
               </li>
             ))}

@@ -17,6 +17,7 @@ import { BottomSheet, type BottomSheetHandle } from "@/components/ui/bottom-shee
 import { useDict } from "@/components/i18n/locale-provider";
 import { ActionIcons, NavIcons, SectionIcons } from "@/components/icons";
 import { SceneThumbnailStrip } from "@/components/campaign/scene-thumbnail-strip";
+import { MusicPicker } from "@/components/video/music-picker";
 
 export interface VideoSceneForEdit {
   id: string;
@@ -58,6 +59,8 @@ interface VideoScript {
   cta: string;
 }
 
+type MusicMood = "CALM" | "CONFIDENT" | "UPBEAT" | "WARM";
+
 interface VideoEditModalProps {
   videoId: string;
   videoUrl: string;
@@ -65,6 +68,8 @@ interface VideoEditModalProps {
   script: VideoScript;
   scenes: VideoSceneForEdit[];
   sceneMediaAssets: SceneMediaAssetOption[];
+  musicTrack: MusicMood | null;
+  musicVolume: number;
 }
 
 // Refreshes this Server Component subtree's data in place (new
@@ -87,6 +92,8 @@ export function VideoEditModal({
   script,
   scenes,
   sceneMediaAssets,
+  musicTrack,
+  musicVolume,
 }: VideoEditModalProps) {
   const dict = useDict().video;
   const sheetRef = useRef<BottomSheetHandle>(null);
@@ -220,12 +227,18 @@ export function VideoEditModal({
 
           {hasNarration ? (
             <>
-              <ScriptEditorSection videoId={videoId} script={script} />
+              <ScriptEditorSection videoId={videoId} script={script} musicTrack={musicTrack} musicVolume={musicVolume} />
               <hr className="border-paper-border dark:border-night-border" />
               <NarratedSceneList videoId={videoId} scenes={scenes} sceneMediaAssets={sceneMediaAssets} />
             </>
           ) : (
-            <NonNarratedSceneEditor videoId={videoId} scenes={scenes} sceneMediaAssets={sceneMediaAssets} />
+            <NonNarratedSceneEditor
+              videoId={videoId}
+              scenes={scenes}
+              sceneMediaAssets={sceneMediaAssets}
+              musicTrack={musicTrack}
+              musicVolume={musicVolume}
+            />
           )}
         </div>
       </BottomSheet>
@@ -235,7 +248,17 @@ export function VideoEditModal({
 
 const SCRIPT_KEYS = ["hook", "context", "value", "message", "cta"] as const;
 
-function ScriptEditorSection({ videoId, script }: { videoId: string; script: VideoScript }) {
+function ScriptEditorSection({
+  videoId,
+  script,
+  musicTrack,
+  musicVolume,
+}: {
+  videoId: string;
+  script: VideoScript;
+  musicTrack: MusicMood | null;
+  musicVolume: number;
+}) {
   const dict = useDict().video;
   const [fields, setFields] = useState<VideoScript>(script);
   const [state, action, pending] = useActionState(editVideoScript.bind(null, videoId), undefined);
@@ -342,6 +365,8 @@ function ScriptEditorSection({ videoId, script }: { videoId: string; script: Vid
         runInstruction={(text) => runAiInstruction(text, null)}
         onApply={(updated) => setFields(updated)}
       />
+
+      <MusicPicker dict={dict} defaultTrack={musicTrack} defaultVolume={musicVolume} />
 
       <p className="text-xs text-amber-600 dark:text-amber-400">{dict.editReRendersWholeVideo}</p>
       {state && "error" in state && (
@@ -981,10 +1006,14 @@ function NonNarratedSceneEditor({
   videoId,
   scenes,
   sceneMediaAssets,
+  musicTrack,
+  musicVolume,
 }: {
   videoId: string;
   scenes: VideoSceneForEdit[];
   sceneMediaAssets: SceneMediaAssetOption[];
+  musicTrack: MusicMood | null;
+  musicVolume: number;
 }) {
   const dict = useDict().video;
   const [rows, setRows] = useState<SceneRow[]>(() =>
@@ -1115,6 +1144,8 @@ function NonNarratedSceneEditor({
             </div>
           );
         })()}
+
+      <MusicPicker dict={dict} defaultTrack={musicTrack} defaultVolume={musicVolume} />
 
       {state && "error" in state && (
         <p role="alert" className="text-red-600 dark:text-red-400">

@@ -32,6 +32,12 @@ export interface RenderVideoInput {
   narrationBuffer?: Buffer | null; // present only when BYOK narration was generated
   narrationWords?: WordTimestamp[]; // for word-level captions; absent -> one caption per section
   musicBuffer: Buffer;
+  // Real user control (Music Picker, 2026-09-07) — 0-100, a multiplier
+  // over the existing baseline mix level below (0.9 ducked / 0.5 solo).
+  // Optional/defaults to 100 so every caller that predates this field
+  // (and every already-rendered video re-rendered without an explicit
+  // choice) keeps exactly today's mix.
+  musicVolume?: number;
   totalDurationSec: number;
   script: VideoScriptSections;
   companyLocale: "EN" | "AR";
@@ -159,17 +165,26 @@ async function concatScenes(scenePaths: string[], dir: string): Promise<string> 
 async function mixAudioTrack(
   narrationBuffer: Buffer | null | undefined,
   musicBuffer: Buffer,
+  musicVolume: number,
   totalDurationSec: number,
   dir: string,
 ): Promise<string> {
   const musicPath = await writeScratchFile(dir, "music.mp3", musicBuffer);
   const outPath = path.join(dir, "mixed-audio.m4a");
+  // musicVolume is a real 0-100 user-facing multiplier over the
+  // baseline mix levels below — clamped so a malformed/out-of-range
+  // value (never expected from the real UI's own 0-100 slider, but
+  // this function has no other guard) can't produce a negative or
+  // silently-huge ffmpeg volume filter.
+  const userMultiplier = Math.max(0, Math.min(100, musicVolume)) / 100;
 
   if (narrationBuffer) {
     const narrationPath = await writeScratchFile(dir, "narration.mp3", narrationBuffer);
     // Real auto-ducking: sidechaincompress lowers the music bus
     // whenever the narration bus is loud, not a static volume cut for
-    // the whole clip.
+    // the whole clip. The 0.9 baseline is unchanged; userMultiplier
+    // only scales it, so 100 (the default) reproduces the exact
+    // pre-existing mix.
     await runFfmpeg([
       "-i",
       narrationPath,
@@ -179,7 +194,7 @@ async function mixAudioTrack(
       musicPath,
       "-filter_complex",
       [
-        "[1:a]volume=0.9[music]",
+        `[1:a]volume=${(0.9 * userMultiplier).toFixed(3)}[music]`,
         "[0:a]asplit=2[narr1][narr2]",
         "[music][narr1]sidechaincompress=threshold=0.05:ratio=8:attack=50:release=400[ducked]",
         "[ducked][narr2]amix=inputs=2:duration=first:weights=1 1.4[aout]",
@@ -199,7 +214,7 @@ async function mixAudioTrack(
       "-i",
       musicPath,
       "-filter_complex",
-      "[0:a]volume=0.5[aout]",
+      `[0:a]volume=${(0.5 * userMultiplier).toFixed(3)}[aout]`,
       "-map",
       "[aout]",
       "-t",
@@ -455,6 +470,7 @@ export async function renderVideo(input: RenderVideoInput): Promise<RenderVideoO
     const mixedAudioPath = await mixAudioTrack(
       input.narrationBuffer,
       input.musicBuffer,
+      input.musicVolume ?? 100,
       input.totalDurationSec,
       dir,
     );

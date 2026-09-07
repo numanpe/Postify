@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AspectRatio, VideoTemplate } from "@prisma/client";
+import type { AspectRatio, VideoTemplate, VideoMusicMood } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getCompanyContext } from "@/lib/company-context";
@@ -14,7 +14,7 @@ import type { WordTimestamp } from "@/lib/providers/voice/types";
 import { ImageProviderError } from "@/lib/providers/image/types";
 import { IMAGE_SHARED_POOL_NAME } from "@/lib/providers/image/shared-image-pool";
 import { logProviderFallback, type FallbackInfo } from "@/lib/providers/fallback-log";
-import { getMusicForIndustry } from "@/lib/video/music";
+import { getMusicTrack } from "@/lib/video/music";
 import { renderVideo, type VideoSceneInput, type SceneKind } from "@/lib/video/render";
 import { captureSceneThumbnail } from "@/lib/video/scene-thumbnails";
 import {
@@ -50,6 +50,13 @@ export interface GenerateVideoCoreInput {
   // purpose POSTER_TEMPLATE_ROTATION already serves for posters at
   // this function's own campaign-item call site.
   variantIndex?: number;
+  // Real per-video music control (Music Picker, 2026-09-07) — omit/null
+  // for the original industry-based auto-selection; the campaign job
+  // processor doesn't pass one, same "no opinion" default as template.
+  musicTrack?: VideoMusicMood | null;
+  // 0-100, defaults to 100 (today's existing baseline mix) when absent
+  // — see render.ts's mixAudioTrack for what this actually scales.
+  musicVolume?: number;
 }
 
 export interface GenerateVideoCoreResult {
@@ -97,6 +104,8 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
   const { companyId, userId, topic, aspectRatio, useNarration } = input;
   const assetIds = input.assetIds ?? [];
   const template: VideoTemplate = input.template ?? "STANDARD";
+  const musicTrack = input.musicTrack ?? null;
+  const musicVolume = input.musicVolume ?? 100;
 
   const context = await getCompanyContext(companyId);
   const fallbackFrom: FallbackInfo[] = [];
@@ -310,8 +319,9 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     });
   }
 
-  // 5. Music — bundled library, auto-selected by industry tone.
-  const musicBuffer = await getMusicForIndustry(context.industry);
+  // 5. Music — bundled library; a real user pick (musicTrack) wins,
+  // otherwise auto-selected by industry tone.
+  const musicBuffer = await getMusicTrack(context.industry, musicTrack);
 
   // 6. Branding
   const brandKit = await db.brandKit.findUnique({
@@ -328,6 +338,7 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
     narrationBuffer,
     narrationWords,
     musicBuffer,
+    musicVolume,
     totalDurationSec,
     script,
     companyLocale: context.locale,
@@ -380,6 +391,8 @@ export async function generateVideoCore(input: GenerateVideoCoreInput): Promise<
       aspectRatio,
       template,
       hasNarration,
+      musicTrack,
+      musicVolume,
       scenes: {
         create: sceneProvenance.map((scene) => ({
           order: scene.order,
